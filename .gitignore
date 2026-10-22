@@ -1,29 +1,68 @@
-# Python virtual environment
+# ==========================================
+# Python / uv
+# ==========================================
 .venv/
-
-# Python cache
 __pycache__/
 *.py[cod]
 
+# ==========================================
+# Development tools / Cache
+# ==========================================
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# ==========================================
 # Jupyter Notebook
+# ==========================================
 .ipynb_checkpoints/
 
-# macOS
+# ==========================================
+# OS / IDE
+# ==========================================
 .DS_Store
-
-# VS Code (local settings)
 .vscode/
+.idea/
 
-# Environment variables and secrets
+# ==========================================
+# Environment variables / Secrets
+# ==========================================
 .env
 .env.*
+!.env.example
 
-# Model weights and training outputs
+# ==========================================
+# Datasets
+# ==========================================
+/data/
+/datasets/
+
+# ==========================================
+# Model weights / Checkpoints
+# ==========================================
 *.pt
 *.pth
 *.ckpt
-runs/
-outputs/
+*.onnx
+*.safetensors
+/weights/
+/checkpoints/
 
-# Dataset files
-data/
+# ==========================================
+# Training outputs / Experiment logs
+# ==========================================
+/runs/
+/outputs/
+/logs/
+/wandb/
+*.log
+
+# ==========================================
+# Build artifacts
+# ==========================================
+build/
+dist/
+*.egg-info/
