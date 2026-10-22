@@ -32,6 +32,9 @@ dev = [
     "ruff>=0.17.1",
 ]
 
+[tool.uv]
+required-version = "==0.13.4"
+
 [tool.uv.sources]
 torch = [
     { index = "pytorch-cu126", marker = "sys_platform == 'linux'" },
