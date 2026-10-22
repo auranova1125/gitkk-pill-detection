@@ -1,0 +1,26 @@
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# VS Code (local settings)
+.vscode/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Model weights and training outputs
+*.pt
+*.pth
+*.ckpt
+runs/
+outputs/
