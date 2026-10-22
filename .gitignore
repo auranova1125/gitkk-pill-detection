@@ -24,3 +24,6 @@ __pycache__/
 *.ckpt
 runs/
 outputs/
+
+# Dataset files
+data/
