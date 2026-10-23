@@ -1,7 +1,7 @@
 # 알약 이미지 Object Detection
 
 팀명: 깃크크크크(4팀)
-
+화이팅.
 사진 속 최대 4개 알약의 이름(클래스)과 위치(바운딩 박스)를 검출하는 협업 프로젝트입니다.
 
 Kaggle: [\[AI15\] 경구약제 이미지 객체 검출(Object Detection) 프로젝트](https://www.kaggle.com/competitions/ai15-level1-project/overview)
