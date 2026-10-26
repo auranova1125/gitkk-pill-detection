@@ -1,12 +1,16 @@
 """분류기 validation 평가와 지표 계산."""
 
+import json
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from math import isfinite
+from pathlib import Path
 from typing import Any
 
 import torch
 from torch import nn
+
+from classifier.input_validation import validate_batch, validate_class_map
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +57,47 @@ class EvaluationResult:
         values["per_class"] = [metric.to_dict() for metric in self.per_class]
         values["confusion_pairs"] = [pair.to_dict() for pair in self.confusion_pairs]
         return values
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationPrediction:
+    """validation 샘플 하나의 정답과 예측."""
+
+    sample_id: str
+    image_id: str
+    image_path: str
+    bbox_xywh: tuple[float, float, float, float]
+    group_id: str
+    drug_dir: str | None
+    target_class_index: int
+    predicted_class_index: int
+    target_category_id: int
+    predicted_category_id: int
+    target_item_seq: str
+    predicted_item_seq: str
+    classifier_score: float
+    correct: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        values = asdict(self)
+        values["bbox_xywh"] = list(self.bbox_xywh)
+        return values
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationArtifacts:
+    """best 모델의 validation 지표와 샘플별 결과."""
+
+    metrics: EvaluationResult
+    predictions: tuple[ValidationPrediction, ...]
+    error_samples: tuple[ValidationPrediction, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "metrics": self.metrics.to_dict(),
+            "predictions": [prediction.to_dict() for prediction in self.predictions],
+            "error_samples": [sample.to_dict() for sample in self.error_samples],
+        }
 
 
 def _validate_metric_inputs(
@@ -231,3 +276,135 @@ def evaluate_model(
         loss=total_loss / total_samples,
         max_confusion_pairs=max_confusion_pairs,
     )
+
+
+@torch.inference_mode()
+def evaluate_with_predictions(
+    model: nn.Module,
+    data_loader: Iterable[Mapping[str, Any]],
+    class_map: Mapping[str, Any],
+    criterion: nn.Module,
+    device: torch.device,
+    *,
+    expected_num_classes: int = 118,
+    max_confusion_pairs: int = 10,
+) -> ValidationArtifacts:
+    """validation 지표와 class map이 적용된 샘플별 예측을 함께 생성한다."""
+
+    validate_class_map(class_map, expected_num_classes=expected_num_classes)
+    class_lookup = {entry["class_index"]: entry for entry in class_map["classes"]}
+    model.eval()
+    use_amp = device.type == "cuda"
+    total_loss = 0.0
+    total_samples = 0
+    collected_logits: list[torch.Tensor] = []
+    collected_targets: list[torch.Tensor] = []
+    collected_meta: list[Mapping[str, Any]] = []
+
+    for batch in data_loader:
+        validate_batch(
+            batch,
+            class_map,
+            expected_num_classes=expected_num_classes,
+        )
+        images = batch["images"].to(device, non_blocking=use_amp)
+        targets = batch["targets"].to(device, non_blocking=use_amp)
+        with torch.autocast(device_type=device.type, enabled=use_amp):
+            logits = model(images)
+            loss = criterion(logits, targets)
+        if logits.ndim != 2 or logits.shape[1] != expected_num_classes:
+            raise ValueError(
+                "model logits must have shape "
+                f"[B, {expected_num_classes}], got {tuple(logits.shape)}"
+            )
+        if not torch.isfinite(logits).all():
+            raise ValueError("model logits must not contain NaN or Inf")
+
+        batch_size = targets.shape[0]
+        total_loss += float(loss.item()) * batch_size
+        total_samples += batch_size
+        collected_logits.append(logits.detach().cpu())
+        collected_targets.append(targets.detach().cpu())
+        collected_meta.extend(batch["meta"])
+
+    if total_samples == 0:
+        raise ValueError("data_loader must contain at least one sample")
+
+    all_logits = torch.cat(collected_logits)
+    all_targets = torch.cat(collected_targets)
+    metrics = compute_classification_metrics(
+        all_logits,
+        all_targets,
+        num_classes=expected_num_classes,
+        loss=total_loss / total_samples,
+        max_confusion_pairs=max_confusion_pairs,
+    )
+    probabilities = torch.softmax(all_logits.float(), dim=1)
+    classifier_scores, predicted_indices = probabilities.max(dim=1)
+    predictions: list[ValidationPrediction] = []
+    for meta, target_index, predicted_index, classifier_score in zip(
+        collected_meta,
+        all_targets.tolist(),
+        predicted_indices.tolist(),
+        classifier_scores.tolist(),
+        strict=True,
+    ):
+        target_entry = class_lookup[target_index]
+        predicted_entry = class_lookup[predicted_index]
+        prediction = ValidationPrediction(
+            sample_id=meta["sample_id"],
+            image_id=meta["image_id"],
+            image_path=meta["image_path"],
+            bbox_xywh=tuple(float(value) for value in meta["bbox_xywh"]),
+            group_id=meta["group_id"],
+            drug_dir=meta["drug_dir"],
+            target_class_index=target_index,
+            predicted_class_index=predicted_index,
+            target_category_id=target_entry["category_id"],
+            predicted_category_id=predicted_entry["category_id"],
+            target_item_seq=target_entry["item_seq"],
+            predicted_item_seq=predicted_entry["item_seq"],
+            classifier_score=classifier_score,
+            correct=target_index == predicted_index,
+        )
+        predictions.append(prediction)
+
+    error_samples = tuple(
+        prediction for prediction in predictions if not prediction.correct
+    )
+    return ValidationArtifacts(
+        metrics=metrics,
+        predictions=tuple(predictions),
+        error_samples=error_samples,
+    )
+
+
+def save_validation_artifacts(
+    artifacts: ValidationArtifacts,
+    output_dir: Path,
+) -> tuple[Path, Path]:
+    """validation 예측과 오분류 샘플을 JSON 파일로 저장한다."""
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    predictions_path = output_dir / "val_predictions.json"
+    errors_path = output_dir / "error_samples.json"
+    predictions_path.write_text(
+        json.dumps(
+            [prediction.to_dict() for prediction in artifacts.predictions],
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    errors_path.write_text(
+        json.dumps(
+            [sample.to_dict() for sample in artifacts.error_samples],
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return predictions_path, errors_path
