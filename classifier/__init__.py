@@ -7,10 +7,20 @@ from classifier.input_validation import (
     validate_class_map,
     validate_data_summary,
 )
+from classifier.model import (
+    TrainingStage,
+    build_model,
+    configure_model_for_stage,
+    set_model_train_mode,
+)
 
 __all__ = [
     "InputValidationError",
     "TrainConfig",
+    "TrainingStage",
+    "build_model",
+    "configure_model_for_stage",
+    "set_model_train_mode",
     "validate_batch",
     "validate_class_map",
     "validate_data_summary",

@@ -6,14 +6,23 @@ from typing import Any
 
 import pytest
 import torch
+from torch import nn
 from torch.utils.data import DataLoader, Dataset
+from torchvision.models import ResNet50_Weights
 
+import classifier.model as model_module
 from classifier.config import TrainConfig
 from classifier.input_validation import (
     InputValidationError,
     validate_batch,
     validate_class_map,
     validate_data_summary,
+)
+from classifier.model import (
+    TrainingStage,
+    build_model,
+    configure_model_for_stage,
+    set_model_train_mode,
 )
 
 NUM_CLASSES = 8
@@ -305,3 +314,103 @@ def test_validate_batch_requires_meta_list(
             class_map,
             expected_num_classes=NUM_CLASSES,
         )
+
+
+@pytest.mark.parametrize("num_classes", [0, -1])
+def test_build_model_rejects_non_positive_class_count(num_classes: int) -> None:
+    with pytest.raises(ValueError, match="greater than zero"):
+        build_model(num_classes, pretrained=False)
+
+
+def test_build_model_rejects_boolean_class_count() -> None:
+    with pytest.raises(TypeError, match="integer"):
+        build_model(True, pretrained=False)
+
+
+def test_build_model_uses_imagenet_v2_weights_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_resnet50 = model_module.resnet50
+    captured_weights: list[ResNet50_Weights | None] = []
+
+    def build_without_download(*, weights: ResNet50_Weights | None) -> nn.Module:
+        captured_weights.append(weights)
+        return original_resnet50(weights=None)
+
+    monkeypatch.setattr(model_module, "resnet50", build_without_download)
+
+    model = build_model(NUM_CLASSES)
+
+    assert captured_weights == [ResNet50_Weights.IMAGENET1K_V2]
+    assert model.fc.out_features == NUM_CLASSES
+
+
+def test_build_model_forward_and_backward() -> None:
+    model = build_model(NUM_CLASSES, pretrained=False)
+    configure_model_for_stage(model, TrainingStage.HEAD_ONLY)
+    set_model_train_mode(model)
+
+    images = torch.randn(2, 3, 224, 224)
+    logits = model(images)
+    logits.sum().backward()
+
+    assert logits.shape == (2, NUM_CLASSES)
+    assert model.fc.weight.grad is not None
+    assert model.conv1.weight.grad is None
+
+
+def test_head_only_stage_trains_only_fc() -> None:
+    model = build_model(NUM_CLASSES, pretrained=False)
+
+    configure_model_for_stage(model, TrainingStage.HEAD_ONLY)
+
+    trainable_names = {
+        name for name, parameter in model.named_parameters() if parameter.requires_grad
+    }
+    assert trainable_names == {"fc.weight", "fc.bias"}
+
+
+def test_layer4_stage_trains_layer4_without_batch_norm_and_fc() -> None:
+    model = build_model(NUM_CLASSES, pretrained=False)
+
+    configure_model_for_stage(model, TrainingStage.LAYER4_FINE_TUNING)
+
+    trainable_names = {
+        name for name, parameter in model.named_parameters() if parameter.requires_grad
+    }
+    assert trainable_names
+    assert all(name.startswith(("layer4.", "fc.")) for name in trainable_names)
+    assert model.layer4[0].conv1.weight.requires_grad
+    assert not model.layer4[0].bn1.weight.requires_grad
+    assert model.fc.weight.requires_grad
+    assert not model.layer3[-1].conv3.weight.requires_grad
+
+
+@pytest.mark.parametrize(
+    "stage",
+    [TrainingStage.HEAD_ONLY, TrainingStage.LAYER4_FINE_TUNING],
+)
+def test_frozen_batch_norm_stays_in_eval_mode(stage: TrainingStage) -> None:
+    model = build_model(NUM_CLASSES, pretrained=False)
+    configure_model_for_stage(model, stage)
+
+    set_model_train_mode(model)
+
+    batch_norm_modules = [
+        module for module in model.modules() if isinstance(module, nn.BatchNorm2d)
+    ]
+    assert model.training
+    assert batch_norm_modules
+    assert all(not module.training for module in batch_norm_modules)
+    assert all(
+        not parameter.requires_grad
+        for module in batch_norm_modules
+        for parameter in module.parameters()
+    )
+
+
+def test_configure_model_rejects_unknown_stage() -> None:
+    model = build_model(NUM_CLASSES, pretrained=False)
+
+    with pytest.raises(ValueError, match="stage must be one of"):
+        configure_model_for_stage(model, "unknown")
