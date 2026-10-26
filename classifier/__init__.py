@@ -1,5 +1,12 @@
 """경구약제 분류기 패키지."""
 
+from classifier.checkpoint import (
+    hash_class_map,
+    load_checkpoint,
+    restore_checkpoint_state,
+    save_checkpoint,
+    validate_checkpoint_compatibility,
+)
 from classifier.config import TrainConfig
 from classifier.evaluate import (
     ClassMetrics,
@@ -21,11 +28,14 @@ from classifier.model import (
     set_model_train_mode,
 )
 from classifier.train import (
+    EarlyStopping,
     TrainingEpochResult,
+    TrainingResult,
     build_grad_scaler,
     build_optimizer,
     build_scheduler,
     resolve_training_stage,
+    run_training,
     select_device,
     train_one_epoch,
 )
@@ -33,10 +43,12 @@ from classifier.train import (
 __all__ = [
     "ClassMetrics",
     "ConfusionPair",
+    "EarlyStopping",
     "EvaluationResult",
     "InputValidationError",
     "TrainConfig",
     "TrainingEpochResult",
+    "TrainingResult",
     "TrainingStage",
     "build_grad_scaler",
     "build_model",
@@ -45,11 +57,17 @@ __all__ = [
     "compute_classification_metrics",
     "configure_model_for_stage",
     "evaluate_model",
+    "hash_class_map",
+    "load_checkpoint",
     "resolve_training_stage",
+    "restore_checkpoint_state",
+    "run_training",
+    "save_checkpoint",
     "select_device",
     "set_model_train_mode",
     "train_one_epoch",
     "validate_batch",
+    "validate_checkpoint_compatibility",
     "validate_class_map",
     "validate_data_summary",
 ]
