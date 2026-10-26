@@ -15,6 +15,14 @@ from classifier.evaluate import (
     compute_classification_metrics,
     evaluate_model,
 )
+from classifier.inference import (
+    DetectionPrediction,
+    InferenceError,
+    InferenceResult,
+    load_inference_model,
+    predict_detections,
+    validate_detection_batch,
+)
 from classifier.input_validation import (
     InputValidationError,
     validate_batch,
@@ -43,8 +51,11 @@ from classifier.train import (
 __all__ = [
     "ClassMetrics",
     "ConfusionPair",
+    "DetectionPrediction",
     "EarlyStopping",
     "EvaluationResult",
+    "InferenceError",
+    "InferenceResult",
     "InputValidationError",
     "TrainConfig",
     "TrainingEpochResult",
@@ -59,6 +70,8 @@ __all__ = [
     "evaluate_model",
     "hash_class_map",
     "load_checkpoint",
+    "load_inference_model",
+    "predict_detections",
     "resolve_training_stage",
     "restore_checkpoint_state",
     "run_training",
@@ -70,4 +83,5 @@ __all__ = [
     "validate_checkpoint_compatibility",
     "validate_class_map",
     "validate_data_summary",
+    "validate_detection_batch",
 ]
