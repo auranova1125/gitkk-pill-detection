@@ -46,8 +46,11 @@ def restore_rng_state(state: dict[str, Any]) -> None:
 
     random.setstate(state["python"])
     np.random.set_state(state["numpy"])
-    torch.set_rng_state(state["torch"])
+    # checkpoint가 MPS/CUDA로 load되어도 RNG API에는 CPU ByteTensor를 전달한다.
+    torch.set_rng_state(state["torch"].cpu())
     if state["cuda"] is not None and torch.cuda.is_available():
-        torch.cuda.set_rng_state_all(state["cuda"])
+        torch.cuda.set_rng_state_all(
+            [device_state.cpu() for device_state in state["cuda"]]
+        )
     if state["mps"] is not None and torch.backends.mps.is_available():
-        torch.mps.set_rng_state(state["mps"])
+        torch.mps.set_rng_state(state["mps"].cpu())

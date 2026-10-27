@@ -21,7 +21,7 @@ from classifier.train import (
     select_device,
     train_one_epoch,
 )
-from common.reproducibility import set_seed
+from common.reproducibility import capture_rng_state, restore_rng_state, set_seed
 
 NUM_CLASSES = 8
 
@@ -75,6 +75,57 @@ def test_set_seed_reproduces_python_numpy_and_torch() -> None:
     assert first_values[0] == second_values[0]
     assert first_values[1] == second_values[1]
     assert torch.equal(first_values[2], second_values[2])
+
+
+def test_restore_rng_state_moves_device_tensors_to_cpu(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class DeviceState:
+        def __init__(self, value: torch.Tensor) -> None:
+            self.value = value
+            self.cpu_called = False
+
+        def cpu(self) -> torch.Tensor:
+            self.cpu_called = True
+            return self.value
+
+    original_state = capture_rng_state()
+    torch_state = DeviceState(original_state["torch"])
+    cuda_state = DeviceState(original_state["torch"].clone())
+    mps_state = DeviceState(original_state["torch"].clone())
+    restored: dict[str, Any] = {}
+
+    monkeypatch.setattr(
+        torch, "set_rng_state", lambda value: restored.update(torch=value)
+    )
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(
+        torch.cuda,
+        "set_rng_state_all",
+        lambda value: restored.update(cuda=value),
+    )
+    monkeypatch.setattr(torch.backends.mps, "is_available", lambda: True)
+    monkeypatch.setattr(
+        torch.mps,
+        "set_rng_state",
+        lambda value: restored.update(mps=value),
+    )
+
+    restore_rng_state(
+        {
+            **original_state,
+            "torch": torch_state,
+            "cuda": [cuda_state],
+            "mps": mps_state,
+        }
+    )
+
+    assert torch_state.cpu_called
+    assert cuda_state.cpu_called
+    assert mps_state.cpu_called
+    assert restored["torch"].device.type == "cpu"
+    assert restored["cuda"][0].device.type == "cpu"
+    assert restored["mps"].device.type == "cpu"
 
 
 def test_select_device_prefers_cuda(monkeypatch: pytest.MonkeyPatch) -> None:
