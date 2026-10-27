@@ -165,3 +165,24 @@ git merge origin/main
 모든 변경은 `main` 대상 PR로 제출합니다. 최소 1명의 리뷰와 승인을 받은 뒤 **Squash Merge**하고 작업 브랜치를 삭제합니다. 다음 작업은 다시 최신 `main`에서 시작합니다.
 
 상세 협업 규칙은 프로젝트 Notion을 참고합니다.
+
+## 분류기 구현
+
+`classifier/`에는 현재 118종을 대상으로 하는 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 클래스 수는 실행 시 `expected_num_classes`로 변경할 수 있습니다. 실제 데이터 구성 함수가 준비되면 `notebooks/train_classifier.ipynb`의 `data_factory_path`를 설정해 학습을 실행합니다.
+
+데이터 구성 함수와 DataLoader가 제공해야 하는 정확한 형식은 [`docs/classifier_input_spec.md`](docs/classifier_input_spec.md)를 참고합니다.
+
+전체 단위 테스트와 코드 검사는 다음 명령으로 실행합니다.
+
+```bash
+uv run pytest -q
+uv run ruff check classifier common tests
+uv run ruff format --check classifier common tests
+```
+
+학습 결과와 checkpoint는 `outputs/{run_name}/` 아래에 저장되며 Git에는 포함되지 않습니다. 실험 결과 요약은 `reports/classifier_report.md`에 기록합니다.
+## 구현 문서
+
+- [분류기 구현 계획서](docs/classifier_implementation_plan.md)
+- [단일 클래스 탐지기 구현 계획서](docs/detector_implementation_plan.md)
+- [단일 클래스 탐지기 입력 명세서](docs/detector_input_spec.md)
