@@ -205,6 +205,77 @@ def save_inference_artifacts(
     return predictions_path, errors_path
 
 
+def plot_detection_comparison(
+    image: torch.Tensor,
+    predictions: Sequence[DetectorPrediction],
+    *,
+    target: Mapping[str, Any] | None = None,
+    title: str | None = None,
+) -> Any:
+    """원본 이미지에 예측 bbox와 선택적인 정답 bbox를 함께 표시한다."""
+
+    from matplotlib import pyplot as plt
+    from matplotlib.patches import Rectangle
+
+    _validate_inference_image(image, index=0)
+    if isinstance(predictions, (str, bytes)) or not isinstance(predictions, Sequence):
+        raise TypeError("predictions must be a sequence")
+
+    figure, axis = plt.subplots(figsize=(8, 6))
+    axis.imshow(image.permute(1, 2, 0).numpy())
+    if title:
+        axis.set_title(title)
+
+    if target is not None:
+        boxes = target.get("boxes") if isinstance(target, Mapping) else None
+        if (
+            not isinstance(boxes, torch.Tensor)
+            or boxes.ndim != 2
+            or boxes.shape[1:] != (4,)
+        ):
+            raise ValueError("target boxes must be a tensor with shape [K, 4]")
+        for box in boxes.detach().cpu().tolist():
+            x1, y1, x2, y2 = box
+            axis.add_patch(
+                Rectangle(
+                    (x1, y1),
+                    x2 - x1,
+                    y2 - y1,
+                    fill=False,
+                    edgecolor="lime",
+                    linewidth=2,
+                    linestyle="--",
+                    label="ground truth",
+                )
+            )
+
+    for index, prediction in enumerate(predictions):
+        if not isinstance(prediction, DetectorPrediction):
+            raise TypeError(f"predictions[{index}] must be a DetectorPrediction")
+        x1, y1, x2, y2 = prediction.bbox_xyxy
+        axis.add_patch(
+            Rectangle(
+                (x1, y1),
+                x2 - x1,
+                y2 - y1,
+                fill=False,
+                edgecolor="red",
+                linewidth=2,
+                label="prediction",
+            )
+        )
+        axis.text(
+            x1,
+            y1,
+            f"{prediction.detector_score:.3f}",
+            color="white",
+            fontsize=9,
+            bbox={"facecolor": "red", "alpha": 0.7, "pad": 2},
+        )
+    axis.set_axis_off()
+    return figure
+
+
 def load_inference_model(
     checkpoint_path: Path,
     label_map: Mapping[str, Any],

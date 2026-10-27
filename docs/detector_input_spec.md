@@ -553,4 +553,3 @@ torchvision의 SSDLite builder는 입력 크기 320 기반 모델이며 `num_cla
 
 - [torchvision SSDLite320 MobileNetV3-Large](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html)
 - [TorchVision Object Detection Finetuning Tutorial](https://docs.pytorch.org/tutorials/intermediate/torchvision_tutorial.html)
-

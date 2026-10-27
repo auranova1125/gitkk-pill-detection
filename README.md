@@ -165,3 +165,31 @@ git merge origin/main
 모든 변경은 `main` 대상 PR로 제출합니다. 최소 1명의 리뷰와 승인을 받은 뒤 **Squash Merge**하고 작업 브랜치를 삭제합니다. 다음 작업은 다시 최신 `main`에서 시작합니다.
 
 상세 협업 규칙은 프로젝트 Notion을 참고합니다.
+
+## 단일 클래스 알약 탐지기
+
+`detector/`에는 이미지 속 모든 알약을 `pill` 하나의 foreground 클래스로 찾는 SSDLite320 MobileNetV3-Large baseline이 있습니다. 모델 출력 클래스는 background `0`과 pill `1`을 포함한 2개이며, 세부 약품명은 탐지 bbox crop을 별도 분류기에 전달해 결정합니다.
+
+실제 데이터 구성 함수는 아직 저장소에 포함하지 않습니다. 함수가 반환해야 하는 DataLoader, label map과 data summary 형식은 [탐지기 입력 명세서](docs/detector_input_spec.md)를 따릅니다. 전체 설계와 단계별 결정은 [탐지기 구현 계획서](docs/detector_implementation_plan.md)에서 확인할 수 있습니다.
+
+데이터 구성 모듈이 준비되면 [학습 Notebook](notebooks/train_detector.ipynb)의 `data_factory_path`를 다음과 같은 경로로 설정합니다.
+
+```python
+data_factory_path = "data.detector_data:build_detector_inputs"
+```
+
+Notebook은 입력 검증, 신규 학습 또는 `last.pt` 재개, 학습 곡선, `best.pt` 평가, bbox 시각화와 분류기 연결 batch 확인을 순서대로 실행합니다. 결과는 `outputs/{run_name}/` 아래에 저장하며 Git에는 포함하지 않습니다. 실험 결과는 [탐지기 결과 보고서](reports/detector_report.md)의 `TBD` 항목에 기록합니다.
+
+전체 단위 테스트와 코드 검사는 다음 명령으로 실행합니다.
+
+```bash
+uv run python -m pytest -q
+uv run ruff check detector tests
+uv run ruff format --check detector tests
+```
+
+실제 SSDLite의 합성 이미지 forward/backward와 NMS smoke test만 다시 실행하려면 다음 명령을 사용합니다.
+
+```bash
+uv run python -m pytest -q tests/test_detector_model.py
+```

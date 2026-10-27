@@ -604,4 +604,3 @@ torchvision detection API는 beta 상태이며 장치별 지원 차이가 있을
 - [torchvision SSDLite320 MobileNetV3-Large 문서](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html)
 - [TorchVision Object Detection Finetuning Tutorial](https://docs.pytorch.org/tutorials/intermediate/torchvision_tutorial.html)
 - [torchvision detection reference training recipes](https://github.com/pytorch/vision/tree/main/references/detection)
-

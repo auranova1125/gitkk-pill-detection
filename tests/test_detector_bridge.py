@@ -20,6 +20,7 @@ from detector.classifier_bridge import (
 from detector.inference import (
     DetectorPrediction,
     load_inference_model,
+    plot_detection_comparison,
     predict_detector,
     save_inference_artifacts,
     validate_inference_batch,
@@ -196,6 +197,24 @@ def test_save_inference_artifacts_writes_json(tmp_path: Path) -> None:
     assert predictions[0]["bbox_xywh"] == [2.0, 3.0, 10.0, 10.0]
     assert predictions[0]["label_name"] == "pill"
     assert len(errors) == 2
+
+
+def test_plot_detection_comparison_draws_ground_truth_and_prediction() -> None:
+    from matplotlib import pyplot as plt
+
+    image = torch.zeros(3, 20, 30, dtype=torch.float32)
+    target = {"boxes": torch.tensor([[1.0, 1.0, 8.0, 8.0]], dtype=torch.float32)}
+
+    figure = plot_detection_comparison(
+        image,
+        [make_prediction()],
+        target=target,
+        title="synthetic",
+    )
+
+    assert len(figure.axes[0].patches) == 2
+    assert figure.axes[0].get_title() == "synthetic"
+    plt.close(figure)
 
 
 def test_load_inference_model_restores_without_pretrained_download(
