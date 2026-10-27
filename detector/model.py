@@ -15,12 +15,14 @@ def build_ssdlite320(
     *,
     num_classes: int,
     pretrained_backbone: bool = True,
+    nms_threshold: float = 0.55,
 ) -> SSD:
     """MobileNetV3-Large backbone을 사용하는 SSDLite320을 생성한다."""
 
     _validate_num_classes(num_classes)
     if not isinstance(pretrained_backbone, bool):
         raise TypeError("pretrained_backbone must be a boolean")
+    _validate_probability(nms_threshold, name="nms_threshold")
 
     backbone_weights = (
         MobileNet_V3_Large_Weights.IMAGENET1K_V1 if pretrained_backbone else None
@@ -29,6 +31,7 @@ def build_ssdlite320(
         weights=None,
         weights_backbone=backbone_weights,
         num_classes=num_classes,
+        nms_thresh=nms_threshold,
     )
 
 
@@ -48,6 +51,7 @@ def build_detector_model(
     *,
     num_classes: int,
     pretrained_backbone: bool = True,
+    nms_threshold: float = 0.55,
 ) -> nn.Module:
     """registry에서 이름으로 탐지 모델 builder를 찾아 실행한다."""
 
@@ -58,6 +62,7 @@ def build_detector_model(
     _validate_num_classes(num_classes)
     if not isinstance(pretrained_backbone, bool):
         raise TypeError("pretrained_backbone must be a boolean")
+    _validate_probability(nms_threshold, name="nms_threshold")
 
     try:
         builder = MODEL_BUILDERS[model_name]
@@ -69,6 +74,7 @@ def build_detector_model(
     return builder(
         num_classes=num_classes,
         pretrained_backbone=pretrained_backbone,
+        nms_threshold=nms_threshold,
     )
 
 
@@ -89,3 +95,10 @@ def _validate_num_classes(num_classes: int) -> None:
         raise ValueError(
             "num_classes must include background and at least one foreground class"
         )
+
+
+def _validate_probability(value: float, *, name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise TypeError(f"{name} must be a number")
+    if not 0.0 <= value <= 1.0:
+        raise ValueError(f"{name} must be between 0.0 and 1.0")

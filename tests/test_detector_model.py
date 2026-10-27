@@ -56,9 +56,15 @@ def test_build_detector_model_dispatches_registered_builder(
 ) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_builder(*, num_classes: int, pretrained_backbone: bool) -> nn.Module:
+    def fake_builder(
+        *,
+        num_classes: int,
+        pretrained_backbone: bool,
+        nms_threshold: float,
+    ) -> nn.Module:
         captured["num_classes"] = num_classes
         captured["pretrained_backbone"] = pretrained_backbone
+        captured["nms_threshold"] = nms_threshold
         return nn.Identity()
 
     monkeypatch.setitem(MODEL_BUILDERS, "fake_detector", fake_builder)
@@ -67,12 +73,14 @@ def test_build_detector_model_dispatches_registered_builder(
         "fake_detector",
         num_classes=NUM_MODEL_CLASSES,
         pretrained_backbone=False,
+        nms_threshold=0.4,
     )
 
     assert isinstance(model, nn.Identity)
     assert captured == {
         "num_classes": NUM_MODEL_CLASSES,
         "pretrained_backbone": False,
+        "nms_threshold": 0.4,
     }
 
 
@@ -128,6 +136,7 @@ def test_build_ssdlite_selects_backbone_weights(
         "weights": None,
         "weights_backbone": expected_weights,
         "num_classes": NUM_MODEL_CLASSES,
+        "nms_thresh": 0.55,
     }
 
 
@@ -135,12 +144,14 @@ def test_build_ssdlite_configures_two_model_classes() -> None:
     model = build_ssdlite320(
         num_classes=NUM_MODEL_CLASSES,
         pretrained_backbone=False,
+        nms_threshold=0.4,
     )
 
     assert isinstance(model, SSD)
     assert model.head.classification_head.num_columns == NUM_MODEL_CLASSES
     assert model.transform.min_size == (320,)
     assert model.transform.max_size == 320
+    assert model.nms_thresh == pytest.approx(0.4)
 
 
 def test_ssdlite_training_forward_and_backward() -> None:
