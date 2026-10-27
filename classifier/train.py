@@ -109,7 +109,7 @@ def select_device() -> torch.device:
 
 
 def resolve_training_stage(epoch: int, head_only_epochs: int) -> TrainingStage:
-    """0부터 시작하는 epoch 번호에 해당하는 학습 단계를 반환한다."""
+    """현재 epoch가 head-only 단계인지 layer4 fine-tuning 단계인지 결정합니다."""
 
     if not isinstance(epoch, int) or isinstance(epoch, bool):
         raise TypeError("epoch must be an integer")
@@ -129,7 +129,10 @@ def build_optimizer(
     config: TrainConfig,
     stage: TrainingStage | str,
 ) -> AdamW:
-    """학습 단계에 맞는 AdamW optimizer를 새로 생성한다."""
+    """
+    Head-only 단계에서는 model.fc만 AdamW로 학습합니다.
+    Fine-tuning 단계에서는 layer4와 fc에 서로 다른 learning rate를 적용합니다.
+    """
 
     resolved_stage = TrainingStage(stage)
     configure_model_for_stage(model, resolved_stage)
@@ -347,13 +350,18 @@ def run_training(
 ) -> TrainingResult:
     """새 학습 또는 checkpoint 재개를 실행하고 best/last artifact를 저장한다."""
 
+    # 입력 검증
     validate_class_map(class_map, expected_num_classes=expected_num_classes)
     validate_data_summary(
         data_summary,
         class_map,
         expected_num_classes=expected_num_classes,
     )
+
+    # 장치 선택
     selected_device = device if device is not None else select_device()
+
+    # 실행 디렉터리와 설정파일 생성
     set_seed(config.seed)
     run_dir = _prepare_run_directory(
         config,
@@ -367,12 +375,14 @@ def run_training(
     current_class_map_hash = hash_class_map(class_map)
     split_hash = data_summary["split_hash"]
 
+    # 모델 생성
     model = build_model(expected_num_classes, pretrained=pretrained).to(selected_device)
     criterion = nn.CrossEntropyLoss()
     scaler = build_grad_scaler(selected_device)
     early_stopping = EarlyStopping(config.early_stopping_patience)
     start_epoch = 0
 
+    # 신규 학습 또는 체크포인트 재개
     if config.resume_from is None:
         current_stage = resolve_training_stage(0, config.head_only_epochs)
         optimizer = build_optimizer(model, config, current_stage)
@@ -413,6 +423,7 @@ def run_training(
             epochs_without_improvement=checkpoint["epochs_without_improvement"],
         )
 
+    # epoch별 학습과 validation 수행
     metrics_records: list[dict[str, Any]] = []
     completed_epoch = start_epoch - 1
     stopped_early = False
@@ -443,11 +454,14 @@ def run_training(
         if scheduler is not None:
             scheduler.step()
 
+        # 조기 종료 횟수는 fine-tuning 단계에서만 계산
         improved = early_stopping.update(
             epoch,
             validation_result,
             count_for_stopping=stage is TrainingStage.LAYER4_FINE_TUNING,
         )
+
+        # metrics.csv 기록 (_append_metrics 함수)
         metrics = {
             "epoch": epoch,
             "training_stage": stage.value,

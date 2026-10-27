@@ -142,7 +142,13 @@ def compute_classification_metrics(
     loss: float,
     max_confusion_pairs: int = 10,
 ) -> EvaluationResult:
-    """logit과 정답으로 전체 및 클래스별 분류 지표를 계산한다."""
+    """
+    logit과 정답으로 전체 및 클래스별 분류 지표를 계산한다.
+    Validation loss, Top-1 acc, Top-5 acc, Macro F1,
+    Validation class coverage
+    클래스별 precision, rcall, F1, support
+    가장 많이 발생한 오분류 클래스 쌍
+    """
 
     logits = logits.detach().cpu()
     targets = targets.detach().cpu()
@@ -289,7 +295,15 @@ def evaluate_with_predictions(
     expected_num_classes: int = 118,
     max_confusion_pairs: int = 10,
 ) -> ValidationArtifacts:
-    """validation 지표와 class map이 적용된 샘플별 예측을 함께 생성한다."""
+    """
+    Best checkpoint 최종 분석용 함수입니다.
+    지표뿐 아니라 각 샘플에 대해 다음 내용을 남깁니다.
+    - 실제 클래스와 예측 클래스
+    - category_id, item_seq
+    - classifier confidence
+    - 이미지 경로와 bbox
+    - 정답 여부
+    """
 
     validate_class_map(class_map, expected_num_classes=expected_num_classes)
     class_lookup = {entry["class_index"]: entry for entry in class_map["classes"]}

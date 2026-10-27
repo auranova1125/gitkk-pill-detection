@@ -46,7 +46,11 @@ def configure_model_for_stage(
     model: ResNet,
     stage: TrainingStage | str,
 ) -> None:
-    """학습 단계에 맞게 trainable parameter와 BatchNorm 상태를 설정한다."""
+    """
+    Head-only에서는 FC만 학습 가능하게 만듭니다.
+    Fine-tuning에서는 layer4와 FC만 학습 가능하게 만듭니다.
+    두 단계 모두 BatchNorm 파라미터는 동결합니다.
+    """
 
     try:
         resolved_stage = TrainingStage(stage)

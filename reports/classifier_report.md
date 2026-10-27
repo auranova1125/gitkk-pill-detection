@@ -82,7 +82,7 @@ final_score = detector_score × classifier_score
 
 ## 8. 재현 방법
 
-1. 데이터 구성 모듈에서 입력 계약에 맞는 loader와 JSON 정보를 생성한다.
+1. 데이터 구성 모듈에서 입력 검증 형식에 맞는 loader와 JSON 정보를 생성한다.
 2. `notebooks/train_classifier.ipynb`의 `data_factory_path`를 설정한다.
 3. 새 학습 또는 `last.pt` 재개 셀을 실행한다.
 4. best checkpoint 평가 셀로 예측과 오류 artifact를 저장한다.
