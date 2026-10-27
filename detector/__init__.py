@@ -10,11 +10,21 @@ from detector.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
+from detector.classifier_bridge import build_classifier_batch, combine_scores
 from detector.config import DetectorConfig
 from detector.evaluate import (
     EvaluationResult,
     evaluate_model,
     filter_predictions_by_score,
+)
+from detector.inference import (
+    DetectorInferenceError,
+    DetectorInferenceResult,
+    DetectorPrediction,
+    load_inference_model,
+    predict_detector,
+    save_inference_artifacts,
+    validate_inference_batch,
 )
 from detector.input_validation import (
     InputValidationError,
@@ -46,27 +56,35 @@ __all__ = [
     "CHECKPOINT_VERSION",
     "MODEL_BUILDERS",
     "DetectorConfig",
+    "DetectorInferenceError",
+    "DetectorInferenceResult",
+    "DetectorPrediction",
     "EarlyStopping",
     "EvaluationResult",
     "InputValidationError",
     "TrainingEpochResult",
     "TrainingResult",
     "available_detector_models",
+    "build_classifier_batch",
     "build_detector_model",
     "build_grad_scaler",
     "build_optimizer",
     "build_scheduler",
     "build_ssdlite320",
     "capture_rng_state",
+    "combine_scores",
     "evaluate_model",
     "filter_predictions_by_score",
     "hash_label_map",
     "load_checkpoint",
+    "load_inference_model",
     "move_detection_batch_to_device",
+    "predict_detector",
     "restore_checkpoint_state",
     "restore_rng_state",
     "run_training",
     "save_checkpoint",
+    "save_inference_artifacts",
     "select_device",
     "set_seed",
     "train_one_epoch",
@@ -74,4 +92,5 @@ __all__ = [
     "validate_detection_batch",
     "validate_detector_data_summary",
     "validate_detector_label_map",
+    "validate_inference_batch",
 ]
