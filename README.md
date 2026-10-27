@@ -168,7 +168,9 @@ git merge origin/main
 
 ## 분류기 구현
 
-`classifier/`에는 118종 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 실제 데이터 구성 함수가 준비되면 `notebooks/train_classifier.ipynb`의 `data_factory_path`를 설정해 학습을 실행합니다.
+`classifier/`에는 현재 118종을 대상으로 하는 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 클래스 수는 실행 시 `expected_num_classes`로 변경할 수 있습니다. 실제 데이터 구성 함수가 준비되면 `notebooks/train_classifier.ipynb`의 `data_factory_path`를 설정해 학습을 실행합니다.
+
+데이터 구성 함수와 DataLoader가 제공해야 하는 정확한 형식은 [`docs/classifier_input_spec.md`](docs/classifier_input_spec.md)를 참고합니다.
 
 전체 단위 테스트와 코드 검사는 다음 명령으로 실행합니다.
 
