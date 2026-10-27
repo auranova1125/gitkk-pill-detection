@@ -214,3 +214,15 @@ uv run ruff format --check detector tests
 ```bash
 uv run python -m pytest -q tests/test_detector_model.py
 ```
+
+## 탐지·분류 통합 추론
+
+[통합 추론 Notebook](notebooks/run_end_to_end_inference.ipynb)은 학습된 탐지기와 분류기의 `best.pt`를 불러와 원본 이미지에서 알약 bbox와 세부 품목을 순서대로 예측합니다. 각 모델의 학습은 기존 개별 Notebook에서 수행합니다.
+
+통합 Notebook의 `inference_factory_path`에는 `factory(batch_size=...)` 호출로 추론 DataLoader를 반환하는 함수 경로를 지정합니다. DataLoader batch는 [탐지기 입력 명세서의 추론 형식](docs/detector_input_spec.md#12-추론-dataloader)을 따라야 합니다.
+
+결과는 `outputs/end_to_end_inference/` 아래에 저장됩니다.
+
+- `end_to_end_predictions.json`: bbox, 품목 정보, 탐지·분류·결합 점수
+- `end_to_end_errors.json`: 탐지 및 분류 단계별 오류
+- `visualizations/`: 품목명과 최종 점수를 표시한 이미지
