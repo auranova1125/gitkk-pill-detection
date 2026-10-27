@@ -12,6 +12,7 @@ from torch import nn
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import CosineAnnealingLR, LRScheduler
 from torchvision.models.resnet import ResNet
+from tqdm.auto import tqdm
 
 from classifier.checkpoint import (
     hash_class_map,
@@ -200,12 +201,18 @@ def train_one_epoch(
     device: torch.device,
     *,
     scaler: torch.amp.GradScaler | None = None,
+    show_progress: bool = False,
+    progress_description: str = "Classifier training",
 ) -> TrainingEpochResult:
     """한 epoch를 학습하고 loss와 Top-k accuracy를 반환한다."""
 
     use_amp = device.type == "cuda"
     if use_amp and scaler is None:
         raise ValueError("CUDA training requires a GradScaler")
+    if not isinstance(show_progress, bool):
+        raise TypeError("show_progress must be a boolean")
+    if not isinstance(progress_description, str) or not progress_description.strip():
+        raise ValueError("progress_description must be a non-empty string")
 
     set_model_train_mode(model)
     total_loss = 0.0
@@ -213,7 +220,13 @@ def train_one_epoch(
     top1_correct = 0
     top5_correct = 0
 
-    for batch in data_loader:
+    progress = tqdm(
+        data_loader,
+        desc=progress_description,
+        disable=not show_progress,
+        dynamic_ncols=True,
+    )
+    for batch in progress:
         images = batch["images"].to(device, non_blocking=use_amp)
         targets = batch["targets"].to(device, non_blocking=use_amp)
         optimizer.zero_grad(set_to_none=True)
@@ -239,6 +252,10 @@ def train_one_epoch(
         top1_correct += int((predictions[:, 0] == targets).sum().item())
         top5_correct += int(
             (predictions == targets.unsqueeze(1)).any(dim=1).sum().item()
+        )
+        progress.set_postfix(
+            loss=f"{total_loss / total_samples:.4f}",
+            top1=f"{top1_correct / total_samples:.4f}",
         )
 
     if total_samples == 0:
@@ -443,6 +460,8 @@ def run_training(
             optimizer,
             selected_device,
             scaler=scaler,
+            show_progress=config.show_progress,
+            progress_description=(f"Classifier train {epoch + 1}/{config.max_epochs}"),
         )
         validation_result = evaluate_model(
             model,
@@ -450,6 +469,10 @@ def run_training(
             criterion,
             selected_device,
             num_classes=expected_num_classes,
+            show_progress=config.show_progress,
+            progress_description=(
+                f"Classifier validation {epoch + 1}/{config.max_epochs}"
+            ),
         )
         if scheduler is not None:
             scheduler.step()

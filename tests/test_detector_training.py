@@ -185,6 +185,25 @@ def test_train_one_epoch_updates_model_and_aggregates_losses(
     assert not torch.equal(initial_weight, model.weight)
 
 
+def test_train_one_epoch_shows_progress(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    model = TinyTrainingDetector()
+    optimizer = build_optimizer(model, make_config(tmp_path))
+
+    train_one_epoch(
+        model,
+        [make_batch()],
+        optimizer,
+        torch.device("cpu"),
+        show_progress=True,
+        progress_description="Detector progress test",
+    )
+
+    assert "Detector progress test" in capsys.readouterr().err
+
+
 def test_train_one_epoch_rejects_empty_loader(tmp_path: Path) -> None:
     model = TinyTrainingDetector()
     optimizer = build_optimizer(model, make_config(tmp_path))

@@ -25,6 +25,7 @@ class DetectorConfig:
     max_epochs: int = 50
     momentum: float = 0.9
     resume_from: Path | None = None
+    show_progress: bool = True
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
@@ -77,6 +78,8 @@ class DetectorConfig:
         )
         if self.early_stopping_patience <= 0:
             raise ValueError("early_stopping_patience must be greater than zero")
+        if not isinstance(self.show_progress, bool):
+            raise TypeError("show_progress must be a boolean")
 
     @staticmethod
     def _validate_finite_number(

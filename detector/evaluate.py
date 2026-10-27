@@ -8,6 +8,7 @@ import torch
 from torch import nn
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from torchvision.ops import box_iou
+from tqdm.auto import tqdm
 
 from detector.train import move_detection_batch_to_device
 
@@ -48,11 +49,17 @@ def evaluate_model(
     *,
     score_threshold: float,
     recall_iou_threshold: float = 0.5,
+    show_progress: bool = False,
+    progress_description: str = "Detector validation",
 ) -> EvaluationResult:
     """validation 전체의 COCO 지표와 threshold 전후 recall을 계산한다."""
 
     _validate_threshold(score_threshold, name="score_threshold")
     _validate_threshold(recall_iou_threshold, name="recall_iou_threshold")
+    if not isinstance(show_progress, bool):
+        raise TypeError("show_progress must be a boolean")
+    if not isinstance(progress_description, str) or not progress_description.strip():
+        raise ValueError("progress_description must be a non-empty string")
     model.eval()
 
     coco_metric = MeanAveragePrecision(box_format="xyxy", iou_type="bbox")
@@ -71,7 +78,13 @@ def evaluate_model(
     count_error_before = 0
     count_error_after = 0
 
-    for batch in data_loader:
+    progress = tqdm(
+        data_loader,
+        desc=progress_description,
+        disable=not show_progress,
+        dynamic_ncols=True,
+    )
+    for batch in progress:
         images, device_targets = move_detection_batch_to_device(batch, device)
         raw_predictions = model(images)
         predictions = _prepare_predictions(raw_predictions, expected_count=len(images))
@@ -110,6 +123,7 @@ def evaluate_model(
                 target,
                 iou_threshold=recall_iou_threshold,
             )
+        progress.set_postfix(images=num_images, predictions=num_predictions_after)
 
     if num_images == 0:
         raise ValueError("data_loader must contain at least one batch")

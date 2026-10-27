@@ -11,6 +11,7 @@ from torch.nn import functional
 from detector.inference import DetectorPrediction
 
 CLASSIFIER_IMAGE_SIZE = 224
+# ImageNet RGB 평균에 255를 곱한 중립색으로, 정규화 후 padding을 0에 가깝게 만든다.
 PADDING_COLOR_RGB = (124, 116, 104)
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)

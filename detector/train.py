@@ -14,6 +14,7 @@ import torch
 from torch import nn
 from torch.optim import SGD, Optimizer
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from tqdm.auto import tqdm
 
 from detector.checkpoint import (
     hash_label_map,
@@ -198,6 +199,8 @@ def train_one_epoch(
     device: torch.device,
     *,
     scaler: torch.amp.GradScaler | None = None,
+    show_progress: bool = False,
+    progress_description: str = "Detector training",
 ) -> TrainingEpochResult:
     """DataLoader를 한 번 순회해 탐지 모델을 학습한다."""
 
@@ -206,6 +209,10 @@ def train_one_epoch(
     active_scaler = scaler if scaler is not None else build_grad_scaler(device)
     if active_scaler.is_enabled() != use_amp:
         raise ValueError("GradScaler enabled state must match CUDA usage")
+    if not isinstance(show_progress, bool):
+        raise TypeError("show_progress must be a boolean")
+    if not isinstance(progress_description, str) or not progress_description.strip():
+        raise ValueError("progress_description must be a non-empty string")
 
     total_loss = 0.0
     component_totals: dict[str, float] = {}
@@ -213,7 +220,13 @@ def train_one_epoch(
     num_batches = 0
     num_images = 0
 
-    for batch in data_loader:
+    progress = tqdm(
+        data_loader,
+        desc=progress_description,
+        disable=not show_progress,
+        dynamic_ncols=True,
+    )
+    for batch in progress:
         images, targets = move_detection_batch_to_device(batch, device)
         optimizer.zero_grad(set_to_none=True)
         with torch.autocast(device_type=device.type, enabled=use_amp):
@@ -241,6 +254,7 @@ def train_one_epoch(
             )
         num_batches += 1
         num_images += len(images)
+        progress.set_postfix(loss=f"{total_loss / num_batches:.4f}")
 
     if num_batches == 0:
         raise ValueError("data_loader must contain at least one batch")
@@ -345,12 +359,18 @@ def run_training(
             optimizer,
             selected_device,
             scaler=scaler,
+            show_progress=config.show_progress,
+            progress_description=f"Detector train {epoch + 1}/{config.max_epochs}",
         )
         evaluation_result = evaluate_model(
             model,
             val_loader,
             selected_device,
             score_threshold=config.score_threshold,
+            show_progress=config.show_progress,
+            progress_description=(
+                f"Detector validation {epoch + 1}/{config.max_epochs}"
+            ),
         )
         improved = early_stopping.update(epoch, evaluation_result)
         scheduler.step()
