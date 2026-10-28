@@ -10,7 +10,7 @@ crops/의 PNG는 원본 사진에서 bbox 사방 5% 여백을 더해 이미지 �
 이후 처리(학습: 회전 → 중앙 정사각형 padding, 공통: 224 resize → normalize)는 이 파일에서 한다.
 
 탐지 결과를 분류할 때 (명세서 8절):
-    from classifier_data.crop import crop_pill
+    from classifier_data.pill_square_crop import crop_pill
     from classifier_data.classifier_inputs import detection_transform
     image = detection_transform()(crop_pill(original_image, bbox_xywh))   # float32 [3, 224, 224]
 
@@ -32,7 +32,7 @@ from torchvision import transforms as T
 from torchvision.transforms import InterpolationMode
 from PIL import Image
 
-from classifier_data.crop import PAD_COLOR, pad_square
+from classifier_data.pill_square_crop import PAD_COLOR, pad_square
 
 SIZE = 224
 MEAN, STD = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
