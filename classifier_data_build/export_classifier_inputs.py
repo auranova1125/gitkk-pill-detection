@@ -1,8 +1,8 @@
 """분류기 팀에 넘길 입력 데이터를 만든다 (구글 드라이브 업로드용 폴더 + zip). 데이터 파일만 넣는다.
 
 「분류기 데이터 및 함수 입력 명세서」 + 수정 사항 1·2를 따른다.
-    1. bbox 사방 5% 여백을 더한 뒤 이미지 경계로 clip  (crop.py의 cut_pill)
-    2. 탐지 결과도 같은 방식으로 자른다                  (crop.py의 crop_pill)
+    1. bbox 사방 5% 여백을 더한 뒤 이미지 경계로 clip  (pill_square_crop.py의 cut_pill)
+    2. 탐지 결과도 같은 방식으로 자른다                  (pill_square_crop.py의 crop_pill)
 
 결과: data/classifier/export/
     training_package_classifier/
@@ -12,17 +12,16 @@
         crops/<약 코드>/<sample_id>.png
     training_package_classifier.zip   위 폴더의 내용 (zip 맨 위에 바로). 드라이브: gitkk_archive/training_package_classifier.zip
 
-로더 코드(classifier_inputs.py, crop.py)는 패키지에 넣지 않는다. 레포에서 가져다 쓴다.
+로더 코드(classifier_inputs.py, pill_square_crop.py)는 패키지에 넣지 않는다. 레포에서 가져다 쓴다.
 
 앞 단계: validate_labels → select_images → make_crops → split_dataset
 사용:
-    python classifier_data/export_classifier_inputs.py
+    python classifier_data_build/export_classifier_inputs.py
 """
 import io
 import json
 import os
 import shutil
-import sys
 import zipfile
 from types import SimpleNamespace
 
@@ -30,11 +29,9 @@ import pandas as pd
 import torch
 from PIL import Image
 
-from config import CLASSES, COMBO_ZIPS, CROPS, EXPORT, KAGGLE, META, ROOT, tl_zip, ts_zip
-from crop import MARGIN, cut_pill
-
-sys.path.insert(0, str(ROOT))   # classifier_inputs.py가 classifier_data.crop을 import한다
-from classifier_data import classifier_inputs as ci  # noqa: E402
+from config import CLASSES, COMBO_ZIPS, CROPS, EXPORT, KAGGLE, META, tl_zip, ts_zip
+from classifier_data import classifier_inputs as ci
+from classifier_data.pill_square_crop import MARGIN, cut_pill
 
 OUT = EXPORT
 PKG = OUT / "training_package_classifier"

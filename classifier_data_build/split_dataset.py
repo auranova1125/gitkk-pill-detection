@@ -6,7 +6,7 @@
 탐지기 목록에 없는 그룹은 train에 넣는다 (분류기 val ⊂ 탐지기 validation 그룹).
 
 사용:
-    python classifier_data/split_dataset.py [--package data/detector/training_package_detector.zip]
+    python classifier_data_build/split_dataset.py [--package data/detector/training_package_detector.zip]
 """
 import argparse
 import io
@@ -61,7 +61,7 @@ save_table(df, CROPS / "crops.csv")
 print(f"유사 이미지 쌍 중 train/val에 나뉜 쌍: {len(cross)}개 / {len(pairs)}개 (탐지기 분할에도 똑같이 있음)")
 print(f"train에 거의 같은 사진이 있는 val 이미지: {len(leak_img)}장 / {len(val_img)}장, crop {len(leak_crop)}개")
 
-# ── 기록용 표 (reports/classifier_data/split_report.md) ──────────────────
+# ── 기록용 표 (classifier_data_build/reports/split_report.md) ──────────────────
 cls = pd.read_csv(CLASSES).set_index("code")
 t["total"] = t.train + t.val
 t["val_pct"] = t.val / t.total * 100
@@ -78,7 +78,7 @@ head = ["| class_id | 약 코드 | 품목명 | 합계 | train | val | val 비율
         "|---:|---|---|---:|---:|---:|---:|---:|"]
 md = [
     "# train/val 분할 결과 (분류기 crop)", "",
-    f"`python classifier_data/split_dataset.py` 결과 ({date.today()}). `data/classifier/crops/crops.csv`의 `split` 열 기준이다.", "",
+    f"`python classifier_data_build/split_dataset.py` 결과 ({date.today()}). `data/classifier/crops/crops.csv`의 `split` 열 기준이다.", "",
     "## 분할 기준", "",
     f"- 탐지기 학습 패키지 `{args.package.name}`의 `split_manifest.csv`를 그대로 따른다.",
     "- 그룹 = 파일명의 알약 코드 조합 (예: `K-001900-016548-019607-029451`). 같은 그룹은 탐지기와 같은 쪽(train 또는 val)에 넣는다.",

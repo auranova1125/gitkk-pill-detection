@@ -13,7 +13,7 @@
     data/classifier/meta/class_summary.csv    클래스별 kaggle, combo, total, 조합 가용 수
 
 사용:
-    python classifier_data/select_images.py [--target 108]
+    python classifier_data_build/select_images.py [--target 108]
 """
 import argparse
 import json

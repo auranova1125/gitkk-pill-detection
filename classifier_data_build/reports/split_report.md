@@ -1,6 +1,6 @@
 # train/val 분할 결과 (분류기 crop)
 
-`python classifier_data/split_dataset.py` 결과 (2026-10-28). `data/classifier/crops/crops.csv`의 `split` 열 기준이다.
+`python classifier_data_build/split_dataset.py` 결과 (2026-10-28). `data/classifier/crops/crops.csv`의 `split` 열 기준이다.
 
 ## 분할 기준
 

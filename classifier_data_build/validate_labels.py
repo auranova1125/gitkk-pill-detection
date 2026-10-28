@@ -11,10 +11,10 @@
 
 결과
     data/classifier/meta/label_issues.csv      문제 하나당 한 줄 (source, image, code, check, level, action, detail)
-    reports/classifier_data/validation_report.md  항목별 건수와 처리 (기록용)
+    classifier_data_build/reports/validation_report.md  항목별 건수와 처리 (기록용)
 
 사용:
-    python classifier_data/validate_labels.py [--skip-png]
+    python classifier_data_build/validate_labels.py [--skip-png]
 """
 import argparse
 import hashlib
@@ -31,7 +31,7 @@ import pandas as pd
 from PIL import Image
 from scipy.fft import dctn
 
-from checks import CHECKS
+from label_checklist import CHECKS
 from config import COMBO_ZIPS, KAGGLE, META, REPORTS, save_table, tl_zip, ts_zip
 
 ap = argparse.ArgumentParser()
@@ -300,7 +300,7 @@ n_kaggle = d[d.source == "kaggle"].image.nunique()
 
 lines = [
     "# 라벨 검수 결과 (분류기 crop 데이터)", "",
-    f"- 실행일: {date.today()} / 스크립트: `classifier_data/validate_labels.py`" + (" (PNG 검사 생략)" if args.skip_png else ""),
+    f"- 실행일: {date.today()} / 스크립트: `classifier_data_build/validate_labels.py`" + (" (PNG 검사 생략)" if args.skip_png else ""),
     "- 기준 문서: Obsidian 「알약 데이터 검증 체크리스트」",
     f"- 대상: 조합 TL_{'·'.join(map(str, COMBO_ZIPS))} 중 촬영 조건(연회색·주백색·70/75/90°) 이미지 {n_combo}장, Kaggle train {n_kaggle}장, bbox {len(d)}개",
     f"- 기준값: 1mm당 픽셀 긴 변 {RATIO[0]}~{RATIO[1]}·짧은 변 {RATIO[0]} 이상, IoU > {IOU} 또는 작은 bbox의 {CONTAIN:.0%} 이상 겹침, pHash 거리 ≤ {PHASH}",

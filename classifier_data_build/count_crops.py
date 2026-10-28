@@ -2,7 +2,7 @@
 개수는 폴더에 실제로 있는 파일 기준, 출처와 split별 개수는 crops.csv 기준.
 
 사용:
-    python classifier_data/count_crops.py [--min 108]
+    python classifier_data_build/count_crops.py [--min 108]
 """
 import argparse
 
@@ -38,12 +38,12 @@ if "val" in t:
 
 save_table(t, CROPS / "crop_counts.csv", index=True)
 
-# 기록용 표 (data/는 git에 안 올라가므로 reports/classifier_data/에 둔다). 클래스 번호 순, 목표 미만은 굵게
+# 기록용 표 (data/는 git에 안 올라가므로 classifier_data_build/reports/에 둔다). 클래스 번호 순, 목표 미만은 굵게
 from datetime import date
 head_src = {"combo": "AI Hub 조합", "kaggle": "Kaggle"}
 md = [
     "# 클래스별 crop 개수", "",
-    f"`data/classifier/crops/<약 코드>/` 폴더의 jpg 개수 ({date.today()}, `python classifier_data/count_crops.py` 결과).",
+    f"`data/classifier/crops/<약 코드>/` 폴더의 jpg 개수 ({date.today()}, `python classifier_data_build/count_crops.py` 결과).",
     f"출처(Kaggle/조합)는 `data/classifier/crops/crops.csv` 기준이다. 목표 {args.min}개 미만은 **굵게** 표시.", "",
     "## 요약", "",
     "| 항목 | 값 |", "|---|---:|",
