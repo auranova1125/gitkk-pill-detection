@@ -39,6 +39,7 @@ htmlcov/
 # ==========================================
 /data/
 /datasets/
+/content/
 
 # ==========================================
 # Model weights / Checkpoints
