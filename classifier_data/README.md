@@ -33,18 +33,18 @@ crops/<약 코드>/<sample_id>.png   원본에서 bbox 사방 5% 여백 + 경계
 ## 사용법
 `notebooks/train_classifier.ipynb` 설정 셀에서 다음을 바꾼다. 로더는 `class_map_path`와 같은 폴더에서 `samples.csv`와 `crops/`를 읽는다.
 ```python
-# 드라이브에서 바로 읽으면 느리므로 프로젝트의 data/ 아래(git 미포함)에 푼다
-!unzip -q "/content/drive/MyDrive/gitkk_archive/training_package_classifier.zip" -d data/classifier
+# 드라이브에서 바로 읽으면 느리므로 Colab 로컬에 푼다
+!unzip -q "/content/drive/MyDrive/gitkk_archive/training_package_classifier.zip" -d /content/training_package_classifier
 
 data_factory_path = "classifier_data.classifier_inputs:build_classifier_inputs"
 config = TrainConfig(
     ...,
-    class_map_path=project_root / "data" / "classifier" / "class_map.json",
-    data_summary_path=project_root / "data" / "classifier" / "data_summary.json",
+    class_map_path="/content/training_package_classifier/class_map.json",
+    data_summary_path="/content/training_package_classifier/data_summary.json",
 )
 ```
 - 명세서 예시의 `data.classifier_data`는 `/data/`가 `.gitignore`에 있어 레포에 둘 수 없으므로, 위 경로를 쓴다
-- 입력 검증만 따로: `uv run python -m classifier_data.classifier_inputs data/classifier/class_map.json`
+- 입력 검증만 따로: 레포 루트에서 `python -m classifier_data.classifier_inputs /content/training_package_classifier/class_map.json`
 - `data_summary.json`이 `samples.csv`와 맞지 않으면(다른 패키지의 파일을 섞은 경우) 학습 전에 멈춘다
 
 ## 로더 구성
