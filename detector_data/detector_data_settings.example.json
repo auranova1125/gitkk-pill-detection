@@ -1,8 +1,8 @@
 {
-  "package_dir": "/공유자료/training_package",
+  "package_dir": "datasets",
   "image_roots": {
-    "select": "/공유자료/select",
-    "codeit": "/공유자료/codeit_train_validated"
+    "select": "datasets/images/select_aihub",
+    "codeit": "datasets/images/select_codeit"
   },
   "augmentation": {
     "horizontal_flip": 0.0,

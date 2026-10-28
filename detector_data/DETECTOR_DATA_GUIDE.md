@@ -1,25 +1,25 @@
 # 탐지 데이터 준비 및 실행 안내
 
-구글 드라이브에서 다운로드한 공유 자료를 저장소 안의 `datasets/`에 배치한 뒤 `START_DETECTOR_DATA.ipynb`를 실행합니다. 기본 사용에서는 코드에 개인 경로를 적지 않습니다.
+공유 자료를 저장소 안의 `datasets/`에 배치한 뒤 `START_DETECTOR_DATA.ipynb`를 실행합니다. 기본 사용에서는 코드에 개인 경로를 적지 않습니다.
 
 ## 1. 어떤 자료를 사용하는가?
 
 | 자료 | 역할 |
 |---|---|
 | 기존 `select/images/` 안의 이미지 파일 | 선정한 AI Hub 이미지 |
-| `codeit_train_validated.zip`에서 꺼낸 `images/` 안의 이미지 파일 | 선정한 대회 Train 이미지 |
+| `codeit_train_validated.zip`에서 꺼낸 `images/` 안의 이미지 파일 | 검증한 대회 Train 이미지 |
 | `training_package_detector.zip` 안의 `training_package/annotations/train.json` | Train 이미지와 모든 알약 bbox |
 | 같은 `training_package/annotations/validation.json` | Validation 이미지와 모든 알약 bbox |
 | 같은 `training_package/split_manifest.csv` | 이미지별 고정 분할·출처·원본 정보 |
 | 같은 `training_package/class_mapping.csv` | 공통 약품 클래스 번호 |
 
-학습 라벨과 분할 목록의 출처는 `training_package_detector.zip`입니다. 이름이 다른 `training_package.zip` 또는 `training_package_classifier.zip`의 파일을 대신 사용하지 않습니다.
+학습 라벨과 분할 목록의 출처는 **`training_package_detector.zip`**입니다. 이름이 다른 `training_package.zip` 또는 `training_package_classifier.zip`의 파일을 대신 사용하지 않습니다.
 
 탐지 정답은 모든 알약에 대해 `pill=1`입니다. background는 `0`, 모델 클래스 수는 `2`입니다. `class_mapping.csv`의 약품별 118종 번호는 추적·분류기 연결 기준이며 단일 클래스 탐지 target label로 사용하지 않습니다.
 
 ## 2. 이미 자료를 받은 팀원: 무엇을 어디로 옮기는가?
 
-다음 표는 공유 저장소의 최상위 폴더를 기준으로 한 이동 목적지입니다. 예를 들어 저장소가 `gitkk-pill-detection`이라면 그 안에 `datasets/`를 만듭니다.
+다음 표는 **공유 저장소의 최상위 폴더를 기준으로 한 이동 목적지**입니다. 예를 들어 저장소가 `gitkk-pill-detection`이라면 그 안에 `datasets/`를 만듭니다.
 
 | 기존 자료의 위치 | 옮길 내용 | 저장소 안의 새 위치 |
 |---|---|---|
@@ -136,9 +136,48 @@ Train 2장과 Validation 2장을 기존 배정에서 선택합니다. 가능한 
 
 ### 6-3. 모델 연결 검사
 
+Notebook과 터미널 중 **한 가지 방법만** 사용합니다. 이미 Notebook에서 입력 준비까지 통과했다면 방법 A를 권장합니다.
+
+#### 방법 A: Notebook의 새 코드 셀에서 실행
+
+앞 단계에서 선택한 학습 커널을 그대로 사용합니다. 별도 터미널을 열거나 활성화할 필요가 없습니다. 첫 번째 코드 셀에서 불러온 `subprocess`, `sys`를 사용합니다.
+
+```python
+subprocess.run(
+    [
+        sys.executable, "-m", "detector_data", "smoke",
+        "--model-step",
+        "--report", "outputs/detector_data/model_smoke_report.json",
+    ],
+    check=True,
+)
+```
+
+`sys.executable`은 현재 Notebook 커널의 Python을 사용합니다. 커널을 재시작했다면 첫 번째 코드 셀부터 다시 실행합니다.
+
+#### 방법 B: 저장소 터미널에서 실행
+
+Notebook 커널을 선택한 것과 터미널의 학습 환경 활성화는 별개입니다. 새 터미널에서는 먼저 **공유 저장소 최상위**로 이동하고 환경을 활성화합니다. 터미널을 새로 열었다면 다시 활성화해야 할 수 있습니다.
+
+Mac/Linux:
+
 ```bash
+source .venv/bin/activate
 python -m detector_data smoke --model-step --report outputs/detector_data/model_smoke_report.json
 ```
+
+Windows PowerShell:
+
+```powershell
+.venv\Scripts\Activate.ps1
+python -m detector_data smoke --model-step --report outputs/detector_data/model_smoke_report.json
+```
+
+`zsh: command not found: python`은 터미널에서 `python` 명령을 찾지 못했다는 뜻입니다. 이 경우 데이터·모델 검사 자체는 시작되지 않았습니다. 저장소의 `.venv`가 있고 위 활성화를 수행했는지 확인합니다. `python3`로만 바꾸면 팀 학습 환경과 다른 Python이 실행될 수 있으므로, 먼저 학습 환경을 확인합니다.
+
+#### 통과 기준과 검사 범위
+
+출력에 `모델 연결 검사: passed`가 나오고 명령이 오류 없이 종료되면 통과입니다. 기록은 `outputs/detector_data/model_smoke_report.json`입니다.
 
 SSDLite로 Train 한 배치의 손실 계산·역전파·optimizer 1회 갱신과 Validation 한 배치의 예측 형식을 확인합니다. 기본 장치는 CPU입니다. 사전 학습 가중치는 다운로드하지 않으며 checkpoint도 저장하지 않습니다. 학습 성능 평가용 결과는 아닙니다.
 
@@ -224,6 +263,7 @@ detector_data.detector_inputs:build_detector_inputs
 | 이미지 파일이 없음 | 이미지가 `select_aihub`·`select_codeit` 바로 아래에 있는지 확인. 중간 `images/` 폴더를 추가하지 않음 |
 | 이미지 출처 형식 오류 | JSON·CSV를 임의 편집했는지 확인하고 `training_package_detector.zip` 내부 파일과 비교 |
 | `No module named detector_data` | 저장소 최상위에서 실행하고 작업 브랜치 파일 확인 |
+| `zsh: command not found: python` | 터미널에서 `.venv`를 활성화하거나 Notebook의 방법 A 사용 |
 | PyTorch 등 불러오기 실패 | 현재 Python 또는 Notebook 커널이 팀 학습 환경인지 확인 |
 | bbox·분할 연결 검사 실패 | 출력과 검사 JSON을 데이터 담당자에게 전달. 임의로 좌표를 고치지 않음 |
 | 메모리 부족 | 배치 크기를 줄임. 모델 소량 검사는 배치 2 이상 유지 |

@@ -6,9 +6,9 @@ import csv
 import json
 import math
 from collections import defaultdict
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
-from .settings import resolve_data_paths
+from .settings import resolve_data_paths, resolve_image_path
 
 SPLITS = ("train", "validation")
 
@@ -35,17 +35,7 @@ def read_package(settings):
 
 
 def image_location(image, roots):
-    portable = PurePosixPath(str(image["file_name"]).replace("\\", "/"))
-    if portable.is_absolute() or ".." in portable.parts or len(portable.parts) < 2:
-        raise ValueError(f"허용되지 않는 이미지 경로: {portable}")
-    dataset = portable.parts[0]
-    if dataset not in roots:
-        raise ValueError(f"이미지 출처 설정이 없습니다: {dataset}")
-    root = roots[dataset].resolve()
-    result = root.joinpath(*portable.parts[1:]).resolve()
-    if not result.is_relative_to(root):
-        raise ValueError(f"이미지 기준 폴더를 벗어난 경로입니다: {portable}")
-    return result
+    return resolve_image_path(image["file_name"], roots)
 
 
 def inspect_package(settings, *, check_image_files=True):
