@@ -66,3 +66,9 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+
+# ==========================================
+# Detection data: machine-specific settings and backup files
+# ==========================================
+/detector_data/detector_data_settings.json
+/detector_data/**/*.previous
