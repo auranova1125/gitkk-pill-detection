@@ -10,7 +10,7 @@ import math
 import random
 import re
 
-from .settings import load_settings, resolve_data_paths
+from .settings import load_settings, resolve_data_paths, resolve_image_path
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -343,7 +343,7 @@ def _build_detector_inputs(*, config, device, settings):
             if group != row["group_id"]:
                 raise ValueError(f"조합 그룹 기록 불일치: {image_id}")
 
-            actual_path = roots[dataset] / relative_path
+            actual_path = resolve_image_path(portable, roots)
 
             if not actual_path.is_file():
                 raise FileNotFoundError(actual_path)
