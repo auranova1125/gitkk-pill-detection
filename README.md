@@ -186,3 +186,43 @@ uv run ruff format --check classifier common tests
 - [분류기 구현 계획서](docs/classifier_implementation_plan.md)
 - [단일 클래스 탐지기 구현 계획서](docs/detector_implementation_plan.md)
 - [단일 클래스 탐지기 입력 명세서](docs/detector_input_spec.md)
+
+## 단일 클래스 알약 탐지기
+
+`detector/`에는 이미지 속 모든 알약을 `pill` 하나의 foreground 클래스로 찾는 SSDLite320 MobileNetV3-Large baseline이 있습니다. 모델 출력 클래스는 background `0`과 pill `1`을 포함한 2개이며, 세부 약품명은 탐지 bbox crop을 별도 분류기에 전달해 결정합니다.
+
+실제 데이터 구성 함수는 아직 저장소에 포함하지 않습니다. 함수가 반환해야 하는 DataLoader, label map과 data summary 형식은 [탐지기 입력 명세서](docs/detector_input_spec.md)를 따릅니다. 전체 설계와 단계별 결정은 [탐지기 구현 계획서](docs/detector_implementation_plan.md)에서 확인할 수 있습니다.
+
+데이터 구성 모듈이 준비되면 [학습 Notebook](notebooks/train_detector.ipynb)의 `data_factory_path`를 다음과 같은 경로로 설정합니다.
+
+```python
+data_factory_path = "data.detector_data:build_detector_inputs"
+```
+
+Notebook은 입력 검증, 신규 학습 또는 `last.pt` 재개, 학습 곡선, `best.pt` 평가, bbox 시각화와 분류기 연결 batch 확인을 순서대로 실행합니다. 결과는 `outputs/{run_name}/` 아래에 저장하며 Git에는 포함하지 않습니다. 실험 결과는 [탐지기 결과 보고서](reports/detector_report.md)의 `TBD` 항목에 기록합니다.
+
+전체 단위 테스트와 코드 검사는 다음 명령으로 실행합니다.
+
+```bash
+uv run python -m pytest -q
+uv run ruff check detector tests
+uv run ruff format --check detector tests
+```
+
+실제 SSDLite의 합성 이미지 forward/backward와 NMS smoke test만 다시 실행하려면 다음 명령을 사용합니다.
+
+```bash
+uv run python -m pytest -q tests/test_detector_model.py
+```
+
+## 탐지·분류 통합 추론
+
+[통합 추론 Notebook](notebooks/run_end_to_end_inference.ipynb)은 학습된 탐지기와 분류기의 `best.pt`를 불러와 원본 이미지에서 알약 bbox와 세부 품목을 순서대로 예측합니다. 각 모델의 학습은 기존 개별 Notebook에서 수행합니다.
+
+통합 Notebook의 `inference_factory_path`에는 `factory(batch_size=...)` 호출로 추론 DataLoader를 반환하는 함수 경로를 지정합니다. DataLoader batch는 [탐지기 입력 명세서의 추론 형식](docs/detector_input_spec.md#12-추론-dataloader)을 따라야 합니다.
+
+결과는 `outputs/end_to_end_inference/` 아래에 저장됩니다.
+
+- `end_to_end_predictions.json`: bbox, 품목 정보, 탐지·분류·결합 점수
+- `end_to_end_errors.json`: 탐지 및 분류 단계별 오류
+- `visualizations/`: 품목명과 최종 점수를 표시한 이미지

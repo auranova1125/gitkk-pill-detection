@@ -239,6 +239,25 @@ def test_train_one_epoch_updates_model() -> None:
     assert not torch.equal(initial_weight, model.layers[1].weight)
 
 
+def test_train_one_epoch_shows_progress(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    model = TinyClassifier()
+    data_loader = DataLoader(TinyDataset(), batch_size=2, shuffle=False)
+
+    train_one_epoch(
+        model,
+        data_loader,
+        nn.CrossEntropyLoss(),
+        torch.optim.AdamW(model.parameters(), lr=0.1),
+        torch.device("cpu"),
+        show_progress=True,
+        progress_description="Classifier progress test",
+    )
+
+    assert "Classifier progress test" in capsys.readouterr().err
+
+
 def test_compute_classification_metrics_excludes_unsupported_classes() -> None:
     logits = torch.tensor(
         [

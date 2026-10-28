@@ -23,6 +23,7 @@ class TrainConfig:
     weight_decay: float = 1e-4
     early_stopping_patience: int = 7
     resume_from: Path | None = None
+    show_progress: bool = True
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
@@ -49,6 +50,8 @@ class TrainConfig:
             raise ValueError("weight_decay must be non-negative")
         if self.early_stopping_patience <= 0:
             raise ValueError("early_stopping_patience must be greater than zero")
+        if not isinstance(self.show_progress, bool):
+            raise TypeError("show_progress must be a boolean")
 
     def to_dict(self) -> dict[str, Any]:
         """JSON으로 저장할 수 있는 설정 사본을 반환한다."""

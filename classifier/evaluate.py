@@ -9,6 +9,7 @@ from typing import Any
 
 import torch
 from torch import nn
+from tqdm.auto import tqdm
 
 from classifier.input_validation import validate_batch, validate_class_map
 
@@ -249,6 +250,8 @@ def evaluate_model(
     *,
     num_classes: int,
     max_confusion_pairs: int = 10,
+    show_progress: bool = False,
+    progress_description: str = "Classifier validation",
 ) -> EvaluationResult:
     """DataLoader 전체를 순회해 validation 결과를 계산한다."""
 
@@ -258,8 +261,18 @@ def evaluate_model(
     collected_logits: list[torch.Tensor] = []
     collected_targets: list[torch.Tensor] = []
     use_amp = device.type == "cuda"
+    if not isinstance(show_progress, bool):
+        raise TypeError("show_progress must be a boolean")
+    if not isinstance(progress_description, str) or not progress_description.strip():
+        raise ValueError("progress_description must be a non-empty string")
 
-    for batch in data_loader:
+    progress = tqdm(
+        data_loader,
+        desc=progress_description,
+        disable=not show_progress,
+        dynamic_ncols=True,
+    )
+    for batch in progress:
         images = batch["images"].to(device, non_blocking=use_amp)
         targets = batch["targets"].to(device, non_blocking=use_amp)
         with torch.autocast(device_type=device.type, enabled=use_amp):
@@ -271,6 +284,7 @@ def evaluate_model(
         total_samples += batch_size
         collected_logits.append(logits.detach().cpu())
         collected_targets.append(targets.detach().cpu())
+        progress.set_postfix(loss=f"{total_loss / total_samples:.4f}")
 
     if total_samples == 0:
         raise ValueError("data_loader must contain at least one sample")
@@ -294,6 +308,8 @@ def evaluate_with_predictions(
     *,
     expected_num_classes: int = 118,
     max_confusion_pairs: int = 10,
+    show_progress: bool = False,
+    progress_description: str = "Classifier detailed validation",
 ) -> ValidationArtifacts:
     """
     Best checkpoint 최종 분석용 함수입니다.
@@ -314,8 +330,18 @@ def evaluate_with_predictions(
     collected_logits: list[torch.Tensor] = []
     collected_targets: list[torch.Tensor] = []
     collected_meta: list[Mapping[str, Any]] = []
+    if not isinstance(show_progress, bool):
+        raise TypeError("show_progress must be a boolean")
+    if not isinstance(progress_description, str) or not progress_description.strip():
+        raise ValueError("progress_description must be a non-empty string")
 
-    for batch in data_loader:
+    progress = tqdm(
+        data_loader,
+        desc=progress_description,
+        disable=not show_progress,
+        dynamic_ncols=True,
+    )
+    for batch in progress:
         validate_batch(
             batch,
             class_map,
@@ -340,6 +366,7 @@ def evaluate_with_predictions(
         collected_logits.append(logits.detach().cpu())
         collected_targets.append(targets.detach().cpu())
         collected_meta.extend(batch["meta"])
+        progress.set_postfix(loss=f"{total_loss / total_samples:.4f}")
 
     if total_samples == 0:
         raise ValueError("data_loader must contain at least one sample")
