@@ -9,6 +9,8 @@ import json
 import math
 import random
 import re
+
+from .settings import load_settings, resolve_data_paths
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -237,15 +239,12 @@ def validate_batch(batch):
 
 
 def build_detector_inputs(*, config: DetectorConfig, device):
-    settings = read_json(
-        Path(__file__).with_name("detector_data_settings.json")
-    )
+    return _build_detector_inputs(config=config, device=device, settings=load_settings())
 
-    package = Path(settings["package_dir"]).expanduser().resolve()
-    roots = {
-        name: Path(value).expanduser().resolve()
-        for name, value in settings["image_roots"].items()
-    }
+
+def _build_detector_inputs(*, config, device, settings):
+    """실제 설정으로 로더를 구성한다. 소량 검사는 임시 라벨을 전달한다."""
+    package, roots = resolve_data_paths(settings)
 
     with (package / "split_manifest.csv").open(
         "r", encoding="utf-8-sig", newline=""
