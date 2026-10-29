@@ -29,9 +29,9 @@ from detector.evaluate import evaluate_model as evaluate_detector_model
 from detector.inference import load_inference_model as load_detector_model
 from detector.inference import validate_inference_batch
 from detector.input_validation import (
-    validate_detection_batch,
     validate_detector_data_summary,
     validate_detector_label_map,
+    validate_detector_training_batch,
 )
 from detector.train import TrainingResult as DetectorTrainingResult
 from detector.train import run_training as run_detector_training
@@ -277,11 +277,11 @@ def _validate_detector_inputs(inputs: TrainingFactoryResult) -> None:
     train_loader, val_loader, label_map, data_summary = inputs
     validate_detector_label_map(label_map)
     validate_detector_data_summary(data_summary, label_map)
-    validate_detection_batch(
+    validate_detector_training_batch(
         _first_batch(train_loader, name="train_loader"),
         label_map,
     )
-    validate_detection_batch(
+    validate_detector_training_batch(
         _first_batch(val_loader, name="val_loader"),
         label_map,
     )

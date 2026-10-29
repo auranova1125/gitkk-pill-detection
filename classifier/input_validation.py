@@ -1,10 +1,16 @@
 """분류기 입력 검증."""
 
-from collections.abc import Mapping, Sequence
-from numbers import Real
+from collections.abc import Mapping
 from typing import Any
 
 import torch
+
+from pilldata.validation import (
+    normalize_bbox_xywh,
+    require_fields,
+    require_mapping,
+    require_non_empty_string,
+)
 
 
 class InputValidationError(ValueError):
@@ -55,9 +61,7 @@ def _validate_num_classes(expected_num_classes: int) -> None:
 
 
 def _require_mapping(value: Any, name: str) -> Mapping[str, Any]:
-    if not isinstance(value, Mapping):
-        _fail(f"{name} must be a mapping")
-    return value
+    return require_mapping(value, name, error_type=InputValidationError)
 
 
 def _require_fields(
@@ -65,9 +69,12 @@ def _require_fields(
     required_fields: set[str],
     name: str,
 ) -> None:
-    missing_fields = sorted(required_fields - value.keys())
-    if missing_fields:
-        _fail(f"{name} is missing required fields: {missing_fields}")
+    require_fields(
+        value,
+        required_fields,
+        name,
+        error_type=InputValidationError,
+    )
 
 
 def _class_entries_by_index(
@@ -259,29 +266,22 @@ def validate_data_summary(
 def _validate_string_field(
     meta: Mapping[str, Any], field_name: str, index: int
 ) -> None:
-    value = meta[field_name]
-    if not isinstance(value, str) or not value:
-        _fail(f"batch.meta[{index}].{field_name} must be a non-empty string")
+    require_non_empty_string(
+        meta[field_name],
+        f"batch.meta[{index}].{field_name}",
+        strip=False,
+        type_error=InputValidationError,
+        value_error=InputValidationError,
+    )
 
 
 def _validate_bbox(value: Any, index: int) -> None:
-    if (
-        isinstance(value, (str, bytes))
-        or not isinstance(value, Sequence)
-        or len(value) != 4
-    ):
-        _fail(f"batch.meta[{index}].bbox_xywh must be a sequence of four numbers")
-
-    coordinates = []
-    for coordinate in value:
-        if not isinstance(coordinate, Real) or isinstance(coordinate, bool):
-            _fail(f"batch.meta[{index}].bbox_xywh must contain only numbers")
-        coordinates.append(float(coordinate))
-
-    if not torch.isfinite(torch.tensor(coordinates, dtype=torch.float64)).all():
-        _fail(f"batch.meta[{index}].bbox_xywh must contain only finite values")
-    if coordinates[2] <= 0 or coordinates[3] <= 0:
-        _fail(f"batch.meta[{index}].bbox_xywh width and height must be positive")
+    normalize_bbox_xywh(
+        value,
+        name=f"batch.meta[{index}].bbox_xywh",
+        type_error=InputValidationError,
+        value_error=InputValidationError,
+    )
 
 
 def validate_batch(

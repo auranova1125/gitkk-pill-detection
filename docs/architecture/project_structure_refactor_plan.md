@@ -38,8 +38,8 @@
 | 0. 계획과 기준선 | 완료 | `ef44c9d` |
 | 1. runtime과 공통 I/O | 완료 | `371cf3d` |
 | 2. crop과 transform 통합 | 완료 | `1364053` |
-| 3. 설정과 `main.py` | 검토 대기 | YAML schema, workflow와 synthetic smoke 추가 |
-| 4. 검증 이름과 primitive | 대기 | 3단계 승인 후 진행 |
+| 3. 설정과 `main.py` | 완료 | `256ff2d` |
+| 4. 검증 이름과 primitive | 검토 대기 | 명확한 검증 이름, 호환 alias와 공통 저수준 검증 추가 |
 | 5. 테스트와 문서 정리 | 대기 | 4단계 승인 후 진행 |
 
 ## 3. 현재 문제

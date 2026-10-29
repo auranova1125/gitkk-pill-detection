@@ -480,10 +480,10 @@ training_result = run_training(
 탐지 결과 batch는 다음처럼 검사한다.
 
 ```python
-from classifier import validate_detection_batch
+from classifier import validate_classifier_crop_batch
 
 
-validate_detection_batch(next(iter(detection_loader)))
+validate_classifier_crop_batch(next(iter(detection_loader)))
 print("탐지 입력 검증 완료")
 ```
 

@@ -2,8 +2,6 @@
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
-from math import isfinite
-from numbers import Real
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +12,7 @@ from detector.checkpoint import hash_label_map, load_checkpoint
 from detector.input_validation import validate_detector_label_map
 from detector.model import build_detector_model, select_device
 from pilldata.transforms import clip_xyxy_to_image
+from pilldata.validation import normalize_probability, validate_rgb_image_tensor
 from utils.io import write_json
 
 
@@ -74,7 +73,7 @@ def predict_detector(
 ) -> DetectorInferenceResult:
     """추론 batch를 순회해 filtering 및 clip된 pill 예측을 만든다."""
 
-    _validate_probability(score_threshold, name="score_threshold")
+    score_threshold = normalize_probability(score_threshold, name="score_threshold")
     if not isinstance(detector_name, str) or not detector_name.strip():
         raise ValueError("detector_name must be a non-empty string")
 
@@ -296,7 +295,10 @@ def load_inference_model(
     nms_threshold = model_config.get("nms_threshold")
     if num_classes != label_map["num_model_classes"]:
         raise ValueError("checkpoint class count does not match current label map")
-    _validate_probability(nms_threshold, name="checkpoint nms_threshold")
+    nms_threshold = normalize_probability(
+        nms_threshold,
+        name="checkpoint nms_threshold",
+    )
     model = build_detector_model(
         checkpoint["model_name"],
         num_classes=num_classes,
@@ -310,20 +312,7 @@ def load_inference_model(
 
 def _validate_inference_image(image: Any, *, index: int) -> None:
     name = f"batch.images[{index}]"
-    if not isinstance(image, torch.Tensor):
-        raise TypeError(f"{name} must be a torch.Tensor")
-    if image.device.type != "cpu":
-        raise ValueError(f"{name} must be on CPU")
-    if image.dtype != torch.float32:
-        raise TypeError(f"{name} must use torch.float32")
-    if image.ndim != 3 or image.shape[0] != 3:
-        raise ValueError(f"{name} must have shape [3, H, W]")
-    if image.shape[1] <= 0 or image.shape[2] <= 0:
-        raise ValueError(f"{name} height and width must be positive")
-    if not torch.isfinite(image).all():
-        raise ValueError(f"{name} must not contain NaN or Inf")
-    if torch.any((image < 0.0) | (image > 1.0)):
-        raise ValueError(f"{name} values must be between 0.0 and 1.0")
+    validate_rgb_image_tensor(image, name=name)
 
 
 def _normalize_inference_meta(value: Any, *, index: int) -> dict[str, Any]:
@@ -399,10 +388,3 @@ def _normalize_model_predictions(
             raise ValueError("prediction scores must be between 0.0 and 1.0")
         predictions.append({"boxes": boxes, "labels": labels, "scores": scores})
     return predictions
-
-
-def _validate_probability(value: Any, *, name: str) -> None:
-    if not isinstance(value, Real) or isinstance(value, bool):
-        raise TypeError(f"{name} must be a number")
-    if not isfinite(float(value)) or not 0.0 <= float(value) <= 1.0:
-        raise ValueError(f"{name} must be between 0.0 and 1.0")

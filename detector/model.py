@@ -8,6 +8,7 @@ from torchvision.models import MobileNet_V3_Large_Weights
 from torchvision.models.detection import ssdlite320_mobilenet_v3_large
 from torchvision.models.detection.ssd import SSD
 
+from pilldata.validation import normalize_probability
 from utils.runtime import select_device as _select_device
 
 DetectorBuilder = Callable[..., nn.Module]
@@ -24,7 +25,7 @@ def build_ssdlite320(
     _validate_num_classes(num_classes)
     if not isinstance(pretrained_backbone, bool):
         raise TypeError("pretrained_backbone must be a boolean")
-    _validate_probability(nms_threshold, name="nms_threshold")
+    nms_threshold = normalize_probability(nms_threshold, name="nms_threshold")
 
     backbone_weights = (
         MobileNet_V3_Large_Weights.IMAGENET1K_V1 if pretrained_backbone else None
@@ -70,7 +71,7 @@ def build_detector_model(
     _validate_num_classes(num_classes)
     if not isinstance(pretrained_backbone, bool):
         raise TypeError("pretrained_backbone must be a boolean")
-    _validate_probability(nms_threshold, name="nms_threshold")
+    nms_threshold = normalize_probability(nms_threshold, name="nms_threshold")
 
     try:
         builder = MODEL_BUILDERS[model_name]
@@ -93,10 +94,3 @@ def _validate_num_classes(num_classes: int) -> None:
         raise ValueError(
             "num_classes must include background and at least one foreground class"
         )
-
-
-def _validate_probability(value: float, *, name: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        raise TypeError(f"{name} must be a number")
-    if not 0.0 <= value <= 1.0:
-        raise ValueError(f"{name} must be between 0.0 and 1.0")

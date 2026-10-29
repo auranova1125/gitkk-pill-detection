@@ -2,7 +2,6 @@
 
 from collections.abc import Mapping
 from dataclasses import MISSING, dataclass, fields
-from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +9,7 @@ import yaml
 
 from classifier.config import TrainConfig
 from detector.config import DetectorConfig
+from pilldata.validation import normalize_probability
 
 _DEVICE_NAMES = {"auto", "cpu", "mps", "cuda"}
 
@@ -78,15 +78,7 @@ class PipelineExperimentConfig:
         if not isinstance(self.detector_name, str) or not self.detector_name.strip():
             raise ValueError("detector_name must be a non-empty string")
         _validate_positive_integer(self.batch_size, name="batch_size")
-        if isinstance(self.score_threshold, bool) or not isinstance(
-            self.score_threshold, int | float
-        ):
-            raise TypeError("score_threshold must be a number")
-        if (
-            not isfinite(float(self.score_threshold))
-            or not 0.0 <= self.score_threshold <= 1.0
-        ):
-            raise ValueError("score_threshold must be between 0.0 and 1.0")
+        normalize_probability(self.score_threshold, name="score_threshold")
         _validate_boolean(self.show_progress, name="show_progress")
         _validate_device_name(self.device)
 

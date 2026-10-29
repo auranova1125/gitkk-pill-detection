@@ -11,6 +11,8 @@ from torch.nn import functional
 from torchvision import transforms as T
 from torchvision.transforms import InterpolationMode
 
+from pilldata.validation import validate_rgb_image_tensor
+
 CLASSIFIER_IMAGE_SIZE = 224
 CROP_MARGIN = 0.05
 PADDING_COLOR_RGB = (124, 116, 104)
@@ -266,11 +268,9 @@ def _validate_image_size(*, height: int, width: int) -> None:
 
 
 def _validate_image_tensor(image: torch.Tensor) -> None:
-    if not isinstance(image, torch.Tensor):
-        raise TypeError("image must be a torch.Tensor")
-    if image.dtype != torch.float32:
-        raise TypeError("image must use torch.float32")
-    if image.ndim != 3 or image.shape[0] != 3:
-        raise ValueError("image must have shape [3, H, W]")
-    if image.shape[1] <= 0 or image.shape[2] <= 0:
-        raise ValueError("image height and width must be positive")
+    validate_rgb_image_tensor(
+        image,
+        require_cpu=False,
+        require_finite=False,
+        value_range=None,
+    )

@@ -32,6 +32,7 @@ from detector.input_validation import (
     validate_detection_batch,
     validate_detector_data_summary,
     validate_detector_label_map,
+    validate_detector_training_batch,
 )
 from detector.model import (
     MODEL_BUILDERS,
@@ -94,5 +95,6 @@ __all__ = [
     "validate_detection_batch",
     "validate_detector_data_summary",
     "validate_detector_label_map",
+    "validate_detector_training_batch",
     "validate_inference_batch",
 ]

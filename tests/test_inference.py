@@ -12,7 +12,7 @@ from classifier.checkpoint import hash_class_map, save_checkpoint
 from classifier.inference import (
     load_inference_model,
     predict_detections,
-    validate_detection_batch,
+    validate_classifier_crop_batch,
 )
 from classifier.model import TrainingStage
 from classifier.train import build_grad_scaler
@@ -73,8 +73,8 @@ def make_batch(batch_size: int = 2) -> dict[str, Any]:
     }
 
 
-def test_validate_detection_batch_normalizes_metadata() -> None:
-    normalized_meta = validate_detection_batch(make_batch())
+def test_validate_classifier_crop_batch_normalizes_metadata() -> None:
+    normalized_meta = validate_classifier_crop_batch(make_batch())
 
     assert len(normalized_meta) == 2
     assert normalized_meta[0]["bbox_xywh"] == (10.0, 20.0, 30.0, 40.0)
@@ -130,14 +130,14 @@ def test_predict_detections_keeps_prediction_when_mapping_is_missing() -> None:
 
 
 @pytest.mark.parametrize("detector_score", [-0.1, 1.1, float("nan")])
-def test_validate_detection_batch_rejects_invalid_detector_score(
+def test_validate_classifier_crop_batch_rejects_invalid_detector_score(
     detector_score: float,
 ) -> None:
     batch = make_batch(batch_size=1)
     batch["meta"][0]["detector_score"] = detector_score
 
     with pytest.raises(ValueError, match="between 0 and 1"):
-        validate_detection_batch(batch)
+        validate_classifier_crop_batch(batch)
 
 
 def test_predict_detections_rejects_wrong_logit_shape() -> None:

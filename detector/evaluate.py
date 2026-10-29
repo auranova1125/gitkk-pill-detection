@@ -11,6 +11,7 @@ from torchvision.ops import box_iou
 from tqdm.auto import tqdm
 
 from detector.train import move_detection_batch_to_device
+from pilldata.validation import normalize_probability
 
 HIGH_IOU_THRESHOLDS = [0.75, 0.80, 0.85, 0.90, 0.95]
 
@@ -54,8 +55,11 @@ def evaluate_model(
 ) -> EvaluationResult:
     """validation 전체의 COCO 지표와 threshold 전후 recall을 계산한다."""
 
-    _validate_threshold(score_threshold, name="score_threshold")
-    _validate_threshold(recall_iou_threshold, name="recall_iou_threshold")
+    score_threshold = normalize_probability(score_threshold, name="score_threshold")
+    recall_iou_threshold = normalize_probability(
+        recall_iou_threshold,
+        name="recall_iou_threshold",
+    )
     if not isinstance(show_progress, bool):
         raise TypeError("show_progress must be a boolean")
     if not isinstance(progress_description, str) or not progress_description.strip():
@@ -158,7 +162,7 @@ def filter_predictions_by_score(
 ) -> list[dict[str, torch.Tensor]]:
     """각 이미지 예측에서 score threshold 이상인 항목만 유지한다."""
 
-    _validate_threshold(score_threshold, name="score_threshold")
+    score_threshold = normalize_probability(score_threshold, name="score_threshold")
     filtered_predictions: list[dict[str, torch.Tensor]] = []
     for index, prediction in enumerate(predictions):
         _validate_prediction(prediction, index=index)
@@ -272,10 +276,3 @@ def _metric_value(values: Mapping[str, torch.Tensor], name: str) -> float:
     if value < 0:
         raise ValueError(f"metric {name} is undefined for the provided validation data")
     return value
-
-
-def _validate_threshold(value: float, *, name: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        raise TypeError(f"{name} must be a number")
-    if not 0.0 <= value <= 1.0:
-        raise ValueError(f"{name} must be between 0.0 and 1.0")

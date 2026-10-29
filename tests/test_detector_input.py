@@ -11,9 +11,9 @@ from torch.utils.data import DataLoader, Dataset
 from detector import (
     DetectorConfig,
     InputValidationError,
-    validate_detection_batch,
     validate_detector_data_summary,
     validate_detector_label_map,
+    validate_detector_training_batch,
 )
 
 
@@ -238,14 +238,14 @@ def test_validate_detector_data_summary_rejects_inconsistent_values(
         validate_detector_data_summary(summary, label_map)
 
 
-def test_validate_detection_batch_accepts_multiple_images_and_boxes(
+def test_validate_detector_training_batch_accepts_multiple_images_and_boxes(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
-    validate_detection_batch(valid_batch, label_map)
+    validate_detector_training_batch(valid_batch, label_map)
 
 
-def test_validate_detection_batch_requires_lists(
+def test_validate_detector_training_batch_requires_lists(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
@@ -255,7 +255,7 @@ def test_validate_detection_batch_requires_lists(
     }
 
     with pytest.raises(InputValidationError, match="batch.images must be a list"):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)
 
 
 @pytest.mark.parametrize(
@@ -266,7 +266,7 @@ def test_validate_detection_batch_requires_lists(
         (torch.full((3, 64, 80), 1.1), "between 0.0 and 1.0"),
     ],
 )
-def test_validate_detection_batch_rejects_invalid_images(
+def test_validate_detector_training_batch_rejects_invalid_images(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
     replacement: torch.Tensor,
@@ -276,10 +276,10 @@ def test_validate_detection_batch_rejects_invalid_images(
     invalid_batch["images"][0] = replacement
 
     with pytest.raises(InputValidationError, match=error_text):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)
 
 
-def test_validate_detection_batch_rejects_box_outside_image(
+def test_validate_detector_training_batch_rejects_box_outside_image(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
@@ -287,10 +287,10 @@ def test_validate_detection_batch_rejects_box_outside_image(
     invalid_batch["targets"][0]["boxes"][0, 2] = 81.0
 
     with pytest.raises(InputValidationError, match="inside the image"):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)
 
 
-def test_validate_detection_batch_rejects_incorrect_area(
+def test_validate_detector_training_batch_rejects_incorrect_area(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
@@ -298,10 +298,10 @@ def test_validate_detection_batch_rejects_incorrect_area(
     invalid_batch["targets"][0]["area"][0] = 1.0
 
     with pytest.raises(InputValidationError, match="calculated from boxes"):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)
 
 
-def test_validate_detection_batch_rejects_non_pill_label(
+def test_validate_detector_training_batch_rejects_non_pill_label(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
@@ -309,10 +309,10 @@ def test_validate_detection_batch_rejects_non_pill_label(
     invalid_batch["targets"][0]["labels"][0] = 0
 
     with pytest.raises(InputValidationError, match="pill label 1"):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)
 
 
-def test_validate_detection_batch_rejects_source_count_mismatch(
+def test_validate_detector_training_batch_rejects_source_count_mismatch(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
@@ -320,10 +320,10 @@ def test_validate_detection_batch_rejects_source_count_mismatch(
     invalid_batch["meta"][0]["source_annotation_count"] = 1
 
     with pytest.raises(InputValidationError, match="counts must match"):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)
 
 
-def test_validate_detection_batch_rejects_duplicate_annotation_ids(
+def test_validate_detector_training_batch_rejects_duplicate_annotation_ids(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
@@ -331,10 +331,10 @@ def test_validate_detection_batch_rejects_duplicate_annotation_ids(
     invalid_batch["meta"][0]["annotation_ids"] = [10, 10]
 
     with pytest.raises(InputValidationError, match="must not contain duplicates"):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)
 
 
-def test_validate_detection_batch_rejects_target_meta_image_id_mismatch(
+def test_validate_detector_training_batch_rejects_target_meta_image_id_mismatch(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
@@ -342,10 +342,10 @@ def test_validate_detection_batch_rejects_target_meta_image_id_mismatch(
     invalid_batch["meta"][0]["image_id"] = 99
 
     with pytest.raises(InputValidationError, match="must match"):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)
 
 
-def test_validate_detection_batch_rejects_duplicate_image_ids(
+def test_validate_detector_training_batch_rejects_duplicate_image_ids(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
@@ -354,4 +354,4 @@ def test_validate_detection_batch_rejects_duplicate_image_ids(
     invalid_batch["meta"][1]["image_id"] = 0
 
     with pytest.raises(InputValidationError, match="image_id values must be unique"):
-        validate_detection_batch(invalid_batch, label_map)
+        validate_detector_training_batch(invalid_batch, label_map)

@@ -18,6 +18,14 @@ from pilldata.transforms import (
     pad_square,
     preprocess_classifier_crop,
 )
+from pilldata.validation import (
+    normalize_bbox_xywh,
+    normalize_probability,
+    require_fields,
+    require_mapping,
+    require_non_empty_string,
+    validate_rgb_image_tensor,
+)
 
 __all__ = [
     "CLASSIFIER_IMAGE_SIZE",
@@ -34,6 +42,12 @@ __all__ = [
     "crop_tensor_xyxy",
     "cut_pill",
     "load_data_factory",
+    "normalize_bbox_xywh",
+    "normalize_probability",
     "pad_square",
     "preprocess_classifier_crop",
+    "require_fields",
+    "require_mapping",
+    "require_non_empty_string",
+    "validate_rgb_image_tensor",
 ]

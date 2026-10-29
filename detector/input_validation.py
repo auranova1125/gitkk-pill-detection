@@ -1,10 +1,17 @@
 """단일 클래스 탐지기 입력 검증."""
 
 from collections.abc import Mapping, Sequence
-from numbers import Real
 from typing import Any
 
 import torch
+
+from pilldata.validation import (
+    normalize_bbox_xywh,
+    require_fields,
+    require_mapping,
+    require_non_empty_string,
+    validate_rgb_image_tensor,
+)
 
 
 class InputValidationError(ValueError):
@@ -59,9 +66,7 @@ def _is_integer(value: Any) -> bool:
 
 
 def _require_mapping(value: Any, name: str) -> Mapping[str, Any]:
-    if not isinstance(value, Mapping):
-        _fail(f"{name} must be a mapping")
-    return value
+    return require_mapping(value, name, error_type=InputValidationError)
 
 
 def _require_fields(
@@ -69,15 +74,21 @@ def _require_fields(
     required_fields: set[str],
     name: str,
 ) -> None:
-    missing_fields = sorted(required_fields - value.keys())
-    if missing_fields:
-        _fail(f"{name} is missing required fields: {missing_fields}")
+    require_fields(
+        value,
+        required_fields,
+        name,
+        error_type=InputValidationError,
+    )
 
 
 def _require_non_empty_string(value: Any, name: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        _fail(f"{name} must be a non-empty string")
-    return value
+    return require_non_empty_string(
+        value,
+        name,
+        type_error=InputValidationError,
+        value_error=InputValidationError,
+    )
 
 
 def validate_detector_label_map(label_map: Mapping[str, Any]) -> None:
@@ -202,7 +213,7 @@ def _validate_split_summary(data_summary: Mapping[str, Any], *, split: str) -> N
         )
 
 
-def validate_detection_batch(
+def validate_detector_training_batch(
     batch: Mapping[str, Any],
     label_map: Mapping[str, Any],
 ) -> None:
@@ -242,25 +253,18 @@ def validate_detection_batch(
         _fail("batch image_id values must be unique")
 
 
+# 기존 Notebook과 외부 코드의 import 경로를 유지한다.
+validate_detection_batch = validate_detector_training_batch
+
+
 def _validate_image(image: Any, index: int) -> tuple[int, int]:
     name = f"batch.images[{index}]"
-    if not isinstance(image, torch.Tensor):
-        _fail(f"{name} must be a torch.Tensor")
-    if image.device.type != "cpu":
-        _fail(f"{name} must be on CPU")
-    if image.dtype != torch.float32:
-        _fail(f"{name} must use torch.float32, got {image.dtype}")
-    if image.ndim != 3 or image.shape[0] != 3:
-        _fail(f"{name} must have shape [3, H, W], got {tuple(image.shape)}")
-
-    height, width = image.shape[-2:]
-    if height <= 0 or width <= 0:
-        _fail(f"{name} height and width must be greater than zero")
-    if not torch.isfinite(image).all():
-        _fail(f"{name} must not contain NaN or Inf")
-    if torch.any((image < 0.0) | (image > 1.0)):
-        _fail(f"{name} values must be between 0.0 and 1.0")
-    return height, width
+    return validate_rgb_image_tensor(
+        image,
+        name=name,
+        type_error=InputValidationError,
+        value_error=InputValidationError,
+    )
 
 
 def _validate_target(
@@ -417,19 +421,9 @@ def _validate_original_size(value: Any, name: str) -> None:
 
 
 def _validate_xywh(value: Any, name: str) -> None:
-    if (
-        isinstance(value, (str, bytes))
-        or not isinstance(value, Sequence)
-        or len(value) != 4
-    ):
-        _fail(f"{name} must contain four numbers")
-
-    coordinates: list[float] = []
-    for coordinate in value:
-        if not isinstance(coordinate, Real) or isinstance(coordinate, bool):
-            _fail(f"{name} must contain only numbers")
-        coordinates.append(float(coordinate))
-    if not torch.isfinite(torch.tensor(coordinates, dtype=torch.float64)).all():
-        _fail(f"{name} must contain only finite values")
-    if coordinates[2] <= 0 or coordinates[3] <= 0:
-        _fail(f"{name} width and height must be positive")
+    normalize_bbox_xywh(
+        value,
+        name=name,
+        type_error=InputValidationError,
+        value_error=InputValidationError,
+    )

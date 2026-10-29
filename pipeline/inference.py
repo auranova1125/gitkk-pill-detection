@@ -2,8 +2,6 @@
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
-from math import isfinite
-from numbers import Real
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +23,7 @@ from detector.inference import (
     predict_detector,
     validate_inference_batch,
 )
+from pilldata.validation import normalize_probability, validate_rgb_image_tensor
 from utils.io import write_json
 
 
@@ -89,10 +88,7 @@ def run_end_to_end_inference(
     validate_class_map(class_map, expected_num_classes=num_classes)
     if not isinstance(show_progress, bool):
         raise TypeError("show_progress must be a boolean")
-    if not isinstance(score_threshold, Real) or isinstance(score_threshold, bool):
-        raise TypeError("score_threshold must be a number")
-    if not isfinite(float(score_threshold)) or not 0.0 <= score_threshold <= 1.0:
-        raise ValueError("score_threshold must be between 0.0 and 1.0")
+    score_threshold = normalize_probability(score_threshold, name="score_threshold")
     if not isinstance(detector_name, str) or not detector_name.strip():
         raise ValueError("detector_name must be a non-empty string")
 
@@ -256,17 +252,4 @@ def plot_end_to_end_predictions(
 
 
 def _validate_image(image: Any) -> None:
-    if not isinstance(image, torch.Tensor):
-        raise TypeError("image must be a torch.Tensor")
-    if image.device.type != "cpu":
-        raise ValueError("image must be on CPU")
-    if image.dtype != torch.float32:
-        raise TypeError("image must use torch.float32")
-    if image.ndim != 3 or image.shape[0] != 3:
-        raise ValueError("image must have shape [3, H, W]")
-    if image.shape[1] <= 0 or image.shape[2] <= 0:
-        raise ValueError("image height and width must be positive")
-    if not torch.isfinite(image).all():
-        raise ValueError("image must not contain NaN or Inf")
-    if torch.any((image < 0.0) | (image > 1.0)):
-        raise ValueError("image values must be between 0.0 and 1.0")
+    validate_rgb_image_tensor(image)

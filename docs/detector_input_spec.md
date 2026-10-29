@@ -489,7 +489,7 @@ padding 색 `(124, 116, 104)`는 ImageNet RGB 평균 `(0.485, 0.456, 0.406)`에 
 from detector import (
     DetectorConfig,
     select_device,
-    validate_detection_batch,
+    validate_detector_training_batch,
     validate_detector_data_summary,
     validate_detector_label_map,
 )
@@ -504,8 +504,8 @@ train_loader, val_loader, label_map, data_summary = build_detector_inputs(
 
 validate_detector_label_map(label_map)
 validate_detector_data_summary(data_summary, label_map)
-validate_detection_batch(next(iter(train_loader)), label_map)
-validate_detection_batch(next(iter(val_loader)), label_map)
+validate_detector_training_batch(next(iter(train_loader)), label_map)
+validate_detector_training_batch(next(iter(val_loader)), label_map)
 print("탐지기 입력 검증 완료")
 ```
 

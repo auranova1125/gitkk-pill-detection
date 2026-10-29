@@ -25,6 +25,7 @@ from classifier.inference import (
     InferenceResult,
     load_inference_model,
     predict_detections,
+    validate_classifier_crop_batch,
     validate_detection_batch,
 )
 from classifier.input_validation import (
@@ -90,6 +91,7 @@ __all__ = [
     "validate_batch",
     "validate_checkpoint_compatibility",
     "validate_class_map",
+    "validate_classifier_crop_batch",
     "validate_data_summary",
     "validate_detection_batch",
 ]

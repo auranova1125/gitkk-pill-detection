@@ -1,9 +1,7 @@
 """탐지 crop 분류와 detector score 결합."""
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
-from math import isfinite
-from numbers import Real
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +12,7 @@ from classifier.checkpoint import hash_class_map, load_checkpoint
 from classifier.input_validation import validate_class_map
 from classifier.model import build_model
 from classifier.train import select_device
+from pilldata.validation import normalize_bbox_xywh, normalize_probability
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,28 +64,13 @@ class InferenceResult:
 
 
 def _validate_bbox(value: Any, batch_index: int) -> tuple[float, float, float, float]:
-    if (
-        isinstance(value, (str, bytes))
-        or not isinstance(value, Sequence)
-        or len(value) != 4
-    ):
-        raise ValueError(
-            f"batch.meta[{batch_index}].bbox_xywh must contain four numbers"
-        )
-    if any(not isinstance(item, Real) or isinstance(item, bool) for item in value):
-        raise TypeError(f"batch.meta[{batch_index}].bbox_xywh must contain numbers")
-
-    bbox = tuple(float(item) for item in value)
-    if any(not isfinite(item) for item in bbox):
-        raise ValueError(f"batch.meta[{batch_index}].bbox_xywh must be finite")
-    if bbox[2] <= 0 or bbox[3] <= 0:
-        raise ValueError(
-            f"batch.meta[{batch_index}].bbox_xywh width and height must be positive"
-        )
-    return bbox
+    return normalize_bbox_xywh(
+        value,
+        name=f"batch.meta[{batch_index}].bbox_xywh",
+    )
 
 
-def validate_detection_batch(
+def validate_classifier_crop_batch(
     batch: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
     """탐지 crop batch의 tensor와 metadata를 검증한다."""
@@ -144,14 +128,10 @@ def validate_detection_batch(
                     f"batch.meta[{index}].{field_name} must be a non-empty string"
                 )
 
-        detector_score = raw_meta["detector_score"]
-        if not isinstance(detector_score, Real) or isinstance(detector_score, bool):
-            raise TypeError(f"batch.meta[{index}].detector_score must be a number")
-        detector_score = float(detector_score)
-        if not isfinite(detector_score) or not 0 <= detector_score <= 1:
-            raise ValueError(
-                f"batch.meta[{index}].detector_score must be between 0 and 1"
-            )
+        detector_score = normalize_probability(
+            raw_meta["detector_score"],
+            name=f"batch.meta[{index}].detector_score",
+        )
 
         normalized_meta.append(
             {
@@ -163,6 +143,10 @@ def validate_detection_batch(
             }
         )
     return normalized_meta
+
+
+# 기존 Notebook과 외부 코드의 import 경로를 유지한다.
+validate_detection_batch = validate_classifier_crop_batch
 
 
 def _class_lookup(
@@ -206,7 +190,7 @@ def predict_detections(
     errors: list[InferenceError] = []
 
     for batch in data_loader:
-        normalized_meta = validate_detection_batch(batch)
+        normalized_meta = validate_classifier_crop_batch(batch)
         images = batch["images"].to(device, non_blocking=use_amp)
         with torch.autocast(device_type=device.type, enabled=use_amp):
             logits = model(images)
