@@ -2,13 +2,11 @@
 
 import os
 import re
-import sys
 import unicodedata
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT))  # 프로젝트 runtime 모듈을 import하기 위해
 DATA = ROOT / "data"  # git에 올리지 않음 (.gitignore의 /data/)
 # 원본 위치. 다른 곳에 있으면 환경 변수로 지정하거나 data/ 아래에 심볼릭 링크를 둔다
 AIHUB = Path(

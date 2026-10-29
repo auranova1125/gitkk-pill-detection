@@ -2,7 +2,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 상태 | 진행 중 |
+| 상태 | 완료 |
 | 관련 이슈 | #16 |
 | 작업 브랜치 | `16-refactor-project-structure` |
 | 최초 작성 | 2026-10-29 |
@@ -44,8 +44,8 @@
 | 6. 문서 기준점 통합 | 완료 | `b5914a1` |
 | 7. runtime 데이터 이전 | 완료 | `dbb0ac6` |
 | 8. 오프라인 ETL 이전 | 완료 | `4a8029a` |
-| 9. 책임과 이름 정리 | 검토 대기 | 호환 계층 제거, 설정 소유권 통합, 모델별 실행 함수와 알약 인식 pipeline 분리 |
-| 10. 최종 문서·구조 검증 | 대기 | 실제 구조, 문서, import와 전체 테스트 일치 확인 |
+| 9. 책임과 이름 정리 | 완료 | `5aedaf3`, `9a5dd35`, `d28446e` — 설정·실행·학습 데이터 준비·검증 책임 정리 |
+| 10. 최종 문서·구조 검증 | 완료 | 실제 구조와 문서 일치, 전체 테스트 `206 passed`, CLI·Notebook·import 검증 완료 |
 
 ## 3. 현재 문제
 
@@ -150,7 +150,7 @@ gitkk-pill-detection/
 │   └── runtime.py
 ├── scripts/
 │   └── classifier_data/
-│       ├── config.py
+│       ├── paths.py
 │       ├── validate_labels.py
 │       ├── select_images.py
 │       ├── make_crops.py
@@ -391,6 +391,30 @@ detector.validate_detection_batch
 - 전체 테스트, Ruff, Notebook 문법과 링크 검사
 - 리팩터링 전후 파일 수와 중복 책임 비교
 
+#### 최종 검증 결과
+
+| 검사 | 결과 |
+| --- | --- |
+| 전체 pytest | `206 passed` |
+| Ruff 검사 | `main.py`, runtime 패키지, scripts와 tests 전체 통과 |
+| Ruff format | 같은 범위의 Python 파일 61개 통과 |
+| Notebook | 4개 JSON 구조와 Python 코드 셀 문법 통과 |
+| CLI | `main.py --help`, CPU synthetic smoke 통과 |
+| 문서 | 루트 README 1개, 내부 문서·Notebook·보고서 링크 대상 존재 확인 |
+| 이전 경로 | 제거한 패키지와 `schema.py`, `workflows.py`, 상위 `inference.py` import 없음 |
+
+리팩터링 전 기준점과 최종 구조의 추적 파일 수는 다음과 같다.
+
+| 구분 | 리팩터링 전 | 최종 |
+| --- | ---: | ---: |
+| Python 파일 | 42 | 61 |
+| 테스트 파일 | 11 | 18 |
+| Notebook | 4 | 4 |
+| Markdown 문서 | 12 | 13 |
+| 제거 대상 최상위 패키지 | `common`, `classifier_data`, `classifier_data_build` | 0개 |
+
+Python 파일 수는 CLI, 검증된 설정 모듈, 공통 데이터·유틸리티와 회귀 테스트가 추가되어 증가했다. 대신 설정, runtime 데이터, 오프라인 ETL, 실행 환경과 통합 추론의 소유권이 각각 `configs/`, `pilldata/`, `scripts/`, `utils/`, `pipeline/`로 한 곳에 모였다. 따라서 이번 작업의 기준은 최소 파일 수가 아니라 중복 책임 제거와 변경 경계의 명확성이다.
+
 ## 7. 탐지기 DataLoader 이후 작업
 
 다음 항목은 이번 이슈의 완료 조건에 포함하지 않는다.
@@ -414,7 +438,7 @@ detector.validate_detection_batch
 - Notebook과 `main.py`가 같은 핵심 함수를 호출한다.
 - `main.py`가 명령 도움말과 synthetic smoke를 제공한다.
 - 데이터 factory가 없을 때 명확한 오류를 제공한다.
-- 기존 Notebook 3개의 구조와 Python 문법 검사가 통과한다.
+- 기존 Notebook 4개의 구조와 Python 문법 검사가 통과한다.
 - Git에 추적되는 README는 루트 `README.md` 하나뿐이다.
 - runtime 데이터 코드는 `pilldata/`에만 존재한다.
 - 오프라인 데이터 생성 코드는 `scripts/classifier_data/` 아래에 존재한다.
