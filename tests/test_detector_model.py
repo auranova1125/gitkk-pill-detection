@@ -1,6 +1,5 @@
 """탐지 모델 registry와 SSDLite smoke test."""
 
-from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -208,8 +207,12 @@ def test_select_device_priority(
     mps_available: bool,
     expected_device: str,
 ) -> None:
-    cuda_probe: Callable[[], bool] = lambda: cuda_available
-    mps_probe: Callable[[], bool] = lambda: mps_available
+    def cuda_probe() -> bool:
+        return cuda_available
+
+    def mps_probe() -> bool:
+        return mps_available
+
     monkeypatch.setattr(torch.cuda, "is_available", cuda_probe)
     monkeypatch.setattr(torch.backends.mps, "is_available", mps_probe)
 

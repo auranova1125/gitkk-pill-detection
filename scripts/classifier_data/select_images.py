@@ -47,7 +47,11 @@ codes = list(classes.code)
 iss = pd.read_csv(META / "label_issues.csv")
 ex_img = set(iss[iss.action == "이미지 제외"].image)
 ex_box = set(
-    zip(iss[iss.action == "bbox 제외"].image, iss[iss.action == "bbox 제외"].code)
+    zip(
+        iss[iss.action == "bbox 제외"].image,
+        iss[iss.action == "bbox 제외"].code,
+        strict=True,
+    )
 )
 
 # 조합: 약마다 JSON이 따로 있다 ({조합}_json/{약 코드}/{이미지}.json)
@@ -94,18 +98,18 @@ print(
 )
 
 # 정수계획: x(이미지 선택), o(클래스별 목표 초과), e(선택된 조합 수)
-I = sorted(labels)
+candidate_images = sorted(labels)
 groups = defaultdict(list)
-for i, b in enumerate(I):
+for i, b in enumerate(candidate_images):
     groups[b.split("_")[0]].append(i)
 G = list(groups)
-nI, nC, nG = len(I), len(codes), len(G)
+nI, nC, nG = len(candidate_images), len(codes), len(G)
 cidx = {c: j for j, c in enumerate(codes)}
 iO, iE = nI, nI + nC
 nV = iE + nG
 A = lil_matrix((2 * nC + nG + 3, nV))
 lo, hi = [], []
-for i, b in enumerate(I):
+for i, b in enumerate(candidate_images):
     for c, *_ in labels[b]:
         A[cidx[c], i] += 1
         A[nC + cidx[c], i] += 1
@@ -124,7 +128,7 @@ for k, g in enumerate(G):  # 조합 g에서 하나라도 고르면 e_g = 1
     hi.append(0)
 r0 = 2 * nC + nG
 for t, ang in enumerate(["70", "75", "90"]):  # 각 각도 30% 이상
-    for i, b in enumerate(I):
+    for i, b in enumerate(candidate_images):
         A[r0 + t, i] = (b.split("_")[5] == ang) - 0.30
     lo.append(0)
     hi.append(np.inf)
@@ -147,7 +151,7 @@ res = milp(
 )
 assert res.x is not None, res.message
 print("최적화:", res.message)
-sel = [b for i, b in enumerate(I) if res.x[i] > 0.5]
+sel = [b for i, b in enumerate(candidate_images) if res.x[i] > 0.5]
 
 # 저장
 META.mkdir(parents=True, exist_ok=True)

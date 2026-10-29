@@ -53,7 +53,7 @@ assert "split" in crops, "split_dataset.py를 먼저 실행하세요"
 files = pd.read_csv(META / "label_files.csv")
 files["code"] = files.code.str.replace("-오류", "", regex=False)
 classes = pd.read_csv(CLASSES)
-to_index = dict(zip(classes.code, classes.class_id))
+to_index = dict(zip(classes.code, classes.class_id, strict=True))
 
 # ── 라벨 JSON에서 item_seq, drug_dir 읽기 ─────────────────────────────────
 tl = {os.path.basename(z.filename): z for z in (tl_zip(n) for n in COMBO_ZIPS)}
@@ -103,7 +103,7 @@ s = pd.DataFrame(
         "code": crops.code,
         "category_id": crops.code.str[2:].astype(int),
         "item_seq": crops.item_seq,
-        "name": crops.code.map(dict(zip(classes.code, classes.name))),
+        "name": crops.code.map(dict(zip(classes.code, classes.name, strict=True))),
         "image_id": crops.image.str[:-4],
         "image_path": [image_path(r) for r in crops.itertuples()],
         "bbox_xywh": [

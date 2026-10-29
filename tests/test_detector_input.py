@@ -250,7 +250,7 @@ def test_validate_detector_training_batch_requires_lists(
         "images": torch.zeros(2, 3, 64, 80, dtype=torch.float32),
     }
 
-    with pytest.raises(InputValidationError, match="batch.images must be a list"):
+    with pytest.raises(InputValidationError, match=r"batch\.images must be a list"):
         validate_detector_training_batch(invalid_batch, label_map)
 
 

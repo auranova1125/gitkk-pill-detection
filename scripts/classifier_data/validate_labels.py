@@ -147,7 +147,7 @@ for n in COMBO_ZIPS:
         try:
             add(json.loads(z.read(m)), "combo", image, code)
         # 손상된 원본 annotation 하나가 전체 검수를 중단하지 않게 기록한다.
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             issue(
                 "combo",
                 image,
@@ -212,8 +212,8 @@ d["ratio_s"] = pd.to_numeric(
     [ratio(min(r.bbox[2:]), r.leng_s) if r.ok else None for r in d.itertuples()]
 )
 d["ratio_ok"] = d.ratio.between(*RATIO) & ~(d.ratio_s < RATIO[0])
-d["long"] = [max(b[2:]) if ok else None for b, ok in zip(d.bbox, d.ok)]
-d["short"] = [min(b[2:]) if ok else None for b, ok in zip(d.bbox, d.ok)]
+d["long"] = [max(b[2:]) if ok else None for b, ok in zip(d.bbox, d.ok, strict=True)]
+d["short"] = [min(b[2:]) if ok else None for b, ok in zip(d.bbox, d.ok, strict=True)]
 med = (
     d[d.ok].groupby("code")[["long", "short"]].median()
 )  # leng_long이 없을 때 비교 기준
@@ -367,7 +367,7 @@ for code, g in d.groupby("code"):
         issue("all", "", code, "같은 클래스 제품 정보 상충", "기록만", str(diff))
 
 d["group"] = d.image.str.split("_").str[0]
-for (src, grp), g in d.groupby(["source", "group"]):
+for (src, _group), g in d.groupby(["source", "group"]):
     n = g.groupby("image").size()
     if n.nunique() > 1:
         for img in n[n < n.max()].index:
@@ -521,7 +521,7 @@ if not args.skip_png:
     grp = np.array([n.split("_")[0] for n in names])
     for s in range(0, len(H), 2000):
         dist = np.bitwise_count(H[s : s + 2000, None] ^ H[None, :])
-        for i, j in zip(*np.nonzero(dist <= PHASH)):
+        for i, j in zip(*np.nonzero(dist <= PHASH), strict=True):
             i += s
             if i < j and grp[i] != grp[j]:
                 issue(
@@ -579,7 +579,7 @@ lines += [
     "",
     "건수는 bbox 또는 이미지 단위 기록 수, 이미지 수는 관련된 서로 다른 이미지 수다.",
     "Annotation ID·이미지 ID 중복은 Kaggle만 검사했다. 조합 JSON은 약마다 파일이 따로라 id가 항상 1이다.",
-    "조합 JSON의 category_id는 항상 1이고 dl_idx는 코드와 규칙이 일정하지 않아(대부분 코드−1, K-053384는 130376), 조합의 코드 매핑은 폴더 코드 = drug_N = dl_mapping_code 로 확인했다.",
+    "조합 JSON의 category_id는 항상 1이고 dl_idx는 코드와 규칙이 일정하지 않아(대부분 코드-1, K-053384는 130376), 조합의 코드 매핑은 폴더 코드 = drug_N = dl_mapping_code 로 확인했다.",
     "",
     "## 적용 결과",
     "",
@@ -631,7 +631,9 @@ for src, name, n_img in (
     tot.append(row)
     lines.append(f"| {name} | " + " | ".join(f"{v:,}" for v in row) + " |")
 lines += [
-    "| **합계** | " + " | ".join(f"**{sum(c):,}**" for c in zip(*tot)) + " |",
+    "| **합계** | "
+    + " | ".join(f"**{sum(c):,}**" for c in zip(*tot, strict=True))
+    + " |",
     "",
     "- 조합의 제외 bbox에는 같은 이미지에 있던 정상 알약 bbox도 들어 있다 (이미지째 빼므로).",
     "- AI Hub `-오류` 폴더 라벨은 읽지 않았으므로 대상·제외 bbox 수에 들어 있지 않다 (이미지 수에는 들어 있다).",

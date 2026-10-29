@@ -58,7 +58,7 @@ def test_rgb_image_validation_returns_height_and_width() -> None:
 
 
 def test_rgb_image_validation_can_use_domain_error() -> None:
-    with pytest.raises(DomainValidationError, match="torch.float32"):
+    with pytest.raises(DomainValidationError, match=r"torch\.float32"):
         validate_rgb_image_tensor(
             torch.zeros(3, 4, 4, dtype=torch.float64),
             type_error=DomainValidationError,

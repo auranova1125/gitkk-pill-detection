@@ -6,6 +6,7 @@
 """
 
 import argparse
+from datetime import date
 
 import pandas as pd
 
@@ -55,8 +56,6 @@ if "val" in t:
 save_table(t, CROPS / "crop_counts.csv", index=True)
 
 # 기록용 표는 reports/data/classifier/에 저장한다. 클래스 번호 순, 목표 미만은 굵게 표시한다.
-from datetime import date
-
 head_src = {"combo": "AI Hub 조합", "kaggle": "Kaggle"}
 md = [
     "# 클래스별 crop 개수",
@@ -104,8 +103,13 @@ def table(rows):
     return out
 
 
-md += ["### 클래스 번호 순", ""] + table(t.sort_values("class_id"))
-md += ["", "### 개수 적은 순", ""] + table(t.sort_values(["total", "class_id"]))
+md += ["### 클래스 번호 순", "", *table(t.sort_values("class_id"))]
+md += [
+    "",
+    "### 개수 적은 순",
+    "",
+    *table(t.sort_values(["total", "class_id"])),
+]
 REPORTS.mkdir(exist_ok=True)
 (REPORTS / "crop_counts.md").write_text("\n".join(md) + "\n", encoding="utf-8")
 print("저장:", CROPS / "crop_counts.csv", REPORTS / "crop_counts.md")
