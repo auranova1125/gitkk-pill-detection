@@ -181,8 +181,11 @@ uv run ruff format --check classifier common tests
 ```
 
 학습 결과와 checkpoint는 `outputs/{run_name}/` 아래에 저장되며 Git에는 포함되지 않습니다. 실험 결과 요약은 `reports/classifier_report.md`에 기록합니다.
+
 ## 구현 문서
 
+- [아키텍처 및 리팩터링 문서](docs/architecture/README.md)
+- [프로젝트 구조 리팩터링 계획](docs/architecture/project_structure_refactor_plan.md)
 - [분류기 구현 계획서](docs/classifier_implementation_plan.md)
 - [단일 클래스 탐지기 구현 계획서](docs/detector_implementation_plan.md)
 - [단일 클래스 탐지기 입력 명세서](docs/detector_input_spec.md)
