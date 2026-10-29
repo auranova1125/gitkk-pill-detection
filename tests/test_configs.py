@@ -10,6 +10,7 @@ from configs.schema import (
     load_detector_experiment_config,
     load_pipeline_experiment_config,
 )
+from pilldata.classifier_dataset import build_classifier_inputs
 from pilldata.factory import load_data_factory
 from pipeline.workflows import train_detector_experiment
 
@@ -78,6 +79,16 @@ def test_factory_loader_imports_callable() -> None:
     factory = load_data_factory("utils.io:write_json")
 
     assert callable(factory)
+
+
+def test_classifier_yaml_uses_canonical_runtime_factory() -> None:
+    experiment = load_classifier_experiment_config(
+        PROJECT_ROOT / "configs" / "classifier.yaml"
+    )
+
+    factory = load_data_factory(experiment.data_factory_path)
+
+    assert factory is build_classifier_inputs
 
 
 def test_detector_workflow_reports_missing_factory() -> None:

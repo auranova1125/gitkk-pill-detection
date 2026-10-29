@@ -112,7 +112,7 @@ uv run python main.py infer --config configs/pipeline.yaml
 
 ```bash
 uv run python -m pytest -q
-uv run ruff check main.py classifier classifier_data configs detector common pilldata pipeline utils tests
+uv run ruff check main.py classifier configs detector common pilldata pipeline utils tests
 uv run ruff format --check main.py classifier detector common configs pilldata pipeline utils tests
 ```
 
@@ -203,7 +203,7 @@ git merge origin/main
 
 ## 분류기 구현
 
-`classifier/`에는 현재 118종을 기본값으로 사용하는 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 클래스 수는 실행 시 `expected_num_classes`로 변경할 수 있습니다. 현재 분류기 데이터 factory 경로는 `classifier_data.classifier_inputs:build_classifier_inputs`이며, 구조 정리 이후 `pilldata` 경로로 변경할 예정입니다.
+`classifier/`에는 현재 118종을 기본값으로 사용하는 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 클래스 수는 실행 시 `expected_num_classes`로 변경할 수 있습니다. 분류기 데이터 factory 경로는 `pilldata.classifier_dataset:build_classifier_inputs`입니다.
 
 데이터 구성 함수와 DataLoader가 제공해야 하는 정확한 형식은 [`docs/classifier_input_spec.md`](docs/classifier_input_spec.md)를 참고합니다.
 

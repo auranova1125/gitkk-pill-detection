@@ -5,23 +5,24 @@
     data/classifier/crops/<약 코드>/<이미지>_<번호>.jpg
     data/classifier/crops/crops.csv     crop, image, code, source, group, x, y, w, h (원본 이미지 기준 bbox)
 
-자르는 방법은 pill_square_crop.py의 crop_pill (bbox 사방 5% 여백, 이미지 경계에서 clip, 고정색 padding으로 정사각형).
+자르는 방법은 pilldata.transforms.crop_pill을 사용한다. bbox 사방 5% 여백을 더하고 이미지 경계에서 clip한 뒤 고정색 padding으로 정사각형을 만든다.
 라벨 오류 bbox는 validate_labels.py → select_images.py에서 이미 빠졌으므로 여기서는 거르지 않는다.
 jpg는 개수 세기·노트북 확인용이다. 학습에 쓰는 PNG crop(padding 전)은 export_classifier_inputs.py가 원본에서 다시 자른다.
 
 사용:
     python classifier_data_build/make_crops.py
 """
+
 import io
 import os
 import shutil
 import zipfile
 
 import pandas as pd
+from config import COMBO_ZIPS, CROPS, KAGGLE, META, save_table, ts_zip
 from PIL import Image
 
-from config import COMBO_ZIPS, CROPS, KAGGLE, META, save_table, ts_zip
-from classifier_data.pill_square_crop import crop_pill
+from pilldata.transforms import crop_pill
 
 sel = pd.read_csv(META / "selected_images.csv")
 boxes = pd.read_csv(META / "boxes.csv").groupby("image")
@@ -50,10 +51,14 @@ for k, r in enumerate(sel.itertuples(), 1):
         (CROPS / b.code).mkdir(parents=True, exist_ok=True)
         name = f"{r.image[:-4]}_{i}.jpg"
         crop_pill(im, (b.x, b.y, b.w, b.h)).save(CROPS / b.code / name, quality=95)
-        rows.append((f"{b.code}/{name}", r.image, b.code, r.source, r.group, b.x, b.y, b.w, b.h))
+        rows.append(
+            (f"{b.code}/{name}", r.image, b.code, r.source, r.group, b.x, b.y, b.w, b.h)
+        )
     if k % 500 == 0:
         print(f"  {k}/{len(sel)}장")
 
-df = pd.DataFrame(rows, columns=["crop", "image", "code", "source", "group", "x", "y", "w", "h"])
+df = pd.DataFrame(
+    rows, columns=["crop", "image", "code", "source", "group", "x", "y", "w", "h"]
+)
 save_table(df, CROPS / "crops.csv")
 print(f"crop {len(df)}개 / 클래스 {df.code.nunique()}종")

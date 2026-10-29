@@ -42,7 +42,7 @@
 | 4. 검증 이름과 primitive | 완료 | `d86cea0` |
 | 5. 테스트와 문서 정리 | 완료 | 전체 테스트 `204 passed` 및 최종 문서 정리 |
 | 6. 문서 기준점 통합 | 검토 대기 | README 단일화, 문서 상태와 후속 구조 단계 정리 |
-| 7. runtime 데이터 이전 | 대기 | `classifier_data/` 구현을 `pilldata/`로 이전 |
+| 7. runtime 데이터 이전 | 검토 대기 | 분류 Dataset과 factory를 `pilldata/`로 이전하고 기존 패키지 제거 |
 | 8. 오프라인 ETL 이전 | 대기 | `classifier_data_build/`를 `scripts/classifier_data/`로 이전 |
 | 9. 호환 계층과 Notebook 정리 | 대기 | `common/` 제거와 Notebook 조립 코드 축소 |
 | 10. 최종 문서·구조 검증 | 대기 | 실제 구조, 문서, import와 전체 테스트 일치 확인 |

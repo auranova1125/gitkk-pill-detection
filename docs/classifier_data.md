@@ -1,6 +1,6 @@
 # 분류기 데이터
 
-> **문서 상태:** 현재 분류기 데이터 사용 안내다. 구조 리팩터링 7단계에서 runtime module이 `pilldata/`로 이동하면 경로를 함께 갱신한다.
+> **문서 상태:** 현재 분류기 데이터 사용 안내다. runtime Dataset과 전처리의 기준 구현은 `pilldata/`에 있다.
 
 「분류기 데이터 및 함수 입력 명세서」(`docs/classifier_input_spec.md`)에 변경 사항 2가지를 더한 분류기 데이터 구성 함수다.
 - 변경 1: bbox 사방 5% 여백 + 이미지 경계 clip
@@ -8,9 +8,8 @@
 
 | 파일 | 내용 |
 |---|---|
-| `classifier_data/classifier_inputs.py` | `build_classifier_inputs(*, config, device)` → `train_loader, val_loader, class_map, data_summary` |
+| `pilldata/classifier_dataset.py` | `build_classifier_inputs(*, config, device)` → `train_loader, val_loader, class_map, data_summary` |
 | `pilldata/transforms.py` | crop, 여백 5%, clip, padding, resize와 정규화의 공통 구현 |
-| `classifier_data/pill_square_crop.py` | 기존 데이터 생성 코드의 import 경로를 유지하는 호환 모듈 |
 
 학습에는 위 runtime 모듈과 드라이브의 데이터만 있으면 된다.
 데이터를 만든 방법·기준, 검수 결과, 확인 노트북은 [`classifier_data_build/classifier_data_build.md`](../classifier_data_build/classifier_data_build.md)에 있다.
@@ -39,15 +38,14 @@ crops/<약 코드>/<sample_id>.png   원본에서 bbox 사방 5% 여백 + 경계
 # 드라이브에서 바로 읽으면 느리므로 Colab 로컬에 푼다
 !unzip -q "/content/drive/MyDrive/gitkk_archive/training_package_classifier.zip" -d /content/training_package_classifier
 
-data_factory_path = "classifier_data.classifier_inputs:build_classifier_inputs"
+data_factory_path = "pilldata.classifier_dataset:build_classifier_inputs"
 config = TrainConfig(
     ...,
     class_map_path="/content/training_package_classifier/class_map.json",
     data_summary_path="/content/training_package_classifier/data_summary.json",
 )
 ```
-- 명세서 예시의 `data.classifier_data`는 `/data/`가 `.gitignore`에 있어 레포에 둘 수 없으므로, 위 경로를 쓴다
-- 입력 검증만 따로: 레포 루트에서 `python -m classifier_data.classifier_inputs /content/training_package_classifier/class_map.json`
+- 입력 검증만 따로: 레포 루트에서 `python -m pilldata.classifier_dataset /content/training_package_classifier/class_map.json`
 - `data_summary.json`이 `samples.csv`와 맞지 않으면(다른 패키지의 파일을 섞은 경우) 학습 전에 멈춘다
 
 ## 로더 구성
@@ -74,7 +72,6 @@ image = transform(crop_pill(original_image, (x, y, w, h)))
 ```
 - bbox는 원본 사진 픽셀 좌표 `[x, y, w, h]`다. 탐지기 출력(XYXY)은 `(x1, y1, x2 - x1, y2 - y1)`로 바꿔 넣는다
 - `detector/classifier_bridge.py`도 `pilldata.transforms`를 사용하므로 bbox 사방 5% 여백과 동일한 padding·정규화 설정이 적용된다
-- 기존 `classifier_data.pill_square_crop` import도 계속 사용할 수 있다
 
 ## 평가할 때
 `near_dup_in_train=True`인 val 샘플 799개는 그룹은 다르지만 거의 같은 사진(알약 하나만 다른 조합)이 train에 있다.
@@ -85,5 +82,5 @@ image = transform(crop_pill(original_image, (x, y, w, h)))
 
 | 항목 | 현재 (명세서) | 확인할 점 | 비교할 대안 |
 |---|---|---|---|
-| padding 색 | RGB (124, 116, 104) | 배경은 푸른 회색(중앙값 (106, 124, 149))이라 색이 다르다. crop의 34%는 padding이 면적의 30% 이상이다 | 배경 중앙값 색. `pill_square_crop.py`의 `PAD_COLOR`만 바꾸면 되고 데이터 재생성은 필요 없다 |
+| padding 색 | RGB (124, 116, 104) | 배경은 푸른 회색(중앙값 (106, 124, 149))이라 색이 다르다. crop의 34%는 padding이 면적의 30% 이상이다 | 배경 중앙값 색. `pilldata.transforms.PADDING_COLOR_RGB`를 바꾸면 되고 데이터 재생성은 필요 없다 |
 | 회전 시 알약 크기 | `RandomRotation(-180°~180°, expand=True)` | 캔버스를 키운 뒤 224로 줄여, 45° 근처에서 알약이 0°보다 71~85% 크기로 작아진다. val·추론은 항상 0° 크기다 | 회전 후 크기 맞추기, 90° 단위 + ±15° |

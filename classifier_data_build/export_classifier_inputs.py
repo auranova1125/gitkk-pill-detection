@@ -1,8 +1,8 @@
 """분류기 팀에 넘길 입력 데이터를 만든다 (구글 드라이브 업로드용 폴더 + zip). 데이터 파일만 넣는다.
 
 「분류기 데이터 및 함수 입력 명세서」 + 수정 사항 1·2를 따른다.
-    1. bbox 사방 5% 여백을 더한 뒤 이미지 경계로 clip  (pill_square_crop.py의 cut_pill)
-    2. 탐지 결과도 같은 방식으로 자른다                  (pill_square_crop.py의 crop_pill)
+    1. bbox 사방 5% 여백을 더한 뒤 이미지 경계로 clip
+    2. 탐지 결과도 같은 공통 crop 함수로 자른다
 
 결과: data/classifier/export/
     training_package_classifier/
@@ -12,12 +12,13 @@
         crops/<약 코드>/<sample_id>.png
     training_package_classifier.zip   위 폴더의 내용 (zip 맨 위에 바로). 드라이브: gitkk_archive/training_package_classifier.zip
 
-로더 코드(classifier_inputs.py, pill_square_crop.py)는 패키지에 넣지 않는다. 레포에서 가져다 쓴다.
+로더와 crop 코드는 패키지에 넣지 않고 레포의 pilldata 모듈을 사용한다.
 
 앞 단계: validate_labels → select_images → make_crops → split_dataset
 사용:
     python classifier_data_build/export_classifier_inputs.py
 """
+
 import io
 import json
 import os
@@ -27,11 +28,12 @@ from types import SimpleNamespace
 
 import pandas as pd
 import torch
+from config import CLASSES, COMBO_ZIPS, CROPS, EXPORT, KAGGLE, META, tl_zip, ts_zip
 from PIL import Image
 
-from config import CLASSES, COMBO_ZIPS, CROPS, EXPORT, KAGGLE, META, tl_zip, ts_zip
-from classifier_data import classifier_inputs as ci
-from classifier_data.pill_square_crop import MARGIN, cut_pill
+from pilldata import classifier_dataset as ci
+from pilldata.transforms import CROP_MARGIN as MARGIN
+from pilldata.transforms import cut_pill
 
 OUT = EXPORT
 PKG = OUT / "training_package_classifier"
@@ -60,7 +62,9 @@ info = [read_json(p)["images"][0] for p in crops.json]
 crops["item_seq"] = [str(i["item_seq"]) for i in info]
 crops["drug_dir"] = [i.get("drug_dir") or "" for i in info]
 seq = crops.groupby("code").item_seq.unique()
-assert (seq.map(len) == 1).all(), f"item_seq가 여러 개인 클래스: {seq[seq.map(len) > 1].to_dict()}"
+assert (seq.map(len) == 1).all(), (
+    f"item_seq가 여러 개인 클래스: {seq[seq.map(len) > 1].to_dict()}"
+)
 
 # ── 원본 사진 위치 (조합은 TS zip 안) ─────────────────────────────────────
 where = {}
@@ -79,22 +83,29 @@ def image_path(r):
 
 
 # ── samples.csv ──────────────────────────────────────────────────────────
-s = pd.DataFrame({
-    "sample_id": crops.crop.str.split("/").str[-1].str[:-4],      # <원본 파일명>_<번호>: annotation 단위로 고유
-    "split": crops.split,
-    "class_index": crops.code.map(to_index),
-    "code": crops.code,
-    "category_id": crops.code.str[2:].astype(int),
-    "item_seq": crops.item_seq,
-    "name": crops.code.map(dict(zip(classes.code, classes.name))),
-    "image_id": crops.image.str[:-4],
-    "image_path": [image_path(r) for r in crops.itertuples()],
-    "bbox_xywh": [json.dumps([float(v) for v in b]) for b in crops[["x", "y", "w", "h"]].values],
-    "group_id": crops.group,
-    "drug_dir": crops.drug_dir,
-    "source": crops.source.map({"combo": "aihub", "kaggle": "kaggle"}),
-    "near_dup_in_train": crops.near_dup_in_train,
-})
+s = pd.DataFrame(
+    {
+        "sample_id": crops.crop.str.split("/")
+        .str[-1]
+        .str[:-4],  # <원본 파일명>_<번호>: annotation 단위로 고유
+        "split": crops.split,
+        "class_index": crops.code.map(to_index),
+        "code": crops.code,
+        "category_id": crops.code.str[2:].astype(int),
+        "item_seq": crops.item_seq,
+        "name": crops.code.map(dict(zip(classes.code, classes.name))),
+        "image_id": crops.image.str[:-4],
+        "image_path": [image_path(r) for r in crops.itertuples()],
+        "bbox_xywh": [
+            json.dumps([float(v) for v in b])
+            for b in crops[["x", "y", "w", "h"]].values
+        ],
+        "group_id": crops.group,
+        "drug_dir": crops.drug_dir,
+        "source": crops.source.map({"combo": "aihub", "kaggle": "kaggle"}),
+        "near_dup_in_train": crops.near_dup_in_train,
+    }
+)
 s["crop_path"] = "crops/" + s.code + "/" + s.sample_id + ".png"
 assert s.sample_id.is_unique
 
@@ -121,19 +132,39 @@ s.to_csv(PKG / "samples.csv", index=False, encoding="utf-8")
 
 # ── class_map.json, data_summary.json ────────────────────────────────────
 first = s.drop_duplicates("class_index").sort_values("class_index")
-class_map = {"num_classes": len(classes), "classes": [
-    {"class_index": int(r.class_index), "category_id": int(r.category_id), "item_seq": r.item_seq, "name": r.name}
-    for r in first.itertuples()]}
+class_map = {
+    "num_classes": len(classes),
+    "classes": [
+        {
+            "class_index": int(r.class_index),
+            "category_id": int(r.category_id),
+            "item_seq": r.item_seq,
+            "name": r.name,
+        }
+        for r in first.itertuples()
+    ],
+}
 assert len(class_map["classes"]) == len(classes)
-(PKG / "class_map.json").write_text(json.dumps(class_map, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+(PKG / "class_map.json").write_text(
+    json.dumps(class_map, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+)
 summary = ci.make_data_summary(ci.read_samples(PKG), len(classes))
-(PKG / "data_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+(PKG / "data_summary.json").write_text(
+    json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+)
 
 # ── 검증 후 zip ──────────────────────────────────────────────────────────
-cfg = SimpleNamespace(batch_size=32, seed=42, class_map_path=PKG / "class_map.json", data_summary_path=PKG / "data_summary.json")
+cfg = SimpleNamespace(
+    batch_size=32,
+    seed=42,
+    class_map_path=PKG / "class_map.json",
+    data_summary_path=PKG / "data_summary.json",
+)
 loaders = ci.build_classifier_inputs(config=cfg, device=torch.device("cpu"))
 ci.check_inputs(*loaders, expected_num_classes=len(classes))
-print(f"입력 검증 완료: train {summary['num_train_samples']}, val {summary['num_val_samples']}")
+print(
+    f"입력 검증 완료: train {summary['num_train_samples']}, val {summary['num_val_samples']}"
+)
 
 zip_path = shutil.make_archive(str(OUT / PKG.name), "zip", PKG)
 print("저장:", PKG, zip_path, f"{os.path.getsize(zip_path) / 1e6:.0f}MB")

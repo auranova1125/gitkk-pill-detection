@@ -5,7 +5,6 @@ import pytest
 import torch
 from PIL import Image
 
-from classifier_data.pill_square_crop import crop_pill as legacy_crop_pill
 from pilldata.transforms import (
     CLASSIFIER_IMAGE_SIZE,
     CROP_MARGIN,
@@ -80,7 +79,3 @@ def test_validation_and_pil_inference_paths_produce_same_tensor() -> None:
     )
 
     torch.testing.assert_close(validation_image, inference_image, rtol=0.0, atol=0.0)
-
-
-def test_legacy_crop_import_uses_canonical_implementation() -> None:
-    assert legacy_crop_pill is crop_pill

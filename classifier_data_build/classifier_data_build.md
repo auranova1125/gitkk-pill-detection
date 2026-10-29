@@ -11,7 +11,7 @@
 | `reports/` | 라벨 검수, 클래스별 개수, train/val 분할 결과 (스크립트가 자동 생성) |
 | `classifier_data_check.ipynb` | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 |
 
-crop 함수(`pill_square_crop.py`)와 로더(`classifier_inputs.py`)는 학습·추론 코드도 쓰므로 `classifier_data/`에 있다.
+crop 함수는 `pilldata/transforms.py`, runtime 로더는 `pilldata/classifier_dataset.py`에 있다.
 
 ## 준비
 원본은 git에 올리지 않는 `data/` 아래에 둔다. 이미 다른 곳에 받아 두었다면 옮기지 말고 심볼릭 링크를 걸거나,
@@ -72,7 +72,7 @@ uv run python classifier_data_build/export_classifier_inputs.py      # 분류기
 | 2. 제외 | 오류를 뺀다 | 조합 이미지는 **이미지째**(다른 이미지로 대체 가능), Kaggle은 **해당 bbox만**(대체 불가) |
 | 3. 선정 `select_images.py` | 남은 이미지에서 고른다 | 클래스별 bbox 108개 목표, 각도 70/75/90° 고르게 |
 
-### 어떻게 자르나 (`pill_square_crop.py`)
+### 어떻게 자르나 (`pilldata/transforms.py`)
 1. bbox 사방에 **5% 여백**을 더한다. (가로는 w의 5%, 세로는 h의 5%씩)
 2. 이미지 밖으로 나간 부분은 잘라 낸다(clip). 이 범위만 원본에서 RGB로 자른다. (1~2: `cut_pill`)
 3. 짧은 쪽 양옆(또는 위아래)을 **고정색 RGB (124, 116, 104)**로 채워 **정사각형**을 만든다. 알약은 가운데에 둔다. (`pad_square`, 1~3을 한 번에: `crop_pill`)
@@ -87,7 +87,7 @@ crop은 두 곳에 저장한다.
 | `data/classifier/crops/<약 코드>/<원본 파일명>_<번호>.jpg` (`make_crops.py`) | 3단계까지(정사각형), JPEG 95 | 레포 안 확인용: 개수 세기, 노트북 샘플 |
 | 패키지 `crops/<약 코드>/<sample_id>.png` (`export_classifier_inputs.py`) | 2단계까지(padding 전 직사각형), PNG | **분류기 학습 입력**. 명세서 6.2대로 회전을 padding 전에 넣어야 해서 padding 전 상태로 둔다 |
 
-분류기 로더(`classifier_inputs.py`)는 패키지 crop에 다음을 적용한다.
+분류기 로더(`pilldata/classifier_dataset.py`)는 패키지 crop에 다음을 적용한다.
 - train: `RandomRotation(-180°~180°, expand=True, bilinear)` (빈 곳은 (124, 116, 104)) → 3단계 → 4단계
 - val: 3단계 → 4단계 (무작위 처리 없음)
 

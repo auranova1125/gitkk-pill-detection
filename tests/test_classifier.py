@@ -1,11 +1,14 @@
 """분류기 설정과 입력 검증 테스트."""
 
+import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytest
 import torch
+from PIL import Image
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision.models import ResNet50_Weights
@@ -23,6 +26,13 @@ from classifier.model import (
     build_model,
     configure_model_for_stage,
     set_model_train_mode,
+)
+from pilldata.classifier_dataset import (
+    build_classifier_inputs,
+    read_samples,
+)
+from pilldata.classifier_dataset import (
+    make_data_summary as make_runtime_data_summary,
 )
 
 NUM_CLASSES = 8
@@ -244,6 +254,74 @@ def test_validate_batch_accepts_synthetic_loader_batch(
     class_map: dict[str, Any],
 ) -> None:
     validate_batch(valid_batch, class_map, expected_num_classes=NUM_CLASSES)
+
+
+def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> None:
+    num_classes = 2
+    class_map = make_class_map(num_classes)
+    (tmp_path / "class_map.json").write_text(
+        json.dumps(class_map, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    rows: list[dict[str, Any]] = []
+    for split_index, split in enumerate(("train", "val")):
+        for class_index in range(num_classes):
+            sample_id = f"{split}-{class_index}"
+            crop_path = Path("crops") / f"item-{class_index:03d}" / f"{sample_id}.png"
+            absolute_crop_path = tmp_path / crop_path
+            absolute_crop_path.parent.mkdir(parents=True, exist_ok=True)
+            Image.new(
+                "RGB",
+                (12 + class_index, 10 + split_index),
+                color=(80 + class_index, 100, 120),
+            ).save(absolute_crop_path)
+            rows.append(
+                {
+                    "sample_id": sample_id,
+                    "image_id": f"image-{sample_id}",
+                    "image_path": f"/synthetic/{sample_id}.png",
+                    "category_id": 1900 + class_index,
+                    "item_seq": f"item-{class_index:03d}",
+                    "bbox_xywh": json.dumps([1.0, 2.0, 8.0, 6.0]),
+                    "group_id": f"group-{sample_id}",
+                    "drug_dir": "",
+                    "class_index": class_index,
+                    "crop_path": str(crop_path),
+                    "split": split,
+                }
+            )
+
+    pd.DataFrame(rows).to_csv(tmp_path / "samples.csv", index=False)
+    data_summary = make_runtime_data_summary(read_samples(tmp_path), num_classes)
+    (tmp_path / "data_summary.json").write_text(
+        json.dumps(data_summary, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    config = TrainConfig(
+        run_name="runtime-loader",
+        output_dir=tmp_path / "outputs",
+        class_map_path=tmp_path / "class_map.json",
+        data_summary_path=tmp_path / "data_summary.json",
+        batch_size=2,
+    )
+
+    train_loader, val_loader, loaded_class_map, loaded_summary = (
+        build_classifier_inputs(config=config, device=torch.device("cpu"))
+    )
+
+    assert loaded_class_map == class_map
+    assert loaded_summary == data_summary
+    validate_batch(
+        next(iter(train_loader)),
+        loaded_class_map,
+        expected_num_classes=num_classes,
+    )
+    validate_batch(
+        next(iter(val_loader)),
+        loaded_class_map,
+        expected_num_classes=num_classes,
+    )
 
 
 @pytest.mark.parametrize(
