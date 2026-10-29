@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.classifier_data.config import (
+from scripts.classifier_data.paths import (
     CLASSES,
     CROPS,
     DETECTOR_PACKAGE,

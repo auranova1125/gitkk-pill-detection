@@ -20,7 +20,7 @@ from configs import (
 from detector.train import train_detector
 from pilldata.classifier_dataset import build_classifier_inputs
 from pilldata.factory import load_data_factory
-from scripts.classifier_data.config import CLASSES, REPORTS, ROOT
+from scripts.classifier_data.paths import CLASSES, REPORTS, ROOT
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

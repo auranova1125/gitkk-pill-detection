@@ -9,7 +9,7 @@ import argparse
 
 import pandas as pd
 
-from scripts.classifier_data.config import CLASSES, CROPS, REPORTS, save_table
+from scripts.classifier_data.paths import CLASSES, CROPS, REPORTS, save_table
 
 ap = argparse.ArgumentParser()
 ap.add_argument(

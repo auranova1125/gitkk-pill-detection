@@ -8,7 +8,7 @@
 
 | 파일 | 내용 |
 |---|---|
-| `scripts/classifier_data/config.py`, `label_checklist.py`, `classes.csv` | 경로 설정·원본 zip 찾기, 검증 항목 목록, 118종 클래스 표 (`class_id` = 모델 출력 번호 `class_index`) |
+| `scripts/classifier_data/paths.py`, `label_checklist.py`, `classes.csv` | 경로 설정·원본 zip 찾기, 검증 항목 목록, 118종 클래스 표 (`class_id` = 모델 출력 번호 `class_index`) |
 | `scripts/classifier_data/validate_labels.py` … `export_classifier_inputs.py` | 데이터 생성 스크립트 (아래 '실행') |
 | `reports/data/classifier/` | 라벨 검수, 클래스별 개수, train/val 분할 결과 (스크립트가 자동 생성) |
 | `notebooks/classifier_data_check.ipynb` | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 |

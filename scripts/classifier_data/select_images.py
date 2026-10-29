@@ -26,7 +26,7 @@ import pandas as pd
 from scipy.optimize import Bounds, LinearConstraint, milp
 from scipy.sparse import lil_matrix
 
-from scripts.classifier_data.config import (
+from scripts.classifier_data.paths import (
     CLASSES,
     COMBO_ZIPS,
     KAGGLE,

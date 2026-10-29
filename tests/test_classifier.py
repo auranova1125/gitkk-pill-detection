@@ -10,7 +10,7 @@ import pytest
 import torch
 from PIL import Image
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision.models import ResNet50_Weights
 
 import classifier.model as model_module
@@ -312,6 +312,7 @@ def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> No
 
     assert loaded_class_map == class_map
     assert loaded_summary == data_summary
+    assert isinstance(train_loader.sampler, WeightedRandomSampler)
     validate_batch(
         next(iter(train_loader)),
         loaded_class_map,
@@ -322,6 +323,9 @@ def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> No
         loaded_class_map,
         expected_num_classes=num_classes,
     )
+    first_val_images = next(iter(val_loader))["images"]
+    second_val_images = next(iter(val_loader))["images"]
+    torch.testing.assert_close(first_val_images, second_val_images, rtol=0.0, atol=0.0)
 
 
 @pytest.mark.parametrize(

@@ -40,7 +40,7 @@ def prepare_classifier_data(config: ClassifierConfig) -> ClassifierTrainingData:
     device = resolve_device(config.device)
     factory = load_data_factory(config.data_factory_path)
     training_data = _call_training_factory(factory, config=config, device=device)
-    _validate_classifier_training_data(
+    validate_classifier_training_data(
         training_data,
         expected_num_classes=config.expected_num_classes,
     )
@@ -72,11 +72,13 @@ def _call_training_factory(
     return train_loader, val_loader, class_map, data_summary
 
 
-def _validate_classifier_training_data(
+def validate_classifier_training_data(
     data: TrainingFactoryResult,
     *,
     expected_num_classes: int,
 ) -> None:
+    """factory 반환값의 클래스 정보와 첫 학습·검증 batch를 검증한다."""
+
     train_loader, val_loader, class_map, data_summary = data
     validate_class_map(class_map, expected_num_classes=expected_num_classes)
     validate_data_summary(

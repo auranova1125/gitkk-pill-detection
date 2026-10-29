@@ -30,10 +30,11 @@ import pandas as pd
 import torch
 from PIL import Image
 
+from classifier.training_data import validate_classifier_training_data
 from pilldata import classifier_dataset as ci
 from pilldata.transforms import CROP_MARGIN as MARGIN
 from pilldata.transforms import cut_pill
-from scripts.classifier_data.config import (
+from scripts.classifier_data.paths import (
     CLASSES,
     COMBO_ZIPS,
     CROPS,
@@ -170,7 +171,10 @@ cfg = SimpleNamespace(
     data_summary_path=PKG / "data_summary.json",
 )
 loaders = ci.build_classifier_inputs(config=cfg, device=torch.device("cpu"))
-ci.check_inputs(*loaders, expected_num_classes=len(classes))
+validate_classifier_training_data(
+    loaders,
+    expected_num_classes=len(classes),
+)
 print(
     f"입력 검증 완료: train {summary['num_train_samples']}, val {summary['num_val_samples']}"
 )

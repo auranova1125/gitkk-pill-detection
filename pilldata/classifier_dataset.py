@@ -197,81 +197,9 @@ def build_classifier_inputs(*, config, device: torch.device):
     return train_loader, val_loader, class_map, data_summary
 
 
-# ── 입력 검증 (명세서 9~10절과 같은 조건) ─────────────────────────────────
-def check_inputs(
-    train_loader, val_loader, class_map, data_summary, expected_num_classes=118
-):
-    n = expected_num_classes
-    assert class_map["num_classes"] == n and len(class_map["classes"]) == n
-    cls = {c["class_index"]: c for c in class_map["classes"]}
-    assert sorted(cls) == list(range(n))
-    assert (
-        len({c["category_id"] for c in cls.values()}) == n
-        and len({c["item_seq"] for c in cls.values()}) == n
-    )
-    assert all(
-        isinstance(c["item_seq"], str) and c["item_seq"] and c["name"]
-        for c in cls.values()
-    )
-
-    s = data_summary
-    assert s["num_classes"] == n and s["group_overlap_count"] == 0
-    assert (
-        set(s["train_class_counts"])
-        == set(s["val_class_counts"])
-        == {str(i) for i in range(n)}
-    )
-    assert all(v >= 1 for v in s["train_class_counts"].values()), (
-        "train에 없는 클래스가 있다"
-    )
-    assert s["num_train_samples"] == sum(s["train_class_counts"].values())
-    assert s["num_val_samples"] == sum(s["val_class_counts"].values())
-    assert s["validation_class_indices"] == [
-        i for i in range(n) if s["val_class_counts"][str(i)] > 0
-    ]
-    assert s["split_hash"]
-
-    for name, loader in (("train", train_loader), ("val", val_loader)):
-        b = next(iter(loader))
-        x, y, meta = b["images"], b["targets"], b["meta"]
-        assert (
-            x.dtype == torch.float32
-            and x.ndim == 4
-            and x.shape[1:] == (3, SIZE, SIZE)
-            and x.shape[0] >= 1
-        ), name
-        assert torch.isfinite(x).all(), f"{name}: NaN/Inf"
-        assert (
-            y.dtype == torch.int64
-            and y.shape == (x.shape[0],)
-            and 0 <= y.min()
-            and y.max() < n
-        ), name
-        assert (
-            isinstance(meta, list)
-            and len(meta) == x.shape[0]
-            and all(isinstance(m, dict) for m in meta)
-        ), name
-        for t, m in zip(y.tolist(), meta):
-            assert (
-                m["category_id"] == cls[t]["category_id"]
-                and m["item_seq"] == cls[t]["item_seq"]
-            ), name
-            assert all(
-                m[k] for k in ("sample_id", "image_id", "image_path", "group_id")
-            )
-            b4 = m["bbox_xywh"]
-            assert len(b4) == 4 and all(np.isfinite(b4)) and b4[2] > 0 and b4[3] > 0, (
-                name
-            )
-            assert m["drug_dir"] is None or isinstance(m["drug_dir"], str), name
-    v1, v2 = next(iter(val_loader))["images"], next(iter(val_loader))["images"]
-    assert torch.equal(v1, v2), "val transform에 무작위 처리가 있다"
-    assert train_loader.sampler.__class__.__name__ == "WeightedRandomSampler"
-    return True
-
-
 if __name__ == "__main__":
+    from classifier.training_data import validate_classifier_training_data
+
     if len(sys.argv) != 2:
         sys.exit("사용: python -m pilldata.classifier_dataset <class_map.json 경로>")
     path = Path(sys.argv[1])
@@ -282,7 +210,10 @@ if __name__ == "__main__":
         data_summary_path=path.with_name("data_summary.json"),
     )
     loaders = build_classifier_inputs(config=cfg, device=torch.device("cpu"))
-    check_inputs(*loaders)
+    validate_classifier_training_data(
+        loaders,
+        expected_num_classes=loaders[2]["num_classes"],
+    )
     print(
         "입력 검증 완료", loaders[3]["num_train_samples"], loaders[3]["num_val_samples"]
     )

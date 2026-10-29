@@ -22,7 +22,7 @@ import pandas as pd
 from PIL import Image
 
 from pilldata.transforms import crop_pill
-from scripts.classifier_data.config import (
+from scripts.classifier_data.paths import (
     COMBO_ZIPS,
     CROPS,
     KAGGLE,

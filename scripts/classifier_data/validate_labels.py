@@ -32,7 +32,8 @@ import pandas as pd
 from PIL import Image
 from scipy.fft import dctn
 
-from scripts.classifier_data.config import (
+from scripts.classifier_data.label_checklist import CHECKS
+from scripts.classifier_data.paths import (
     COMBO_ZIPS,
     KAGGLE,
     META,
@@ -41,7 +42,6 @@ from scripts.classifier_data.config import (
     tl_zip,
     ts_zip,
 )
-from scripts.classifier_data.label_checklist import CHECKS
 
 ap = argparse.ArgumentParser()
 ap.add_argument(
