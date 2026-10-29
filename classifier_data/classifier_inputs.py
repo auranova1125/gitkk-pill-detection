@@ -29,41 +29,34 @@ import pandas as pd
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
-from torchvision import transforms as T
-from torchvision.transforms import InterpolationMode
 
-from classifier_data.pill_square_crop import PAD_COLOR, pad_square
+from pilldata.transforms import (
+    CLASSIFIER_IMAGE_SIZE,
+    IMAGENET_MEAN,
+    IMAGENET_STD,
+    build_classifier_inference_transform,
+    build_classifier_train_transform,
+    build_classifier_validation_transform,
+)
 
-SIZE = 224
-MEAN, STD = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+SIZE = CLASSIFIER_IMAGE_SIZE
+MEAN, STD = list(IMAGENET_MEAN), list(IMAGENET_STD)
 SPLIT_VERSION = "detector-split-manifest-v1"   # 탐지기 split_manifest.csv의 그룹 분할을 그대로 따른 분할
-
-
-class PadSquare:
-    """명세서 6.1의 4~5: 정사각형 중앙 padding, RGB (124, 116, 104)."""
-
-    def __call__(self, img):
-        return pad_square(img, PAD_COLOR)
-
-
-def _tail():
-    return [T.Resize((SIZE, SIZE), interpolation=InterpolationMode.BILINEAR), T.ToTensor(), T.Normalize(MEAN, STD)]
 
 
 def train_transform():
     """명세서 6.2: crop 후 padding 전에 회전. 새로 생긴 영역도 (124, 116, 104)."""
-    return T.Compose([T.RandomRotation((-180, 180), interpolation=InterpolationMode.BILINEAR, expand=True, fill=PAD_COLOR),
-                      PadSquare(), *_tail()])
+    return build_classifier_train_transform()
 
 
 def val_transform():
     """명세서 6.3: 무작위 처리 없음."""
-    return T.Compose([PadSquare(), *_tail()])
+    return build_classifier_validation_transform()
 
 
 def detection_transform():
     """명세서 8.1: crop_pill로 자른 탐지 결과 → float32 [3, 224, 224]. crop_pill이 이미 정사각형으로 만든다."""
-    return T.Compose(_tail())
+    return build_classifier_inference_transform()
 
 
 # ── 샘플 ─────────────────────────────────────────────────────────────────

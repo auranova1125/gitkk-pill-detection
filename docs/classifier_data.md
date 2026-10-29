@@ -4,12 +4,13 @@
 - 변경 1: bbox 사방 5% 여백 + 이미지 경계 clip
 - 변경 2: 탐지 결과도 `crop_pill`로 자른다
 
-| 파일 (`classifier_data/`) | 내용 |
+| 파일 | 내용 |
 |---|---|
-| `classifier_inputs.py` | `build_classifier_inputs(*, config, device)` → `train_loader, val_loader, class_map, data_summary` |
-| `pill_square_crop.py` | `cut_pill`(여백 5% + clip), `pad_square`(정사각형 padding), `crop_pill`(둘을 한 번에, 탐지 결과용) |
+| `classifier_data/classifier_inputs.py` | `build_classifier_inputs(*, config, device)` → `train_loader, val_loader, class_map, data_summary` |
+| `pilldata/transforms.py` | crop, 여백 5%, clip, padding, resize와 정규화의 공통 구현 |
+| `classifier_data/pill_square_crop.py` | 기존 데이터 생성 코드의 import 경로를 유지하는 호환 모듈 |
 
-학습에는 위 두 파일과 드라이브의 데이터만 있으면 된다.
+학습에는 위 runtime 모듈과 드라이브의 데이터만 있으면 된다.
 데이터를 만든 방법·기준, 검수 결과, 확인 노트북은 [`classifier_data_build/classifier_data_build.md`](../classifier_data_build/classifier_data_build.md)에 있다.
 
 ## 데이터
@@ -62,14 +63,16 @@ flip, color jitter, grayscale, blur, random erasing은 쓰지 않는다.
 - `class_map.json`의 `class_index`는 약 코드 순서다(폴더 정렬 순서가 아님). `category_id`는 약 코드의 숫자, `item_seq`는 문자열이다
 
 ## 탐지 결과 분류
-탐지기가 찾은 bbox를 학습 데이터와 **같은 함수**로 자른다.
+탐지기가 찾은 bbox를 학습 데이터와 **같은 공통 모듈**로 자른다.
 ```python
-from classifier_data.pill_square_crop import crop_pill
-from classifier_data.classifier_inputs import detection_transform
-image = detection_transform()(crop_pill(original_image, (x, y, w, h)))   # float32 [3, 224, 224]
+from pilldata.transforms import crop_pill, build_classifier_inference_transform
+
+transform = build_classifier_inference_transform()
+image = transform(crop_pill(original_image, (x, y, w, h)))
 ```
 - bbox는 원본 사진 픽셀 좌표 `[x, y, w, h]`다. 탐지기 출력(XYXY)은 `(x1, y1, x2 - x1, y2 - y1)`로 바꿔 넣는다
-- ⚠️ 지금 `detector/classifier_bridge.py`는 5% 여백 없이 자른다. 학습 입력과 맞도록 `crop_pill`을 쓰거나 여백 5%를 더해야 한다
+- `detector/classifier_bridge.py`도 `pilldata.transforms`를 사용하므로 bbox 사방 5% 여백과 동일한 padding·정규화 설정이 적용된다
+- 기존 `classifier_data.pill_square_crop` import도 계속 사용할 수 있다
 
 ## 평가할 때
 `near_dup_in_train=True`인 val 샘플 799개는 그룹은 다르지만 거의 같은 사진(알약 하나만 다른 조합)이 train에 있다.

@@ -13,6 +13,7 @@ from torch import nn
 from detector.checkpoint import hash_label_map, load_checkpoint
 from detector.input_validation import validate_detector_label_map
 from detector.model import build_detector_model, select_device
+from pilldata.transforms import clip_xyxy_to_image
 from utils.io import write_json
 
 
@@ -122,8 +123,8 @@ def predict_detector(
                     )
                     continue
 
-                clipped_box = _clip_box(
-                    prediction["boxes"][prediction_index],
+                clipped_box = clip_xyxy_to_image(
+                    prediction["boxes"][prediction_index].tolist(),
                     height=height,
                     width=width,
                 )
@@ -398,24 +399,6 @@ def _normalize_model_predictions(
             raise ValueError("prediction scores must be between 0.0 and 1.0")
         predictions.append({"boxes": boxes, "labels": labels, "scores": scores})
     return predictions
-
-
-def _clip_box(
-    box: torch.Tensor,
-    *,
-    height: int,
-    width: int,
-) -> tuple[float, float, float, float] | None:
-    x1, y1, x2, y2 = (float(value) for value in box.tolist())
-    clipped = (
-        min(max(x1, 0.0), float(width)),
-        min(max(y1, 0.0), float(height)),
-        min(max(x2, 0.0), float(width)),
-        min(max(y2, 0.0), float(height)),
-    )
-    if clipped[2] <= clipped[0] or clipped[3] <= clipped[1]:
-        return None
-    return clipped
 
 
 def _validate_probability(value: Any, *, name: str) -> None:
