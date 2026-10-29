@@ -1,0 +1,99 @@
+{
+  "command": "smoke",
+  "status": "passed",
+  "executed_at_utc": "2026-10-29T04:31:31.255659+00:00",
+  "scope": "shared_fixed_samples",
+  "device": "cpu",
+  "batch_size": 2,
+  "package_hash": "9178e655119902736ead03a862db6338cd77509f9c0d29364a85c08105a94b72",
+  "sample_files_verified": true,
+  "legacy_code_hash_enforced": false,
+  "current_code_sha256": {
+    "detector/__init__.py": "7f5eda6c5b6aaae6d6a9acac373b20a0fda96617db69c19e25758623f2c696af",
+    "detector/checkpoint.py": "5270a4019be145848dc16a664a7c14fcbea1b137df3587696dd81785ccd0b5d0",
+    "detector/classifier_bridge.py": "22d58fc8c93fb0891f67a977fd2574ceee3fc9f6274fffbf5e7d221c591ac854",
+    "detector/config.py": "bd928c136dd607b5b29dec7e8de2965aabf67bd2ecb5512b35f4749ccaf596ef",
+    "detector/evaluate.py": "0bff2435fc484c8119fd7651cfb82eea5ce123d8a861cdea9d4a3070139cafdb",
+    "detector/inference.py": "828fdf67ba5c2ee5da6ee8f5ae1866d818b8da07acc3547e73e5baa42a9f509c",
+    "detector/input_validation.py": "d4d31b49a333681c45d59638afa804e37c13beb273e573b9552c4e3fb901ba9e",
+    "detector/model.py": "48c0f097956381b07ee2475969661f19d6bc3fcf46871e00f78044d9b9238910",
+    "detector/train.py": "552a7f094564f8779fc586f1f0c4c3019df357dbcd1a57fb33175536ee3315f3",
+    "detector_data/__init__.py": "53cc37f328de5704e998425e1e7f9f1fad5bd1d77001f24fb54b10c0f5f9503e",
+    "detector_data/__main__.py": "7825c29ea49754869739b5e26878104c5dcfb67de06cf5176a93bc59d7e1df37",
+    "detector_data/data_records.py": "9764017c1b60ac3edbd26d1653f14547a0cbca38b2ac60e39cb1321cbba648af",
+    "detector_data/detector_inputs.py": "d15d026df1e5cde8c10c71653f2cbfd842c7c7d1a3c75334a9378b709323f352",
+    "detector_data/settings.py": "5f38a5e2d29cbdb62cbd97fa5128eeb456eff1beface4a1151a3c751951f1ffb",
+    "detector_data/smoke_test.py": "86306638fba709384db19eac0ca1729b7ac5c565a4f3f3b586b37624cd3e6504",
+    "detector_data/start.py": "60b93f0160840fde732438ceb12b26ab626c380aefad4d41298927b4359ea76f"
+  },
+  "environment": {
+    "python": "3.12.15",
+    "torch": "2.14.1",
+    "torchvision": "0.29.1",
+    "torchmetrics": "1.9.0",
+    "numpy": "2.5.4",
+    "Pillow": "13.0.0"
+  },
+  "label_map": {
+    "num_foreground_classes": 1,
+    "num_model_classes": 2,
+    "background_label": 0,
+    "classes": [
+      {
+        "label": 1,
+        "name": "pill"
+      }
+    ]
+  },
+  "data_summary": {
+    "group_overlap_count": 0,
+    "split_hash": "c1f87ba50ac5666ee7069061dc7980acd6973a7a292503027a2052ec567cc14a",
+    "clipped_box_count": 0,
+    "clipped_annotation_ids": [],
+    "num_train_images": 2,
+    "num_train_source_annotations": 8,
+    "num_train_instances": 8,
+    "train_group_count": 2,
+    "train_empty_image_count": 0,
+    "train_max_instances_per_image": 4,
+    "train_label_counts": {
+      "1": 8
+    },
+    "num_val_images": 2,
+    "num_val_source_annotations": 8,
+    "num_val_instances": 8,
+    "val_group_count": 2,
+    "val_empty_image_count": 0,
+    "val_max_instances_per_image": 4,
+    "val_label_counts": {
+      "1": 8
+    },
+    "train_augmentation": {
+      "horizontal_flip": 0.0,
+      "vertical_flip": 0.0,
+      "brightness": 0.0,
+      "contrast": 0.0
+    },
+    "validation_augmentation": "none"
+  },
+  "selected_image_ids": {
+    "train": [
+      10113,
+      4
+    ],
+    "validation": [
+      10110,
+      1
+    ]
+  },
+  "input_validation": "passed",
+  "model_step": {
+    "status": "passed",
+    "model_name": "ssdlite320_mobilenet_v3_large",
+    "loss": 9.117768287658691,
+    "optimizer_steps": 1,
+    "validation_predictions": 2,
+    "pretrained_backbone": false,
+    "checkpoint_saved": false
+  }
+}

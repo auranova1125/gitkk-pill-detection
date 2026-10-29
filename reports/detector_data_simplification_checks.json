@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "scope": "synthetic_data_and_static_code_checks",
+  "tests_run": 20,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "test_output": "test_area_mismatch_rejected (test_detector_data.DataTests.test_area_mismatch_rejected) ... ok\ntest_bad_boxes_rejected (test_detector_data.DataTests.test_bad_boxes_rejected) ... ok\ntest_check_command_and_report (test_detector_data.DataTests.test_check_command_and_report) ... ok\ntest_check_failure_is_recorded (test_detector_data.DataTests.test_check_failure_is_recorded) ... ok\ntest_duplicate_annotation_rejected (test_detector_data.DataTests.test_duplicate_annotation_rejected) ... ok\ntest_duplicate_image_rejected (test_detector_data.DataTests.test_duplicate_image_rejected) ... ok\ntest_excluded_unreferenced_image_is_not_loaded (test_detector_data.DataTests.test_excluded_unreferenced_image_is_not_loaded) ... ok\ntest_existing_bundle_accepts_changed_code_and_keeps_data_checks (test_detector_data.DataTests.test_existing_bundle_accepts_changed_code_and_keeps_data_checks) ... ok\ntest_group_overlap_rejected (test_detector_data.DataTests.test_group_overlap_rejected) ... ok\ntest_ignore_and_crowd_rejected (test_detector_data.DataTests.test_ignore_and_crowd_rejected) ... ok\ntest_manifest_count_rejected (test_detector_data.DataTests.test_manifest_count_rejected) ... ok\ntest_missing_image_rejected (test_detector_data.DataTests.test_missing_image_rejected) ... ok\ntest_modified_bundle_image_rejected (test_detector_data.DataTests.test_modified_bundle_image_rejected) ... ok\ntest_modified_bundle_manifest_rejected (test_detector_data.DataTests.test_modified_bundle_manifest_rejected) ... ok\ntest_orphan_annotation_rejected (test_detector_data.DataTests.test_orphan_annotation_rejected) ... ok\ntest_path_escape_rejected (test_detector_data.DataTests.test_path_escape_rejected) ... ok\ntest_read_does_not_modify_sources (test_detector_data.DataTests.test_read_does_not_modify_sources) ... ok\ntest_sample_check_does_not_execute_model (test_detector_data.DataTests.test_sample_check_does_not_execute_model) ... ok\ntest_valid_records_keep_all_boxes (test_detector_data.DataTests.test_valid_records_keep_all_boxes) ... ok\ntest_wrong_split_rejected (test_detector_data.DataTests.test_wrong_split_rejected) ... ok\n\n----------------------------------------------------------------------\nRan 20 tests in 0.262s\n\nOK\n",
+  "original_and_updated_fixture_records_match": true,
+  "fixture_split_hash": "36bc90cd3bfc33b436602c9dda9c61df8460e3a23834a04421510fdac06de425",
+  "updater_backup_and_unrelated_files_preserved": true,
+  "python_and_notebook_syntax": "passed",
+  "actual_model_smoke": "not_run",
+  "actual_dataset_validation": "not_run",
+  "reason": "PyTorch와 실제 이미지 데이터가 이 실행 환경에 없습니다."
+}

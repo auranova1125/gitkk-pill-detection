@@ -1,0 +1,69 @@
+{
+  "command": "run",
+  "status": "passed",
+  "package_hash": "9178e655119902736ead03a862db6338cd77509f9c0d29364a85c08105a94b72",
+  "package_verification": "passed",
+  "device": "cpu",
+  "batch_size": 2,
+  "label_map": {
+    "num_foreground_classes": 1,
+    "num_model_classes": 2,
+    "background_label": 0,
+    "classes": [
+      {
+        "label": 1,
+        "name": "pill"
+      }
+    ]
+  },
+  "data_summary": {
+    "group_overlap_count": 0,
+    "split_hash": "c1f87ba50ac5666ee7069061dc7980acd6973a7a292503027a2052ec567cc14a",
+    "clipped_box_count": 0,
+    "clipped_annotation_ids": [],
+    "train_augmentation": {
+      "horizontal_flip": 0.0,
+      "vertical_flip": 0.0,
+      "brightness": 0.0,
+      "contrast": 0.0
+    },
+    "validation_augmentation": "none",
+    "num_train_images": 2,
+    "num_train_source_annotations": 8,
+    "num_train_instances": 8,
+    "train_group_count": 2,
+    "train_empty_image_count": 0,
+    "train_max_instances_per_image": 4,
+    "train_label_counts": {
+      "1": 8
+    },
+    "num_val_images": 2,
+    "num_val_source_annotations": 8,
+    "num_val_instances": 8,
+    "val_group_count": 2,
+    "val_empty_image_count": 0,
+    "val_max_instances_per_image": 4,
+    "val_label_counts": {
+      "1": 8
+    }
+  },
+  "input_validation": "passed",
+  "first_batch_reproducibility": "passed",
+  "model_step": {
+    "status": "passed",
+    "model_name": "ssdlite320_mobilenet_v3_large",
+    "loss": 9.117768287658691,
+    "pretrained_backbone": false,
+    "optimizer_steps": 1,
+    "checkpoint_saved": false
+  },
+  "environment": {
+    "python": "3.12.15",
+    "torch": "2.14.1",
+    "torchvision": "0.29.1",
+    "torchmetrics": "1.9.0",
+    "numpy": "2.5.4",
+    "Pillow": "13.0.0"
+  },
+  "scope": "shared_fixed_samples"
+}
