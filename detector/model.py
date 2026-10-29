@@ -8,6 +8,8 @@ from torchvision.models import MobileNet_V3_Large_Weights
 from torchvision.models.detection import ssdlite320_mobilenet_v3_large
 from torchvision.models.detection.ssd import SSD
 
+from utils.runtime import select_device as _select_device
+
 DetectorBuilder = Callable[..., nn.Module]
 
 
@@ -38,6 +40,12 @@ def build_ssdlite320(
 MODEL_BUILDERS: dict[str, DetectorBuilder] = {
     "ssdlite320_mobilenet_v3_large": build_ssdlite320,
 }
+
+
+def select_device() -> torch.device:
+    """기존 탐지기 import 경로에서 공통 장치 선택 함수를 제공한다."""
+
+    return _select_device()
 
 
 def available_detector_models() -> tuple[str, ...]:
@@ -76,16 +84,6 @@ def build_detector_model(
         pretrained_backbone=pretrained_backbone,
         nms_threshold=nms_threshold,
     )
-
-
-def select_device() -> torch.device:
-    """CUDA, MPS, CPU 순서로 사용 가능한 장치를 선택한다."""
-
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
 
 
 def _validate_num_classes(num_classes: int) -> None:

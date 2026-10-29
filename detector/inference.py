@@ -1,6 +1,5 @@
 """탐지 모델 로딩, 예측 filtering과 결과 직렬화."""
 
-import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from math import isfinite
@@ -14,6 +13,7 @@ from torch import nn
 from detector.checkpoint import hash_label_map, load_checkpoint
 from detector.input_validation import validate_detector_label_map
 from detector.model import build_detector_model, select_device
+from utils.io import write_json
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,11 +197,11 @@ def save_inference_artifacts(
     output_dir.mkdir(parents=True, exist_ok=True)
     predictions_path = output_dir / "val_predictions.json"
     errors_path = output_dir / "error_samples.json"
-    _write_json(
+    write_json(
         predictions_path,
         [prediction.to_dict() for prediction in result.predictions],
     )
-    _write_json(errors_path, [error.to_dict() for error in result.errors])
+    write_json(errors_path, [error.to_dict() for error in result.errors])
     return predictions_path, errors_path
 
 
@@ -423,10 +423,3 @@ def _validate_probability(value: Any, *, name: str) -> None:
         raise TypeError(f"{name} must be a number")
     if not isfinite(float(value)) or not 0.0 <= float(value) <= 1.0:
         raise ValueError(f"{name} must be between 0.0 and 1.0")
-
-
-def _write_json(path: Path, value: Any) -> None:
-    path.write_text(
-        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )

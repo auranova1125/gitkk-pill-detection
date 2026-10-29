@@ -1,15 +1,12 @@
 """탐지기 optimizer, epoch 학습과 전체 학습 실행."""
 
-import csv
 import json
-import random
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from math import isfinite
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import torch
 from torch import nn
 from torch.optim import SGD, Optimizer
@@ -29,6 +26,8 @@ from detector.input_validation import (
     validate_detector_label_map,
 )
 from detector.model import build_detector_model, select_device
+from utils.io import append_csv_row, write_json
+from utils.runtime import build_grad_scaler, set_seed
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,29 +125,6 @@ def build_scheduler(
     """전체 epoch 수를 주기로 하는 cosine scheduler를 생성한다."""
 
     return CosineAnnealingLR(optimizer, T_max=config.max_epochs)
-
-
-def build_grad_scaler(device: torch.device) -> torch.amp.GradScaler:
-    """CUDA에서만 활성화되는 AMP GradScaler를 생성한다."""
-
-    return torch.amp.GradScaler(device.type, enabled=device.type == "cuda")
-
-
-def set_seed(seed: int) -> None:
-    """Python, NumPy와 PyTorch random seed를 설정한다."""
-
-    if not isinstance(seed, int) or isinstance(seed, bool):
-        raise TypeError("seed must be an integer")
-    if seed < 0:
-        raise ValueError("seed must be non-negative")
-
-    random.seed(seed)
-    np.random.seed(seed % (2**32))
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    if torch.backends.mps.is_available():
-        torch.mps.manual_seed(seed)
 
 
 def move_detection_batch_to_device(
@@ -312,9 +288,9 @@ def run_training(
     last_checkpoint_path = run_dir / "last.pt"
     best_checkpoint_path = run_dir / "best.pt"
     metrics_path = run_dir / "metrics.csv"
-    _write_json(run_dir / "resolved_config.json", config.to_dict())
-    _write_json(run_dir / "label_map.json", label_map)
-    _write_json(run_dir / "data_summary.json", data_summary)
+    write_json(run_dir / "resolved_config.json", config.to_dict(), sort_keys=True)
+    write_json(run_dir / "label_map.json", label_map, sort_keys=True)
+    write_json(run_dir / "data_summary.json", data_summary, sort_keys=True)
     if config.resume_from is None:
         metrics_path.write_text("", encoding="utf-8")
 
@@ -383,7 +359,7 @@ def run_training(
             evaluation_result=evaluation_result,
         )
         metric_rows.append(metric_row)
-        _append_metric_row(metrics_path, metric_row)
+        append_csv_row(metrics_path, metric_row)
 
         checkpoint_arguments = {
             "completed_epoch": epoch,
@@ -439,22 +415,6 @@ def _build_metric_row(
         "train_num_images": training_result.num_images,
         **evaluation_result.to_dict(),
     }
-
-
-def _append_metric_row(path: Path, row: Mapping[str, Any]) -> None:
-    write_header = not path.exists() or path.stat().st_size == 0
-    with path.open("a", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=list(row))
-        if write_header:
-            writer.writeheader()
-        writer.writerow(row)
-
-
-def _write_json(path: Path, value: Mapping[str, Any]) -> None:
-    path.write_text(
-        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
 
 
 def _validate_losses(value: Any) -> Mapping[str, torch.Tensor]:

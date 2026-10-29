@@ -27,10 +27,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision import transforms as T
 from torchvision.transforms import InterpolationMode
-from PIL import Image
 
 from classifier_data.pill_square_crop import PAD_COLOR, pad_square
 
@@ -159,8 +159,13 @@ def build_classifier_inputs(*, config, device: torch.device):
                                     generator=torch.Generator().manual_seed(config.seed))
 
     cuda = torch.device(device).type == "cuda"   # 명세서 2.3: CUDA는 worker 2·pin_memory, MPS/CPU는 0·False
-    common = dict(batch_size=config.batch_size, num_workers=2 if cuda else 0, pin_memory=cuda,
-                  collate_fn=collate_classifier_samples, worker_init_fn=_seed_worker)
+    common = {
+        "batch_size": config.batch_size,
+        "num_workers": 2 if cuda else 0,
+        "pin_memory": cuda,
+        "collate_fn": collate_classifier_samples,
+        "worker_init_fn": _seed_worker,
+    }
     train_loader = DataLoader(train_ds, sampler=sampler, shuffle=False,
                               generator=torch.Generator().manual_seed(config.seed), **common)
     val_loader = DataLoader(val_ds, shuffle=False, **common)

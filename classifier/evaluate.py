@@ -1,6 +1,5 @@
 """분류기 validation 평가와 지표 계산."""
 
-import json
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from math import isfinite
@@ -12,6 +11,7 @@ from torch import nn
 from tqdm.auto import tqdm
 
 from classifier.input_validation import validate_batch, validate_class_map
+from utils.io import write_json
 
 
 @dataclass(frozen=True, slots=True)
@@ -430,22 +430,12 @@ def save_validation_artifacts(
     output_dir.mkdir(parents=True, exist_ok=True)
     predictions_path = output_dir / "val_predictions.json"
     errors_path = output_dir / "error_samples.json"
-    predictions_path.write_text(
-        json.dumps(
-            [prediction.to_dict() for prediction in artifacts.predictions],
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    write_json(
+        predictions_path,
+        [prediction.to_dict() for prediction in artifacts.predictions],
     )
-    errors_path.write_text(
-        json.dumps(
-            [sample.to_dict() for sample in artifacts.error_samples],
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    write_json(
+        errors_path,
+        [sample.to_dict() for sample in artifacts.error_samples],
     )
     return predictions_path, errors_path

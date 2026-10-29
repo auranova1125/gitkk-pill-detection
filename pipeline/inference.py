@@ -1,6 +1,5 @@
 """단일 클래스 알약 탐지와 품목 분류를 연결한 end-to-end 추론."""
 
-import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from math import isfinite
@@ -26,6 +25,7 @@ from detector.inference import (
     predict_detector,
     validate_inference_batch,
 )
+from utils.io import write_json
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,11 +193,11 @@ def save_end_to_end_artifacts(
     output_dir.mkdir(parents=True, exist_ok=True)
     predictions_path = output_dir / "end_to_end_predictions.json"
     errors_path = output_dir / "end_to_end_errors.json"
-    _write_json(
+    write_json(
         predictions_path,
         [prediction.to_dict() for prediction in result.predictions],
     )
-    _write_json(
+    write_json(
         errors_path,
         {
             "detector_errors": [error.to_dict() for error in result.detector_errors],
@@ -270,10 +270,3 @@ def _validate_image(image: Any) -> None:
         raise ValueError("image must not contain NaN or Inf")
     if torch.any((image < 0.0) | (image > 1.0)):
         raise ValueError("image values must be between 0.0 and 1.0")
-
-
-def _write_json(path: Path, value: Any) -> None:
-    path.write_text(
-        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )

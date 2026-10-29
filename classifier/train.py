@@ -1,7 +1,5 @@
 """분류기 optimizer 구성과 전체 학습 실행."""
 
-import csv
-import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,7 +28,8 @@ from classifier.model import (
     configure_model_for_stage,
     set_model_train_mode,
 )
-from common.reproducibility import set_seed
+from utils.io import append_csv_row, write_json
+from utils.runtime import build_grad_scaler, select_device, set_seed
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,16 +96,6 @@ class TrainingResult:
     best_top1_accuracy: float
     stopped_early: bool
     metrics: tuple[dict[str, Any], ...]
-
-
-def select_device() -> torch.device:
-    """CUDA, MPS, CPU 순서로 사용 가능한 장치를 선택한다."""
-
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
 
 
 def resolve_training_stage(epoch: int, head_only_epochs: int) -> TrainingStage:
@@ -187,12 +176,6 @@ def build_scheduler(
     return CosineAnnealingLR(optimizer, T_max=fine_tuning_epochs)
 
 
-def build_grad_scaler(device: torch.device) -> torch.amp.GradScaler:
-    """CUDA에서만 활성화되는 GradScaler를 생성한다."""
-
-    return torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
-
-
 def train_one_epoch(
     model: nn.Module,
     data_loader: Iterable[Mapping[str, Any]],
@@ -269,13 +252,6 @@ def train_one_epoch(
     )
 
 
-def _write_json(path: Path, value: Mapping[str, Any]) -> None:
-    path.write_text(
-        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-
-
 def _prepare_run_directory(
     config: TrainConfig,
     *,
@@ -303,19 +279,10 @@ def _prepare_run_directory(
 
     resolved_config = config.to_dict()
     resolved_config["device"] = str(device)
-    _write_json(run_dir / "resolved_config.json", resolved_config)
-    _write_json(run_dir / "class_map.json", class_map)
-    _write_json(run_dir / "data_summary.json", data_summary)
+    write_json(run_dir / "resolved_config.json", resolved_config, sort_keys=True)
+    write_json(run_dir / "class_map.json", class_map, sort_keys=True)
+    write_json(run_dir / "data_summary.json", data_summary, sort_keys=True)
     return run_dir
-
-
-def _append_metrics(path: Path, metrics: Mapping[str, Any]) -> None:
-    write_header = not path.exists() or path.stat().st_size == 0
-    with path.open("a", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=list(metrics.keys()))
-        if write_header:
-            writer.writeheader()
-        writer.writerow(metrics)
 
 
 def _learning_rates(optimizer: Optimizer) -> dict[str, float | None]:
@@ -484,7 +451,7 @@ def run_training(
             count_for_stopping=stage is TrainingStage.LAYER4_FINE_TUNING,
         )
 
-        # metrics.csv 기록 (_append_metrics 함수)
+        # metrics.csv 기록
         metrics = {
             "epoch": epoch,
             "training_stage": stage.value,
@@ -499,7 +466,7 @@ def run_training(
             **learning_rates,
         }
         metrics_records.append(metrics)
-        _append_metrics(metrics_path, metrics)
+        append_csv_row(metrics_path, metrics)
 
         checkpoint_kwargs = _checkpoint_kwargs(
             epoch=epoch,
