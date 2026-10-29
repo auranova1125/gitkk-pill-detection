@@ -1,0 +1,23 @@
+task: detector
+device: auto
+# 탐지기 DataLoader가 준비되면 module:function 경로로 변경한다.
+data_factory_path: null
+pretrained_backbone: true
+
+training:
+  run_name: ssdlite320_baseline
+  output_dir: outputs
+  label_map_path: data/detector_label_map.json
+  data_summary_path: data/detector_data_summary.json
+  model_name: ssdlite320_mobilenet_v3_large
+  seed: 42
+  batch_size: 8
+  max_epochs: 50
+  learning_rate: 0.005
+  momentum: 0.9
+  weight_decay: 0.0005
+  score_threshold: 0.25
+  nms_threshold: 0.45
+  early_stopping_patience: 7
+  resume_from: null
+  show_progress: true

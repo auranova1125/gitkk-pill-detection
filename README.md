@@ -81,6 +81,31 @@ Colab에서는 다음 셀로 CUDA 연결을 확인합니다.
 
 정상적인 GPU 런타임에서는 `cuda=True`가 출력됩니다.
 
+## 실행 진입점
+
+Notebook은 데이터와 예측을 직접 확인하는 주 실행 환경으로 유지합니다. 반복 실행이나 자동화가 필요할 때는 같은 Python 학습·평가 함수를 호출하는 `main.py`를 사용합니다.
+
+```bash
+# 설치와 장치, 공통 전처리, 분류기·탐지기 학습 1 step 확인
+uv run python main.py smoke
+
+# YAML 설정을 사용한 학습
+uv run python main.py train-classifier --config configs/classifier.yaml
+uv run python main.py train-detector --config configs/detector.yaml
+
+# checkpoint 평가와 통합 추론
+uv run python main.py evaluate classifier \
+  --config configs/classifier.yaml \
+  --checkpoint outputs/resnet50_baseline/best.pt
+uv run python main.py infer --config configs/pipeline.yaml
+```
+
+`configs/*.yaml`은 기존 `TrainConfig`와 `DetectorConfig`로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
+
+탐지기 DataLoader 작업이 완료되기 전까지 `configs/detector.yaml`의 `data_factory_path`와 `configs/pipeline.yaml`의 `inference_factory_path`는 `null`입니다. 전달받은 factory의 `module:function` 경로로 변경한 뒤 학습 또는 통합 추론을 실행합니다.
+
+현재 `configs/detector.yaml`과 `configs/pipeline.yaml`의 데이터 factory는 `null`입니다. 탐지기 DataLoader가 준비되면 각각 `data_factory_path`와 `inference_factory_path`를 `module:function` 형식으로 설정합니다. 설정 전 실행하면 필요한 항목을 알리는 오류로 중단됩니다.
+
 ## Jupyter Notebook Git 설정
 
 `nbdime`은 Notebook diff/merge를 읽기 쉽게 만들고, `nbstripout`은 커밋되는 Notebook에서 출력값을 제거합니다. 저장소를 복제한 뒤 팀원마다 한 번씩 설정합니다.

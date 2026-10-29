@@ -7,6 +7,12 @@ from pathlib import Path
 from typing import Any
 
 
+def read_json(path: Path) -> Any:
+    """UTF-8 JSON 파일을 읽어 Python 값으로 반환한다."""
+
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
 def write_json(
     path: Path,
     value: Any,

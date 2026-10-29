@@ -2,7 +2,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 상태 | 계획 |
+| 상태 | 진행 중 |
 | 관련 이슈 | #16 |
 | 작업 브랜치 | `16-refactor-project-structure` |
 | 최초 작성 | 2026-10-29 |
@@ -30,6 +30,17 @@
 - 불필요한 `dict()` 생성 1건
 
 리팩터링 단계에서 전체 검사 범위에 `classifier_data`와 새 공통 패키지를 포함하고 두 오류를 함께 해소한다.
+
+## 진행 현황
+
+| 단계 | 상태 | 결과 |
+| --- | --- | --- |
+| 0. 계획과 기준선 | 완료 | `ef44c9d` |
+| 1. runtime과 공통 I/O | 완료 | `371cf3d` |
+| 2. crop과 transform 통합 | 완료 | `1364053` |
+| 3. 설정과 `main.py` | 검토 대기 | YAML schema, workflow와 synthetic smoke 추가 |
+| 4. 검증 이름과 primitive | 대기 | 3단계 승인 후 진행 |
+| 5. 테스트와 문서 정리 | 대기 | 4단계 승인 후 진행 |
 
 ## 3. 현재 문제
 
@@ -102,6 +113,7 @@ gitkk-pill-detection/
 ├── pilldata/
 │   ├── __init__.py
 │   ├── classifier_dataset.py
+│   ├── factory.py
 │   ├── transforms.py
 │   ├── validation.py
 │   └── synthetic.py
@@ -121,7 +133,8 @@ gitkk-pill-detection/
 │   └── checkpoint.py
 ├── pipeline/
 │   ├── inference.py
-│   └── evaluate.py
+│   ├── evaluate.py
+│   └── workflows.py
 ├── utils/
 │   ├── checkpoint_io.py
 │   ├── io.py
@@ -258,7 +271,7 @@ docs: 프로젝트 구조 리팩터링 계획 추가
 uv run python main.py train-classifier
 uv run python main.py train-detector
 uv run python main.py infer
-uv run python main.py evaluate
+uv run python main.py evaluate classifier --config configs/classifier.yaml --checkpoint outputs/resnet50_baseline/best.pt
 uv run python main.py smoke
 ```
 

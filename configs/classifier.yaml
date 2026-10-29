@@ -1,0 +1,22 @@
+task: classifier
+device: auto
+data_factory_path: classifier_data.classifier_inputs:build_classifier_inputs
+expected_num_classes: 118
+pretrained: true
+
+training:
+  run_name: resnet50_baseline
+  output_dir: outputs
+  class_map_path: data/training_package_classifier/class_map.json
+  data_summary_path: data/training_package_classifier/data_summary.json
+  seed: 42
+  batch_size: 32
+  max_epochs: 30
+  head_only_epochs: 3
+  lr_head_only: 0.001
+  lr_layer4: 0.0001
+  lr_fc: 0.0005
+  weight_decay: 0.0001
+  early_stopping_patience: 7
+  resume_from: null
+  show_progress: true

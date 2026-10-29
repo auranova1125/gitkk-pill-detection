@@ -1,5 +1,6 @@
 """분류기와 탐지기 파이프라인이 공유하는 runtime 데이터 기능."""
 
+from pilldata.factory import load_data_factory
 from pilldata.transforms import (
     CLASSIFIER_IMAGE_SIZE,
     CROP_MARGIN,
@@ -32,6 +33,7 @@ __all__ = [
     "crop_pill",
     "crop_tensor_xyxy",
     "cut_pill",
+    "load_data_factory",
     "pad_square",
     "preprocess_classifier_crop",
 ]

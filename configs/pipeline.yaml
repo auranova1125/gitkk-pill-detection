@@ -1,0 +1,14 @@
+task: pipeline
+device: auto
+# 탐지기 추론 DataLoader가 준비되면 module:function 경로로 변경한다.
+inference_factory_path: null
+batch_size: 4
+score_threshold: 0.25
+show_progress: true
+
+detector_checkpoint_path: outputs/ssdlite320_baseline/best.pt
+classifier_checkpoint_path: outputs/resnet50_baseline/best.pt
+detector_label_map_path: outputs/ssdlite320_baseline/label_map.json
+classifier_class_map_path: outputs/resnet50_baseline/class_map.json
+detector_name: ssdlite320_baseline
+output_dir: outputs/end_to_end_inference

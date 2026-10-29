@@ -20,6 +20,23 @@ def select_device() -> torch.device:
     return torch.device("cpu")
 
 
+def resolve_device(device_name: str = "auto") -> torch.device:
+    """auto 또는 명시한 장치 이름을 사용 가능한 torch 장치로 변환한다."""
+
+    if not isinstance(device_name, str):
+        raise TypeError("device_name must be a string")
+    normalized_name = device_name.strip().lower()
+    if normalized_name == "auto":
+        return select_device()
+    if normalized_name not in {"cpu", "mps", "cuda"}:
+        raise ValueError("device_name must be one of: auto, cpu, mps, cuda")
+    if normalized_name == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but is not available")
+    if normalized_name == "mps" and not torch.backends.mps.is_available():
+        raise RuntimeError("MPS was requested but is not available")
+    return torch.device(normalized_name)
+
+
 def build_grad_scaler(device: torch.device) -> torch.amp.GradScaler:
     """CUDA에서만 활성화되는 AMP GradScaler를 생성한다."""
 
