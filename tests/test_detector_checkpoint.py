@@ -24,12 +24,11 @@ from detector.evaluate import EvaluationResult
 from detector.train import (
     EarlyStopping,
     TrainingEpochResult,
-    build_grad_scaler,
     build_optimizer,
     build_scheduler,
     run_training,
-    set_seed,
 )
+from utils.runtime import build_grad_scaler, set_seed
 
 
 class TinyCheckpointDetector(nn.Module):
@@ -147,7 +146,7 @@ def patch_training_components(
 
     monkeypatch.setattr(train_module, "build_detector_model", build_tiny_model)
     monkeypatch.setattr(train_module, "train_one_epoch", fake_train_one_epoch)
-    monkeypatch.setattr("detector.evaluate.evaluate_model", fake_evaluate_model)
+    monkeypatch.setattr(train_module, "evaluate_model", fake_evaluate_model)
 
 
 def test_hash_label_map_is_independent_of_dictionary_key_order(

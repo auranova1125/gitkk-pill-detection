@@ -15,7 +15,7 @@ from classifier.inference import (
     validate_classifier_crop_batch,
 )
 from classifier.model import TrainingStage
-from classifier.train import build_grad_scaler
+from utils.runtime import build_grad_scaler
 
 NUM_CLASSES = 3
 

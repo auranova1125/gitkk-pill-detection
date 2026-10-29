@@ -11,8 +11,8 @@ from torch import nn
 from classifier.checkpoint import hash_class_map, load_checkpoint
 from classifier.input_validation import validate_class_map
 from classifier.model import build_model
-from classifier.train import select_device
 from pilldata.validation import normalize_bbox_xywh, normalize_probability
+from utils.runtime import select_device
 
 
 @dataclass(frozen=True, slots=True)

@@ -12,7 +12,11 @@ from torchvision.ops import box_iou
 from tqdm.auto import tqdm
 
 from configs.detector import DetectorConfig
-from detector.train import move_detection_batch_to_device
+from detector.inference import load_inference_model
+from detector.training_data import (
+    move_detection_batch_to_device,
+    prepare_detector_data,
+)
 from pilldata.validation import normalize_probability
 from utils.io import write_json
 
@@ -288,9 +292,6 @@ def evaluate_detector_checkpoint(
     output_dir: Path | None = None,
 ) -> EvaluationResult:
     """설정의 validation 데이터로 탐지기 checkpoint를 평가하고 저장한다."""
-
-    from detector.inference import load_inference_model
-    from detector.train import prepare_detector_data
 
     data = prepare_detector_data(config)
     model, device = load_inference_model(

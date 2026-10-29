@@ -129,6 +129,7 @@ gitkk-pill-detection/
 │   └── synthetic.py
 ├── classifier/
 │   ├── model.py
+│   ├── training_data.py
 │   ├── train.py
 │   ├── evaluate.py
 │   ├── inference.py
@@ -136,6 +137,7 @@ gitkk-pill-detection/
 │   └── checkpoint.py
 ├── detector/
 │   ├── model.py
+│   ├── training_data.py
 │   ├── train.py
 │   ├── evaluate.py
 │   ├── inference.py

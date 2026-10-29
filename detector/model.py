@@ -1,15 +1,13 @@
-"""torchvision 기반 탐지 모델 생성과 장치 선택."""
+"""torchvision 기반 탐지 모델 생성."""
 
 from collections.abc import Callable
 
-import torch
 from torch import nn
 from torchvision.models import MobileNet_V3_Large_Weights
 from torchvision.models.detection import ssdlite320_mobilenet_v3_large
 from torchvision.models.detection.ssd import SSD
 
 from pilldata.validation import normalize_probability
-from utils.runtime import select_device as _select_device
 
 DetectorBuilder = Callable[..., nn.Module]
 
@@ -41,12 +39,6 @@ def build_ssdlite320(
 MODEL_BUILDERS: dict[str, DetectorBuilder] = {
     "ssdlite320_mobilenet_v3_large": build_ssdlite320,
 }
-
-
-def select_device() -> torch.device:
-    """기존 탐지기 import 경로에서 공통 장치 선택 함수를 제공한다."""
-
-    return _select_device()
 
 
 def available_detector_models() -> tuple[str, ...]:

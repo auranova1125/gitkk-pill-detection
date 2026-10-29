@@ -427,11 +427,11 @@ final_score = detector_score × classifier_score
 ```python
 from classifier import (
     ClassifierConfig,
-    select_device,
     validate_batch,
     validate_class_map,
     validate_data_summary,
 )
+from utils.runtime import select_device
 
 
 device = select_device()

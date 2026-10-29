@@ -177,6 +177,7 @@ configs/
 detector/
 ├── __init__.py
 ├── input_validation.py
+├── training_data.py
 ├── model.py
 ├── train.py
 ├── evaluate.py
@@ -211,6 +212,7 @@ tests/
 | --- | --- |
 | `configs/detector.py` | 모델 이름, 학습률, epoch, threshold, 실행 경로와 YAML 로더 |
 | `input_validation.py` | batch, label map, 데이터 요약 검증 |
+| `training_data.py` | 데이터 factory 호출, 학습 입력 검증과 batch 장치 이동 |
 | `model.py` | model registry와 SSDLite/SSD builder |
 | `train.py` | 장치 선택, optimizer, epoch loop와 전체 학습 실행 |
 | `evaluate.py` | mAP, recall, 이미지별 예측과 오류 분석 |

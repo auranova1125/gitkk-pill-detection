@@ -10,7 +10,9 @@ import torch
 from torch import nn
 from tqdm.auto import tqdm
 
+from classifier.inference import load_inference_model
 from classifier.input_validation import validate_batch, validate_class_map
+from classifier.training_data import prepare_classifier_data
 from configs.classifier import ClassifierConfig
 from utils.io import write_json
 
@@ -449,9 +451,6 @@ def evaluate_classifier_checkpoint(
     output_dir: Path | None = None,
 ) -> ValidationArtifacts:
     """설정의 validation 데이터로 분류기 checkpoint를 평가하고 저장한다."""
-
-    from classifier.inference import load_inference_model
-    from classifier.train import prepare_classifier_data
 
     data = prepare_classifier_data(config)
     model, device = load_inference_model(

@@ -41,19 +41,19 @@ from classifier.model import (
     set_model_train_mode,
 )
 from classifier.train import (
-    ClassifierTrainingData,
     EarlyStopping,
     TrainingEpochResult,
     TrainingResult,
-    build_grad_scaler,
     build_optimizer,
     build_scheduler,
-    prepare_classifier_data,
     resolve_training_stage,
     run_training,
-    select_device,
     train_classifier,
     train_one_epoch,
+)
+from classifier.training_data import (
+    ClassifierTrainingData,
+    prepare_classifier_data,
 )
 from configs.classifier import ClassifierConfig
 
@@ -73,7 +73,6 @@ __all__ = [
     "TrainingStage",
     "ValidationArtifacts",
     "ValidationPrediction",
-    "build_grad_scaler",
     "build_model",
     "build_optimizer",
     "build_scheduler",
@@ -93,7 +92,6 @@ __all__ = [
     "run_training",
     "save_checkpoint",
     "save_validation_artifacts",
-    "select_device",
     "set_model_train_mode",
     "train_classifier",
     "train_one_epoch",

@@ -315,6 +315,7 @@ project/
 │   └── validation.py
 ├── classifier/
 │   ├── input_validation.py
+│   ├── training_data.py
 │   ├── model.py
 │   ├── train.py
 │   ├── evaluate.py
@@ -338,6 +339,7 @@ project/
 |---|---|
 | `configs/classifier.py` | 분류기 학습·실행 설정과 YAML 로더 |
 | `input_validation.py` | loader batch, class map, data summary 검사 |
+| `training_data.py` | 데이터 factory 호출, 학습 입력 검증과 장치 선택 |
 | `model.py` | ResNet-50 생성, freeze와 unfreeze |
 | `train.py` | 2단계 학습, validation, early stopping |
 | `evaluate.py` | 지표 계산, 예측과 오류 사례 저장 |

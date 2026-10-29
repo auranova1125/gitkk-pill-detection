@@ -7,7 +7,9 @@ import pytest
 import torch
 
 import classifier.train as classifier_train_module
-from classifier.train import prepare_classifier_data, train_classifier
+import classifier.training_data as classifier_training_data_module
+from classifier.train import train_classifier
+from classifier.training_data import prepare_classifier_data
 from configs import (
     ClassifierConfig,
     PillRecognitionConfig,
@@ -154,7 +156,7 @@ def test_classifier_training_reuses_validated_data(
         device="cpu",
     )
     monkeypatch.setattr(
-        classifier_train_module,
+        classifier_training_data_module,
         "load_data_factory",
         lambda _: factory,
     )

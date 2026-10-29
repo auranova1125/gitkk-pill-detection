@@ -490,11 +490,11 @@ padding 색 `(124, 116, 104)`는 ImageNet RGB 평균 `(0.485, 0.456, 0.406)`에 
 ```python
 from detector import (
     DetectorConfig,
-    select_device,
     validate_detector_training_batch,
     validate_detector_data_summary,
     validate_detector_label_map,
 )
+from utils.runtime import select_device
 
 
 device = select_device()

@@ -10,12 +10,12 @@ from torch import nn
 from detector import DetectorConfig
 from detector.evaluate import evaluate_model, filter_predictions_by_score
 from detector.train import (
-    build_grad_scaler,
     build_optimizer,
     build_scheduler,
-    move_detection_batch_to_device,
     train_one_epoch,
 )
+from detector.training_data import move_detection_batch_to_device
+from utils.runtime import build_grad_scaler
 
 
 class TinyTrainingDetector(nn.Module):

@@ -15,8 +15,8 @@ from detector import (
     available_detector_models,
     build_detector_model,
     build_ssdlite320,
-    select_device,
 )
+from utils.runtime import select_device
 
 NUM_MODEL_CLASSES = 2
 

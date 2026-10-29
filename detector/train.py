@@ -21,33 +21,19 @@ from detector.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
+from detector.evaluate import evaluate_model
 from detector.input_validation import (
     validate_detector_data_summary,
     validate_detector_label_map,
-    validate_detector_training_batch,
 )
-from detector.model import build_detector_model, select_device
-from pilldata.factory import load_data_factory
+from detector.model import build_detector_model
+from detector.training_data import (
+    DetectorTrainingData,
+    move_detection_batch_to_device,
+    prepare_detector_data,
+)
 from utils.io import append_csv_row, write_json
-from utils.runtime import build_grad_scaler, resolve_device, set_seed
-
-TrainingFactoryResult = tuple[
-    Iterable[Mapping[str, Any]],
-    Iterable[Mapping[str, Any]],
-    Mapping[str, Any],
-    Mapping[str, Any],
-]
-
-
-@dataclass(frozen=True, slots=True)
-class DetectorTrainingData:
-    """검증을 마쳐 Notebook 확인과 학습에 재사용할 수 있는 입력."""
-
-    train_loader: Iterable[Mapping[str, Any]]
-    val_loader: Iterable[Mapping[str, Any]]
-    label_map: Mapping[str, Any]
-    data_summary: Mapping[str, Any]
-    device: torch.device
+from utils.runtime import build_grad_scaler, select_device, set_seed
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,47 +133,6 @@ def build_scheduler(
     return CosineAnnealingLR(optimizer, T_max=config.max_epochs)
 
 
-def move_detection_batch_to_device(
-    batch: Mapping[str, Any],
-    device: torch.device,
-) -> tuple[list[torch.Tensor], list[dict[str, Any]]]:
-    """이미지와 target tensor를 선택한 장치로 이동한다."""
-
-    if not isinstance(batch, Mapping):
-        raise TypeError("batch must be a mapping")
-    missing_fields = {"images", "targets"} - batch.keys()
-    if missing_fields:
-        raise ValueError(f"batch is missing required fields: {sorted(missing_fields)}")
-
-    images = batch["images"]
-    targets = batch["targets"]
-    if not isinstance(images, list) or not isinstance(targets, list):
-        raise TypeError("batch images and targets must be lists")
-    if not images or len(images) != len(targets):
-        raise ValueError("batch images and targets must have equal non-zero lengths")
-
-    non_blocking = device.type == "cuda"
-    moved_images: list[torch.Tensor] = []
-    moved_targets: list[dict[str, Any]] = []
-    for index, image in enumerate(images):
-        if not isinstance(image, torch.Tensor):
-            raise TypeError(f"batch.images[{index}] must be a torch.Tensor")
-        moved_images.append(image.to(device, non_blocking=non_blocking))
-
-    for index, target in enumerate(targets):
-        if not isinstance(target, Mapping):
-            raise TypeError(f"batch.targets[{index}] must be a mapping")
-        moved_targets.append(
-            {
-                key: value.to(device, non_blocking=non_blocking)
-                if isinstance(value, torch.Tensor)
-                else value
-                for key, value in target.items()
-            }
-        )
-    return moved_images, moved_targets
-
-
 def train_one_epoch(
     model: nn.Module,
     data_loader: Iterable[Mapping[str, Any]],
@@ -266,23 +211,6 @@ def train_one_epoch(
     )
 
 
-def prepare_detector_data(config: DetectorConfig) -> DetectorTrainingData:
-    """탐지기 factory를 한 번 호출하고 반환된 학습 입력을 검증한다."""
-
-    device = resolve_device(config.device)
-    factory = load_data_factory(config.data_factory_path)
-    training_data = _call_training_factory(factory, config=config, device=device)
-    _validate_detector_training_data(training_data)
-    train_loader, val_loader, label_map, data_summary = training_data
-    return DetectorTrainingData(
-        train_loader=train_loader,
-        val_loader=val_loader,
-        label_map=label_map,
-        data_summary=data_summary,
-        device=device,
-    )
-
-
 def train_detector(
     config: DetectorConfig,
     *,
@@ -313,8 +241,6 @@ def run_training(
     device: torch.device | None = None,
 ) -> TrainingResult:
     """설정 검증부터 checkpoint 저장까지 detector 학습을 실행한다."""
-
-    from detector.evaluate import evaluate_model
 
     validate_detector_label_map(label_map)
     validate_detector_data_summary(data_summary, label_map)
@@ -450,45 +376,6 @@ def run_training(
         stopped_early=stopped_early,
         metrics=tuple(metric_rows),
     )
-
-
-def _call_training_factory(
-    factory: Any,
-    *,
-    config: DetectorConfig,
-    device: torch.device,
-) -> TrainingFactoryResult:
-    value = factory(config=config, device=device)
-    if not isinstance(value, tuple) or len(value) != 4:
-        raise TypeError(
-            "training data factory must return "
-            "(train_loader, val_loader, label_map, data_summary)"
-        )
-    train_loader, val_loader, label_map, data_summary = value
-    if not isinstance(label_map, Mapping) or not isinstance(data_summary, Mapping):
-        raise TypeError("factory label map and data summary must be mappings")
-    return train_loader, val_loader, label_map, data_summary
-
-
-def _validate_detector_training_data(data: TrainingFactoryResult) -> None:
-    train_loader, val_loader, label_map, data_summary = data
-    validate_detector_label_map(label_map)
-    validate_detector_data_summary(data_summary, label_map)
-    validate_detector_training_batch(
-        _first_batch(train_loader, name="train_loader"),
-        label_map,
-    )
-    validate_detector_training_batch(
-        _first_batch(val_loader, name="val_loader"),
-        label_map,
-    )
-
-
-def _first_batch(loader: Iterable[Any], *, name: str) -> Any:
-    try:
-        return next(iter(loader))
-    except StopIteration as error:
-        raise ValueError(f"{name} must contain at least one batch") from error
 
 
 def _build_metric_row(

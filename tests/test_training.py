@@ -13,15 +13,19 @@ from torch.utils.data import DataLoader, Dataset
 from classifier.evaluate import compute_classification_metrics, evaluate_model
 from classifier.model import TrainingStage, build_model
 from classifier.train import (
-    build_grad_scaler,
     build_optimizer,
     build_scheduler,
     resolve_training_stage,
-    select_device,
     train_one_epoch,
 )
 from configs.classifier import ClassifierConfig
-from utils.runtime import capture_rng_state, restore_rng_state, set_seed
+from utils.runtime import (
+    build_grad_scaler,
+    capture_rng_state,
+    restore_rng_state,
+    select_device,
+    set_seed,
+)
 
 NUM_CLASSES = 8
 

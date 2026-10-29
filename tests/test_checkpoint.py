@@ -24,14 +24,13 @@ from classifier.model import TrainingStage
 from classifier.train import (
     EarlyStopping,
     TrainingEpochResult,
-    build_grad_scaler,
     build_optimizer,
     build_scheduler,
     resolve_training_stage,
     run_training,
 )
 from configs.classifier import ClassifierConfig
-from utils.runtime import set_seed
+from utils.runtime import build_grad_scaler, set_seed
 
 NUM_CLASSES = 2
 
