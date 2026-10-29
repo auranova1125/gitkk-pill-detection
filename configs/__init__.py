@@ -1,19 +1,17 @@
-"""YAML 실험 설정 로더와 검증된 schema."""
+"""분류기, 탐지기와 통합 인식의 실행 설정."""
 
-from configs.schema import (
-    ClassifierExperimentConfig,
-    DetectorExperimentConfig,
-    PipelineExperimentConfig,
-    load_classifier_experiment_config,
-    load_detector_experiment_config,
-    load_pipeline_experiment_config,
+from configs.classifier import ClassifierConfig, load_classifier_config
+from configs.detector import DetectorConfig, load_detector_config
+from configs.pill_recognition import (
+    PillRecognitionConfig,
+    load_pill_recognition_config,
 )
 
 __all__ = [
-    "ClassifierExperimentConfig",
-    "DetectorExperimentConfig",
-    "PipelineExperimentConfig",
-    "load_classifier_experiment_config",
-    "load_detector_experiment_config",
-    "load_pipeline_experiment_config",
+    "ClassifierConfig",
+    "DetectorConfig",
+    "PillRecognitionConfig",
+    "load_classifier_config",
+    "load_detector_config",
+    "load_pill_recognition_config",
 ]

@@ -39,12 +39,12 @@ from typing import Any
 import torch
 from torch.utils.data import DataLoader
 
-from classifier import TrainConfig
+from classifier import ClassifierConfig
 
 
 def build_classifier_inputs(
     *,
-    config: TrainConfig,
+    config: ClassifierConfig,
     device: torch.device,
 ) -> tuple[
     DataLoader[dict[str, Any]],
@@ -56,7 +56,7 @@ def build_classifier_inputs(
     return train_loader, val_loader, class_map, data_summary
 ```
 
-함수는 여러 번 호출해도 같은 분할과 같은 `class_map`을 반환해야 한다. 학습 노트북은 첫 batch를 검증한 후 sampler 상태에 영향을 주지 않도록 이 함수를 다시 호출한다.
+함수는 여러 번 호출해도 같은 분할과 같은 `class_map`을 반환해야 한다. 학습 코드는 factory를 한 번 호출하고 첫 batch까지 검증한 뒤, 같은 재순회 가능한 DataLoader로 전체 학습을 실행한다.
 
 ### 2.3 `config` 사용
 
@@ -426,7 +426,7 @@ final_score = detector_score × classifier_score
 
 ```python
 from classifier import (
-    TrainConfig,
+    ClassifierConfig,
     select_device,
     validate_batch,
     validate_class_map,
@@ -435,7 +435,7 @@ from classifier import (
 
 
 device = select_device()
-config = TrainConfig(...)
+config = ClassifierConfig(...)
 expected_num_classes = 118  # 현재 데이터 예시이며 필요하면 다른 N으로 변경
 train_loader, val_loader, class_map, data_summary = build_classifier_inputs(
     config=config,
@@ -477,7 +477,7 @@ training_result = run_training(
 )
 ```
 
-첫 batch 검증으로 sampler 또는 random transform의 난수 상태가 바뀔 수 있다. 실제 학습 직전에는 데이터 구성 함수를 다시 호출해 loader를 새로 만드는 것을 권장한다. 학습 노트북은 이 과정을 이미 수행한다.
+첫 batch 검증으로 sampler 또는 random transform의 난수 상태는 진행될 수 있다. factory와 DataLoader가 같은 seed에서 항상 같은 순서로 동작하고, DataLoader가 새 iterator로 전체 epoch를 다시 순회할 수 있어야 한다. 학습 코드는 검증 후 같은 DataLoader를 재순회한다.
 
 탐지 결과 batch는 다음처럼 검사한다.
 

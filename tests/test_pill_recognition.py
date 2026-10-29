@@ -1,4 +1,4 @@
-"""탐지기와 분류기 end-to-end 추론 pipeline 테스트."""
+"""탐지기와 분류기 pill recognition 추론 pipeline 테스트."""
 
 import json
 from pathlib import Path
@@ -9,9 +9,9 @@ import torch
 from torch import nn
 
 from pipeline import (
-    plot_end_to_end_predictions,
-    run_end_to_end_inference,
-    save_end_to_end_artifacts,
+    plot_pill_predictions,
+    recognize_pills,
+    save_pill_recognition_artifacts,
 )
 
 
@@ -48,10 +48,10 @@ def make_batch(*, image_id: int = 7) -> dict[str, Any]:
     }
 
 
-def test_run_end_to_end_inference_combines_predictions(
+def test_recognize_pills_combines_predictions(
     classifier_class_map: dict[str, Any],
 ) -> None:
-    result = run_end_to_end_inference(
+    result = recognize_pills(
         FixedDetector(),
         FixedClassifier(),
         [make_batch()],
@@ -83,11 +83,11 @@ def test_run_end_to_end_inference_combines_predictions(
     )
 
 
-def test_run_end_to_end_inference_rejects_duplicate_image_ids(
+def test_recognize_pills_rejects_duplicate_image_ids(
     classifier_class_map: dict[str, Any],
 ) -> None:
     with pytest.raises(ValueError, match="duplicate image_id"):
-        run_end_to_end_inference(
+        recognize_pills(
             FixedDetector(),
             FixedClassifier(),
             [make_batch(), make_batch()],
@@ -99,11 +99,11 @@ def test_run_end_to_end_inference_rejects_duplicate_image_ids(
         )
 
 
-def test_save_and_plot_end_to_end_artifacts(
+def test_save_and_plot_pill_recognition_artifacts(
     tmp_path: Path,
     classifier_class_map: dict[str, Any],
 ) -> None:
-    result = run_end_to_end_inference(
+    result = recognize_pills(
         FixedDetector(),
         FixedClassifier(),
         [make_batch()],
@@ -114,13 +114,13 @@ def test_save_and_plot_end_to_end_artifacts(
         show_progress=False,
     )
 
-    predictions_path, errors_path = save_end_to_end_artifacts(result, tmp_path)
+    predictions_path, errors_path = save_pill_recognition_artifacts(result, tmp_path)
     predictions = json.loads(predictions_path.read_text(encoding="utf-8"))
     errors = json.loads(errors_path.read_text(encoding="utf-8"))
-    figure = plot_end_to_end_predictions(
+    figure = plot_pill_predictions(
         make_batch()["images"][0],
         result.predictions,
-        title="End-to-end result",
+        title="Pill recognition result",
     )
 
     assert predictions[0]["class_name"] == "drug-1"

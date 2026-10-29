@@ -10,7 +10,6 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-from classifier.config import TrainConfig
 from classifier.evaluate import compute_classification_metrics, evaluate_model
 from classifier.model import TrainingStage, build_model
 from classifier.train import (
@@ -21,7 +20,8 @@ from classifier.train import (
     select_device,
     train_one_epoch,
 )
-from common.reproducibility import capture_rng_state, restore_rng_state, set_seed
+from configs.classifier import ClassifierConfig
+from utils.runtime import capture_rng_state, restore_rng_state, set_seed
 
 NUM_CLASSES = 8
 
@@ -56,8 +56,8 @@ class TinyClassifier(nn.Module):
 
 
 @pytest.fixture
-def train_config(tmp_path: Path) -> TrainConfig:
-    return TrainConfig(
+def train_config(tmp_path: Path) -> ClassifierConfig:
+    return ClassifierConfig(
         run_name="training-test",
         output_dir=tmp_path / "outputs",
         class_map_path=tmp_path / "class_map.json",
@@ -165,7 +165,7 @@ def test_resolve_training_stage(
     assert resolve_training_stage(epoch, head_only_epochs=3) is expected_stage
 
 
-def test_build_head_optimizer(train_config: TrainConfig) -> None:
+def test_build_head_optimizer(train_config: ClassifierConfig) -> None:
     model = build_model(NUM_CLASSES, pretrained=False)
 
     optimizer = build_optimizer(model, train_config, TrainingStage.HEAD_ONLY)
@@ -177,7 +177,7 @@ def test_build_head_optimizer(train_config: TrainConfig) -> None:
 
 
 def test_build_fine_tuning_optimizer_and_scheduler(
-    train_config: TrainConfig,
+    train_config: ClassifierConfig,
 ) -> None:
     model = build_model(NUM_CLASSES, pretrained=False)
 

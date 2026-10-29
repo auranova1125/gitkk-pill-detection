@@ -13,6 +13,7 @@ from torch.optim import SGD, Optimizer
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm.auto import tqdm
 
+from configs.detector import DetectorConfig
 from detector.checkpoint import (
     hash_label_map,
     load_checkpoint,
@@ -20,14 +21,33 @@ from detector.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
-from detector.config import DetectorConfig
 from detector.input_validation import (
     validate_detector_data_summary,
     validate_detector_label_map,
+    validate_detector_training_batch,
 )
 from detector.model import build_detector_model, select_device
+from pilldata.factory import load_data_factory
 from utils.io import append_csv_row, write_json
-from utils.runtime import build_grad_scaler, set_seed
+from utils.runtime import build_grad_scaler, resolve_device, set_seed
+
+TrainingFactoryResult = tuple[
+    Iterable[Mapping[str, Any]],
+    Iterable[Mapping[str, Any]],
+    Mapping[str, Any],
+    Mapping[str, Any],
+]
+
+
+@dataclass(frozen=True, slots=True)
+class DetectorTrainingData:
+    """검증을 마쳐 Notebook 확인과 학습에 재사용할 수 있는 입력."""
+
+    train_loader: Iterable[Mapping[str, Any]]
+    val_loader: Iterable[Mapping[str, Any]]
+    label_map: Mapping[str, Any]
+    data_summary: Mapping[str, Any]
+    device: torch.device
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,6 +266,42 @@ def train_one_epoch(
     )
 
 
+def prepare_detector_data(config: DetectorConfig) -> DetectorTrainingData:
+    """탐지기 factory를 한 번 호출하고 반환된 학습 입력을 검증한다."""
+
+    device = resolve_device(config.device)
+    factory = load_data_factory(config.data_factory_path)
+    training_data = _call_training_factory(factory, config=config, device=device)
+    _validate_detector_training_data(training_data)
+    train_loader, val_loader, label_map, data_summary = training_data
+    return DetectorTrainingData(
+        train_loader=train_loader,
+        val_loader=val_loader,
+        label_map=label_map,
+        data_summary=data_summary,
+        device=device,
+    )
+
+
+def train_detector(
+    config: DetectorConfig,
+    *,
+    data: DetectorTrainingData | None = None,
+) -> TrainingResult:
+    """설정 하나로 탐지기 데이터를 준비하고 학습을 실행한다."""
+
+    training_data = data or prepare_detector_data(config)
+    return run_training(
+        config,
+        training_data.train_loader,
+        training_data.val_loader,
+        training_data.label_map,
+        training_data.data_summary,
+        pretrained_backbone=config.pretrained_backbone,
+        device=training_data.device,
+    )
+
+
 def run_training(
     config: DetectorConfig,
     train_loader: Iterable[Mapping[str, Any]],
@@ -394,6 +450,45 @@ def run_training(
         stopped_early=stopped_early,
         metrics=tuple(metric_rows),
     )
+
+
+def _call_training_factory(
+    factory: Any,
+    *,
+    config: DetectorConfig,
+    device: torch.device,
+) -> TrainingFactoryResult:
+    value = factory(config=config, device=device)
+    if not isinstance(value, tuple) or len(value) != 4:
+        raise TypeError(
+            "training data factory must return "
+            "(train_loader, val_loader, label_map, data_summary)"
+        )
+    train_loader, val_loader, label_map, data_summary = value
+    if not isinstance(label_map, Mapping) or not isinstance(data_summary, Mapping):
+        raise TypeError("factory label map and data summary must be mappings")
+    return train_loader, val_loader, label_map, data_summary
+
+
+def _validate_detector_training_data(data: TrainingFactoryResult) -> None:
+    train_loader, val_loader, label_map, data_summary = data
+    validate_detector_label_map(label_map)
+    validate_detector_data_summary(data_summary, label_map)
+    validate_detector_training_batch(
+        _first_batch(train_loader, name="train_loader"),
+        label_map,
+    )
+    validate_detector_training_batch(
+        _first_batch(val_loader, name="val_loader"),
+        label_map,
+    )
+
+
+def _first_batch(loader: Iterable[Any], *, name: str) -> Any:
+    try:
+        return next(iter(loader))
+    except StopIteration as error:
+        raise ValueError(f"{name} must contain at least one batch") from error
 
 
 def _build_metric_row(

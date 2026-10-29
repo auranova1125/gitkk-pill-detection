@@ -11,6 +11,7 @@ from torch import nn
 from tqdm.auto import tqdm
 
 from classifier.input_validation import validate_batch, validate_class_map
+from configs.classifier import ClassifierConfig
 from utils.io import write_json
 
 
@@ -439,3 +440,38 @@ def save_validation_artifacts(
         [sample.to_dict() for sample in artifacts.error_samples],
     )
     return predictions_path, errors_path
+
+
+def evaluate_classifier_checkpoint(
+    config: ClassifierConfig,
+    checkpoint_path: Path,
+    *,
+    output_dir: Path | None = None,
+) -> ValidationArtifacts:
+    """설정의 validation 데이터로 분류기 checkpoint를 평가하고 저장한다."""
+
+    from classifier.inference import load_inference_model
+    from classifier.train import prepare_classifier_data
+
+    data = prepare_classifier_data(config)
+    model, device = load_inference_model(
+        checkpoint_path,
+        data.class_map,
+        expected_num_classes=config.expected_num_classes,
+        device=data.device,
+    )
+    artifacts = evaluate_with_predictions(
+        model,
+        data.val_loader,
+        data.class_map,
+        nn.CrossEntropyLoss(),
+        device,
+        show_progress=config.show_progress,
+        progress_description="Classifier evaluation",
+    )
+    destination = (
+        Path(output_dir) if output_dir is not None else Path(checkpoint_path).parent
+    )
+    save_validation_artifacts(artifacts, destination)
+    write_json(destination / "evaluation_metrics.json", artifacts.metrics.to_dict())
+    return artifacts

@@ -41,10 +41,10 @@
 | 3. 설정과 `main.py` | 완료 | `256ff2d` |
 | 4. 검증 이름과 primitive | 완료 | `d86cea0` |
 | 5. 테스트와 문서 정리 | 완료 | 전체 테스트 `204 passed` 및 최종 문서 정리 |
-| 6. 문서 기준점 통합 | 검토 대기 | README 단일화, 문서 상태와 후속 구조 단계 정리 |
-| 7. runtime 데이터 이전 | 검토 대기 | 분류 Dataset과 factory를 `pilldata/`로 이전하고 기존 패키지 제거 |
-| 8. 오프라인 ETL 이전 | 검토 대기 | 실행 코드, 확인 Notebook과 생성 보고서를 책임별 디렉터리로 이전 |
-| 9. 호환 계층과 Notebook 정리 | 대기 | `common/` 제거와 Notebook 조립 코드 축소 |
+| 6. 문서 기준점 통합 | 완료 | `b5914a1` |
+| 7. runtime 데이터 이전 | 완료 | `dbb0ac6` |
+| 8. 오프라인 ETL 이전 | 완료 | `4a8029a` |
+| 9. 책임과 이름 정리 | 검토 대기 | 호환 계층 제거, 설정 소유권 통합, 모델별 실행 함수와 알약 인식 pipeline 분리 |
 | 10. 최종 문서·구조 검증 | 대기 | 실제 구조, 문서, import와 전체 테스트 일치 확인 |
 
 ## 3. 현재 문제
@@ -57,7 +57,9 @@
 | 이름 충돌 | 서로 다른 `validate_detection_batch()` | 역할이 드러나는 이름으로 변경 |
 | 검증 primitive 중복 | 문자열, 이미지, bbox, 확률 범위 검사 | 저수준 검사만 공통화 |
 | 실행 진입점 분산 | 세 Notebook에서 직접 조립 | 얇은 CLI 진입점 추가 |
-| 평가 책임 부족 | end-to-end 평가 API 부재 | pipeline 평가 모듈 추가 |
+| 평가 책임 부족 | pill recognition 평가 API 부재 | pipeline 평가 모듈 추가 |
+| 설정 소유권 중복 | 모델별 `config.py`와 `configs/schema.py` | `configs/`의 작업별 모듈로 통합 |
+| 실행 이름이 모호함 | `workflows.py`, 상위 `inference.py` | 모델별 함수와 `pill_recognition.py`로 구체화 |
 
 반복 검증이 모두 불필요한 것은 아니다. DataLoader, checkpoint와 모델 출력처럼 외부 값이 들어오는 경계에서는 검증을 유지하고, 동일한 저수준 구현만 재사용한다.
 
@@ -77,10 +79,10 @@ flowchart LR
 
     subgraph Target[권장 목표 구조]
         CLI[main.py<br/>얇은 CLI 진입점]
-        CFG[configs<br/>schema + YAML]
+        CFG[configs<br/>작업별 설정 + YAML]
         DATA[pilldata<br/>runtime Dataset + transform]
         MODELS[classifier / detector<br/>모델 고유 로직]
-        PIPE[pipeline<br/>추론 + 평가]
+        PIPE[pipeline<br/>알약 인식 연결]
         UTIL[utils<br/>runtime + I/O]
         SCRIPTS[scripts/classifier_data<br/>오프라인 ETL]
         NOTE[notebooks<br/>Colab + 시각 확인]
@@ -111,10 +113,13 @@ gitkk-pill-detection/
 ├── main.py
 ├── configs/
 │   ├── __init__.py
-│   ├── schema.py
+│   ├── classifier.py
+│   ├── detector.py
+│   ├── pill_recognition.py
+│   ├── yaml_loading.py
 │   ├── classifier.yaml
 │   ├── detector.yaml
-│   └── pipeline.yaml
+│   └── pill_recognition.yaml
 ├── pilldata/
 │   ├── __init__.py
 │   ├── classifier_dataset.py
@@ -137,8 +142,7 @@ gitkk-pill-detection/
 │   ├── input_validation.py
 │   └── checkpoint.py
 ├── pipeline/
-│   ├── inference.py
-│   └── workflows.py
+│   └── pill_recognition.py
 ├── utils/
 │   ├── io.py
 │   └── runtime.py
@@ -205,6 +209,8 @@ main.py ──┘
 
 `main.py`는 설정 로드와 명령 dispatch만 담당하며 학습 loop를 직접 구현하지 않는다.
 
+설정 객체와 YAML 로더는 `configs/`가 소유한다. 분류기와 탐지기의 데이터 준비·학습·평가 실행은 각 모델 패키지가 소유하고, `pipeline/`은 두 모델을 연결하는 알약 인식만 담당한다.
+
 ### 5.5 데이터 생성과 runtime 분리
 
 - `pilldata/`: 학습과 추론 중 import하는 Dataset과 transform
@@ -255,7 +261,7 @@ docs: 프로젝트 구조 리팩터링 계획 추가
 
 - `pilldata/transforms.py` 추가
 - 5% bbox margin, image clip, crop, ImageNet 평균색 padding 공통화
-- `classifier_data/pill_square_crop.py`와 `detector/classifier_bridge.py`가 공통 구현 사용
+- `classifier_data/pill_square_crop.py`와 기존 탐지-분류 연결 코드가 공통 구현 사용
 - PIL 이미지와 tensor 입력 adapter는 각각 유지
 
 불변 조건:
@@ -271,9 +277,9 @@ docs: 프로젝트 구조 리팩터링 계획 추가
 - 이미지 경계 bbox와 빈 탐지 결과 테스트
 - 학습 transform과 추론 transform 계약 테스트
 
-### 3단계. 설정과 `main.py`
+### 3단계. 설정과 `main.py` 초기 도입
 
-- `configs/schema.py`와 작업별 YAML 추가
+- 통합 설정 모듈과 작업별 YAML 추가
 - YAML을 검증된 config 객체로 변환
 - `main.py`에 얇은 명령 dispatch 추가
 
@@ -282,7 +288,7 @@ docs: 프로젝트 구조 리팩터링 계획 추가
 ```bash
 uv run python main.py train-classifier
 uv run python main.py train-detector
-uv run python main.py infer
+uv run python main.py recognize-pills
 uv run python main.py evaluate classifier --config configs/classifier.yaml --checkpoint outputs/resnet50_baseline/best.pt
 uv run python main.py smoke
 ```
@@ -342,7 +348,7 @@ detector.validate_detection_batch
 | runtime 분류 데이터 구현 중복 | `classifier_data/`와 `pilldata/`가 함께 존재 | 7단계에서 `pilldata/`로 이전하고 이전 패키지 제거 |
 | 오프라인 ETL이 최상위에 존재 | `classifier_data_build/`가 runtime 패키지처럼 보임 | 8단계에서 `scripts/classifier_data/`로 이전 |
 | 호환 패키지 잔존 | `common/`이 `utils/`를 다시 노출 | 9단계에서 내부 import 확인 후 제거 |
-| Notebook과 workflow 조립 중복 | Notebook에 직접 조립 코드가 일부 남음 | 9단계에서 workflow 호출 중심으로 축소 |
+| 설정과 실행 책임의 중복 | `schema.py`, 모델별 `config.py`, `workflows.py`에 분산 | 9단계에서 작업별 설정과 모델별 실행 함수로 통합 |
 | 문서 상태 혼재 | 계획서와 현재 명세가 같은 목록에 섞임 | 6단계에서 루트 README를 기준 문서 목록으로 통합 |
 
 ### 6단계. 문서 기준점 통합
@@ -366,11 +372,14 @@ detector.validate_detection_batch
 - 생성 보고서는 `reports/data/classifier/`로 정리
 - 데이터 생성 결과가 바뀌지 않는지 확인
 
-### 9단계. 호환 계층과 Notebook 정리
+### 9단계. 책임과 이름 정리
 
 - 내부에서 `common` import가 없는지 확인한 뒤 패키지 제거
 - 이전 검증 함수 alias의 실제 사용처 확인 및 제거 여부 결정
-- 세 Notebook이 config와 workflow를 호출하도록 조립 코드 축소
+- 모델별 `config.py`와 `configs/schema.py`를 작업별 설정 모듈로 통합
+- `pipeline/workflows.py`의 학습·평가 책임을 `classifier/`, `detector/`로 이동
+- 상위 `pipeline/inference.py`를 목적이 분명한 `pipeline/pill_recognition.py`로 통합
+- 세 Notebook이 설정과 명시적인 작업 함수를 호출하도록 조립 코드 축소
 - `main.py`, Notebook과 Python API의 실행 경로 문서화
 
 ### 10단계. 최종 문서·구조 검증
@@ -388,7 +397,7 @@ detector.validate_detection_batch
 - detector 학습·validation transform 최종화
 - 실제 inference loader 연결
 - 분류기와 탐지기의 split manifest 공통 처리
-- 실제 데이터 기반 end-to-end 평가
+- 실제 데이터 기반 pill recognition 평가
 - `pipeline/evaluate.py` 구현
 - Dataset 공통 protocol 확정
 
@@ -408,6 +417,8 @@ detector.validate_detection_batch
 - runtime 데이터 코드는 `pilldata/`에만 존재한다.
 - 오프라인 데이터 생성 코드는 `scripts/classifier_data/` 아래에 존재한다.
 - `common/`, `classifier_data/`, `classifier_data_build/`가 최상위 패키지로 남지 않는다.
+- 설정 객체와 YAML 로더는 `configs/`에서만 정의한다.
+- `pipeline/`에는 탐지기와 분류기를 연결하는 알약 인식 코드만 둔다.
 - 각 단계가 검토 가능한 독립 커밋으로 기록된다.
 
 ## 9. 결정 기록
@@ -420,6 +431,8 @@ detector.validate_detection_batch
 | 2026-10-29 | 저수준 검증만 공통화하고 경계 검증은 유지한다. | 중복 제거 때문에 입력 방어가 약해지는 것을 방지한다. |
 | 2026-10-29 | `classifier_data_build`는 runtime 데이터 모듈과 분리한다. | 오프라인 ETL과 학습 중 import되는 코드는 생명주기가 다르다. |
 | 2026-10-29 | 탐지기 Dataset 통합은 후속 이슈로 보류한다. | DataLoader 구현이 진행 중이므로 현재 인터페이스를 고정하지 않는다. |
+| 2026-10-29 | 설정 소유권을 `configs/`로 모으고 범용 `schema.py`를 제거한다. | 파일 경로만 보고도 설정 대상과 책임을 알 수 있게 한다. |
+| 2026-10-29 | 범용 `workflows.py`를 제거하고 모델별 실행 함수와 `pill_recognition.py`로 나눈다. | 분류기 학습, 탐지기 학습과 두 모델 연결은 서로 다른 책임이다. |
 
 ## 10. 관련 문서
 

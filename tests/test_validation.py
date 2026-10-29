@@ -3,14 +3,6 @@
 import pytest
 import torch
 
-from classifier.inference import validate_classifier_crop_batch
-from classifier.inference import (
-    validate_detection_batch as validate_legacy_classifier_detection_batch,
-)
-from detector.input_validation import (
-    validate_detection_batch as validate_legacy_detector_detection_batch,
-)
-from detector.input_validation import validate_detector_training_batch
 from pilldata.validation import (
     normalize_bbox_xywh,
     normalize_probability,
@@ -72,8 +64,3 @@ def test_rgb_image_validation_can_use_domain_error() -> None:
             type_error=DomainValidationError,
             value_error=DomainValidationError,
         )
-
-
-def test_legacy_detection_validation_names_are_compatible_aliases() -> None:
-    assert validate_legacy_classifier_detection_batch is validate_classifier_crop_batch
-    assert validate_legacy_detector_detection_batch is validate_detector_training_batch

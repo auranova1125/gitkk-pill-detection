@@ -1,39 +1,40 @@
-"""YAML 실행 설정 schema와 factory 로더 테스트."""
+"""작업별 YAML 설정과 데이터 준비 함수 테스트."""
 
 from pathlib import Path
+from typing import Any
 
 import pytest
+import torch
 
-from configs.schema import (
-    PipelineExperimentConfig,
-    load_classifier_experiment_config,
-    load_detector_experiment_config,
-    load_pipeline_experiment_config,
+import classifier.train as classifier_train_module
+from classifier.train import prepare_classifier_data, train_classifier
+from configs import (
+    ClassifierConfig,
+    PillRecognitionConfig,
+    load_classifier_config,
+    load_detector_config,
+    load_pill_recognition_config,
 )
+from detector.train import train_detector
 from pilldata.classifier_dataset import build_classifier_inputs
 from pilldata.factory import load_data_factory
-from pipeline.workflows import train_detector_experiment
 from scripts.classifier_data.config import CLASSES, REPORTS, ROOT
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_default_yaml_configs_load_into_existing_model_configs() -> None:
-    classifier = load_classifier_experiment_config(
-        PROJECT_ROOT / "configs" / "classifier.yaml"
-    )
-    detector = load_detector_experiment_config(
-        PROJECT_ROOT / "configs" / "detector.yaml"
-    )
-    pipeline = load_pipeline_experiment_config(
-        PROJECT_ROOT / "configs" / "pipeline.yaml"
+    classifier = load_classifier_config(PROJECT_ROOT / "configs" / "classifier.yaml")
+    detector = load_detector_config(PROJECT_ROOT / "configs" / "detector.yaml")
+    pill_recognition = load_pill_recognition_config(
+        PROJECT_ROOT / "configs" / "pill_recognition.yaml"
     )
 
-    assert classifier.training.run_name == "resnet50_baseline"
+    assert classifier.run_name == "resnet50_baseline"
     assert classifier.expected_num_classes == 118
-    assert detector.training.model_name == "ssdlite320_mobilenet_v3_large"
+    assert detector.model_name == "ssdlite320_mobilenet_v3_large"
     assert detector.data_factory_path is None
-    assert pipeline.inference_factory_path is None
+    assert pill_recognition.inference_factory_path is None
 
 
 def test_classifier_yaml_rejects_unknown_field(tmp_path: Path) -> None:
@@ -52,10 +53,10 @@ training:
     )
 
     with pytest.raises(ValueError, match="unknown fields"):
-        load_classifier_experiment_config(config_path)
+        load_classifier_config(config_path)
 
 
-def test_pipeline_config_rejects_non_finite_threshold(tmp_path: Path) -> None:
+def test_pill_recognition_config_rejects_non_finite_threshold(tmp_path: Path) -> None:
     values = {
         "inference_factory_path": None,
         "detector_checkpoint_path": tmp_path / "detector.pt",
@@ -68,7 +69,7 @@ def test_pipeline_config_rejects_non_finite_threshold(tmp_path: Path) -> None:
     }
 
     with pytest.raises(ValueError, match="score_threshold"):
-        PipelineExperimentConfig(**values)
+        PillRecognitionConfig(**values)
 
 
 def test_factory_loader_reports_missing_configuration() -> None:
@@ -83,11 +84,9 @@ def test_factory_loader_imports_callable() -> None:
 
 
 def test_classifier_yaml_uses_canonical_runtime_factory() -> None:
-    experiment = load_classifier_experiment_config(
-        PROJECT_ROOT / "configs" / "classifier.yaml"
-    )
+    config = load_classifier_config(PROJECT_ROOT / "configs" / "classifier.yaml")
 
-    factory = load_data_factory(experiment.data_factory_path)
+    factory = load_data_factory(config.data_factory_path)
 
     assert factory is build_classifier_inputs
 
@@ -99,10 +98,83 @@ def test_classifier_etl_paths_use_scripts_and_reports_directories() -> None:
     assert not (PROJECT_ROOT / "classifier_data_build").exists()
 
 
-def test_detector_workflow_reports_missing_factory() -> None:
-    experiment = load_detector_experiment_config(
-        PROJECT_ROOT / "configs" / "detector.yaml"
+def test_classifier_training_reuses_validated_data(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    classifier_class_map: dict[str, Any],
+) -> None:
+    num_classes = classifier_class_map["num_classes"]
+    counts = {str(index): 1 for index in range(num_classes)}
+    data_summary = {
+        "num_classes": num_classes,
+        "num_train_samples": num_classes,
+        "num_val_samples": num_classes,
+        "train_class_counts": counts,
+        "val_class_counts": counts,
+        "train_group_count": num_classes,
+        "val_group_count": num_classes,
+        "group_overlap_count": 0,
+        "validation_class_indices": list(range(num_classes)),
+        "split_hash": "training-test",
+    }
+    batch = {
+        "images": torch.zeros(num_classes, 3, 224, 224, dtype=torch.float32),
+        "targets": torch.arange(num_classes, dtype=torch.int64),
+        "meta": [
+            {
+                "sample_id": f"sample-{index}",
+                "image_id": f"image-{index}",
+                "image_path": f"/synthetic/image-{index}.png",
+                "category_id": entry["category_id"],
+                "item_seq": entry["item_seq"],
+                "bbox_xywh": [1.0, 2.0, 3.0, 4.0],
+                "group_id": f"group-{index}",
+                "drug_dir": None,
+            }
+            for index, entry in enumerate(classifier_class_map["classes"])
+        ],
+    }
+    factory_calls = 0
+
+    def factory(*, config: ClassifierConfig, device: torch.device) -> tuple[Any, ...]:
+        nonlocal factory_calls
+        assert config.run_name == "training-test"
+        assert device == torch.device("cpu")
+        factory_calls += 1
+        return [batch], [batch], classifier_class_map, data_summary
+
+    config = ClassifierConfig(
+        run_name="training-test",
+        output_dir=tmp_path / "outputs",
+        class_map_path=tmp_path / "class_map.json",
+        data_summary_path=tmp_path / "data_summary.json",
+        data_factory_path="synthetic.module:factory",
+        expected_num_classes=num_classes,
+        pretrained=False,
+        device="cpu",
+    )
+    monkeypatch.setattr(
+        classifier_train_module,
+        "load_data_factory",
+        lambda _: factory,
+    )
+    prepared_data = prepare_classifier_data(config)
+    sentinel = object()
+    monkeypatch.setattr(
+        classifier_train_module,
+        "run_training",
+        lambda *args, **kwargs: sentinel,
     )
 
+    result = train_classifier(config, data=prepared_data)
+
+    assert result is sentinel
+    assert factory_calls == 1
+    assert prepared_data.device == torch.device("cpu")
+
+
+def test_detector_training_reports_missing_factory() -> None:
+    config = load_detector_config(PROJECT_ROOT / "configs" / "detector.yaml")
+
     with pytest.raises(RuntimeError, match="data_factory_path is not configured"):
-        train_detector_experiment(experiment)
+        train_detector(config)

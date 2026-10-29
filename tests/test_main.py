@@ -23,7 +23,7 @@ def test_parser_exposes_expected_commands() -> None:
         ).command
         == "evaluate"
     )
-    assert parser.parse_args(["infer"]).command == "infer"
+    assert parser.parse_args(["recognize-pills"]).command == "recognize-pills"
     assert parser.parse_args(["smoke", "--device", "cpu"]).command == "smoke"
 
 

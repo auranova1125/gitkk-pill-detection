@@ -7,7 +7,6 @@ from classifier.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
-from classifier.config import TrainConfig
 from classifier.evaluate import (
     ClassMetrics,
     ConfusionPair,
@@ -15,6 +14,7 @@ from classifier.evaluate import (
     ValidationArtifacts,
     ValidationPrediction,
     compute_classification_metrics,
+    evaluate_classifier_checkpoint,
     evaluate_model,
     evaluate_with_predictions,
     save_validation_artifacts,
@@ -23,10 +23,10 @@ from classifier.inference import (
     DetectionPrediction,
     InferenceError,
     InferenceResult,
+    combine_prediction_scores,
     load_inference_model,
     predict_detections,
     validate_classifier_crop_batch,
-    validate_detection_batch,
 )
 from classifier.input_validation import (
     InputValidationError,
@@ -41,20 +41,26 @@ from classifier.model import (
     set_model_train_mode,
 )
 from classifier.train import (
+    ClassifierTrainingData,
     EarlyStopping,
     TrainingEpochResult,
     TrainingResult,
     build_grad_scaler,
     build_optimizer,
     build_scheduler,
+    prepare_classifier_data,
     resolve_training_stage,
     run_training,
     select_device,
+    train_classifier,
     train_one_epoch,
 )
+from configs.classifier import ClassifierConfig
 
 __all__ = [
     "ClassMetrics",
+    "ClassifierConfig",
+    "ClassifierTrainingData",
     "ConfusionPair",
     "DetectionPrediction",
     "EarlyStopping",
@@ -62,7 +68,6 @@ __all__ = [
     "InferenceError",
     "InferenceResult",
     "InputValidationError",
-    "TrainConfig",
     "TrainingEpochResult",
     "TrainingResult",
     "TrainingStage",
@@ -72,14 +77,17 @@ __all__ = [
     "build_model",
     "build_optimizer",
     "build_scheduler",
+    "combine_prediction_scores",
     "compute_classification_metrics",
     "configure_model_for_stage",
+    "evaluate_classifier_checkpoint",
     "evaluate_model",
     "evaluate_with_predictions",
     "hash_class_map",
     "load_checkpoint",
     "load_inference_model",
     "predict_detections",
+    "prepare_classifier_data",
     "resolve_training_stage",
     "restore_checkpoint_state",
     "run_training",
@@ -87,11 +95,11 @@ __all__ = [
     "save_validation_artifacts",
     "select_device",
     "set_model_train_mode",
+    "train_classifier",
     "train_one_epoch",
     "validate_batch",
     "validate_checkpoint_compatibility",
     "validate_class_map",
     "validate_classifier_crop_batch",
     "validate_data_summary",
-    "validate_detection_batch",
 ]

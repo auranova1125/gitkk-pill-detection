@@ -166,19 +166,25 @@ MODEL_BUILDERS = {
 
 Ultralytics처럼 호출 방식이 다른 모델을 나중에 추가할 경우에는 학습 loop를 분기하지 않고 공통 `DetectorBackend` 인터페이스를 구현하는 adapter를 추가한다.
 
-## 7. 예정 파일 구조
+## 7. 현재 파일 구조
 
 ```text
+configs/
+├── detector.py
+├── detector.yaml
+└── yaml_loading.py
+
 detector/
 ├── __init__.py
-├── config.py
 ├── input_validation.py
 ├── model.py
 ├── train.py
 ├── evaluate.py
 ├── checkpoint.py
-├── inference.py
-└── classifier_bridge.py
+└── inference.py
+
+pipeline/
+└── pill_recognition.py
 
 notebooks/
 └── train_detector.ipynb
@@ -196,21 +202,21 @@ tests/
 ├── test_detector_training.py
 ├── test_detector_checkpoint.py
 ├── test_detector_evaluation.py
-└── test_detector_bridge.py
+└── test_detector_inference.py
 ```
 
 ### 파일별 역할
 
 | 파일 | 역할 |
 | --- | --- |
-| `config.py` | 모델 이름, 학습률, epoch, threshold와 경로 설정 |
+| `configs/detector.py` | 모델 이름, 학습률, epoch, threshold, 실행 경로와 YAML 로더 |
 | `input_validation.py` | batch, label map, 데이터 요약 검증 |
 | `model.py` | model registry와 SSDLite/SSD builder |
 | `train.py` | 장치 선택, optimizer, epoch loop와 전체 학습 실행 |
 | `evaluate.py` | mAP, recall, 이미지별 예측과 오류 분석 |
 | `checkpoint.py` | last/best 저장, 호환성 확인과 재개 |
 | `inference.py` | score filtering, 예측 직렬화와 시각화용 결과 생성 |
-| `classifier_bridge.py` | 예측 bbox crop을 기존 분류기 batch로 변환 |
+| `pipeline/pill_recognition.py` | 예측 bbox crop을 분류기 batch로 변환하고 두 모델의 결과를 결합 |
 
 ## 8. 설정 설계
 
@@ -375,7 +381,7 @@ Checkpoint에는 다음 상태를 포함한다.
 
 ## 13. 기존 분류기 연결 범위
 
-`classifier_bridge.py`는 완전한 end-to-end 실행기를 만들기보다 두 모델 사이의 경계를 제공한다.
+`pipeline/pill_recognition.py`가 두 모델 사이의 경계를 소유하며, `detector/`는 분류기 입력 형식에 의존하지 않는다.
 
 입력:
 

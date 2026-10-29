@@ -12,6 +12,7 @@ import torchvision
 from torch import nn
 
 import detector.train as train_module
+from configs.detector import DetectorConfig
 from detector.checkpoint import (
     hash_label_map,
     load_checkpoint,
@@ -19,7 +20,6 @@ from detector.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
-from detector.config import DetectorConfig
 from detector.evaluate import EvaluationResult
 from detector.train import (
     EarlyStopping,

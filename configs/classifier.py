@@ -1,18 +1,31 @@
-"""분류기 학습 설정."""
+"""분류기 학습 실행 설정과 YAML 로더."""
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from configs.yaml_loading import (
+    build_dataclass,
+    load_task_yaml,
+    validate_boolean,
+    validate_device_name,
+    validate_factory_path,
+    validate_keys,
+)
+
 
 @dataclass(slots=True)
-class TrainConfig:
-    """분류기 학습에 필요한 재현 가능한 설정을 보관한다."""
+class ClassifierConfig:
+    """분류기 데이터 준비부터 학습까지 필요한 설정."""
 
     run_name: str
     output_dir: Path
     class_map_path: Path
     data_summary_path: Path
+    data_factory_path: str | None = None
+    expected_num_classes: int = 118
+    pretrained: bool = True
+    device: str = "auto"
     seed: int = 42
     batch_size: int = 32
     max_epochs: int = 30
@@ -36,6 +49,15 @@ class TrainConfig:
             raise ValueError("run_name must not be empty")
         if Path(self.run_name).name != self.run_name:
             raise ValueError("run_name must not contain path separators")
+        validate_factory_path(self.data_factory_path, name="data_factory_path")
+        if not isinstance(self.expected_num_classes, int) or isinstance(
+            self.expected_num_classes, bool
+        ):
+            raise TypeError("expected_num_classes must be an integer")
+        if self.expected_num_classes <= 0:
+            raise ValueError("expected_num_classes must be greater than zero")
+        validate_boolean(self.pretrained, name="pretrained")
+        validate_device_name(self.device)
         if self.seed < 0:
             raise ValueError("seed must be non-negative")
         if self.batch_size <= 0:
@@ -50,8 +72,7 @@ class TrainConfig:
             raise ValueError("weight_decay must be non-negative")
         if self.early_stopping_patience <= 0:
             raise ValueError("early_stopping_patience must be greater than zero")
-        if not isinstance(self.show_progress, bool):
-            raise TypeError("show_progress must be a boolean")
+        validate_boolean(self.show_progress, name="show_progress")
 
     def to_dict(self) -> dict[str, Any]:
         """JSON으로 저장할 수 있는 설정 사본을 반환한다."""
@@ -66,3 +87,34 @@ class TrainConfig:
             value = values[field_name]
             values[field_name] = str(value) if value is not None else None
         return values
+
+
+def load_classifier_config(path: Path) -> ClassifierConfig:
+    """분류기 YAML을 읽어 하나의 실행 설정으로 변환한다."""
+
+    raw = load_task_yaml(path, expected_task="classifier")
+    validate_keys(
+        raw,
+        allowed={
+            "task",
+            "training",
+            "data_factory_path",
+            "expected_num_classes",
+            "pretrained",
+            "device",
+        },
+        required={"task", "training", "data_factory_path"},
+        context="classifier config",
+    )
+    runtime_values = {
+        "data_factory_path": raw["data_factory_path"],
+        "expected_num_classes": raw.get("expected_num_classes", 118),
+        "pretrained": raw.get("pretrained", True),
+        "device": raw.get("device", "auto"),
+    }
+    return build_dataclass(
+        ClassifierConfig,
+        raw["training"],
+        context="classifier config.training",
+        extra_values=runtime_values,
+    )

@@ -97,12 +97,12 @@ uv run python main.py train-detector --config configs/detector.yaml
 uv run python main.py evaluate classifier \
   --config configs/classifier.yaml \
   --checkpoint outputs/resnet50_baseline/best.pt
-uv run python main.py infer --config configs/pipeline.yaml
+uv run python main.py recognize-pills --config configs/pill_recognition.yaml
 ```
 
-`configs/*.yaml`은 기존 `TrainConfig`와 `DetectorConfig`로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 같은 config 객체를 직접 생성해 셀에서 실험값을 바꿀 수 있습니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
+`configs/*.yaml`은 `configs/classifier.py`, `configs/detector.py`, `configs/pill_recognition.py`의 설정 객체로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 같은 설정 객체를 직접 생성해 셀에서 실험값을 바꿀 수 있습니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
 
-탐지기 DataLoader 작업이 완료되기 전까지 `configs/detector.yaml`의 `data_factory_path`와 `configs/pipeline.yaml`의 `inference_factory_path`는 `null`입니다. 전달받은 factory의 `module:function` 경로로 변경한 뒤 학습 또는 통합 추론을 실행합니다.
+탐지기 DataLoader 작업이 완료되기 전까지 `configs/detector.yaml`의 `data_factory_path`와 `configs/pill_recognition.yaml`의 `inference_factory_path`는 `null`입니다. 전달받은 factory의 `module:function` 경로로 변경한 뒤 학습 또는 통합 추론을 실행합니다.
 
 설정 전 실행하면 필요한 factory 항목을 알리는 오류로 중단됩니다.
 
@@ -112,8 +112,8 @@ uv run python main.py infer --config configs/pipeline.yaml
 
 ```bash
 uv run python -m pytest -q
-uv run ruff check main.py classifier configs detector common pilldata pipeline scripts utils tests
-uv run ruff format --check main.py classifier detector common configs pilldata pipeline scripts utils tests
+uv run ruff check main.py classifier configs detector pilldata pipeline scripts utils tests
+uv run ruff format --check main.py classifier detector configs pilldata pipeline scripts utils tests
 ```
 
 ## Jupyter Notebook Git 설정
@@ -255,12 +255,12 @@ uv run python -m pytest -q tests/test_detector_model.py
 
 ## 탐지·분류 통합 추론
 
-[통합 추론 Notebook](notebooks/run_end_to_end_inference.ipynb)은 학습된 탐지기와 분류기의 `best.pt`를 불러와 원본 이미지에서 알약 bbox와 세부 품목을 순서대로 예측합니다. 각 모델의 학습은 기존 개별 Notebook에서 수행합니다.
+[알약 인식 Notebook](notebooks/recognize_pills.ipynb)은 학습된 탐지기와 분류기의 `best.pt`를 불러와 원본 이미지에서 알약 bbox와 세부 품목을 순서대로 예측합니다. 각 모델의 학습은 기존 개별 Notebook에서 수행합니다.
 
 통합 Notebook의 `inference_factory_path`에는 `factory(batch_size=...)` 호출로 추론 DataLoader를 반환하는 함수 경로를 지정합니다. DataLoader batch는 [탐지기 입력 명세서의 추론 형식](docs/detector_input_spec.md#12-추론-dataloader)을 따라야 합니다.
 
-결과는 `outputs/end_to_end_inference/` 아래에 저장됩니다.
+결과는 `outputs/pill_recognition/` 아래에 저장됩니다.
 
-- `end_to_end_predictions.json`: bbox, 품목 정보, 탐지·분류·결합 점수
-- `end_to_end_errors.json`: 탐지 및 분류 단계별 오류
+- `pill_predictions.json`: bbox, 품목 정보, 탐지·분류·결합 점수
+- `pill_recognition_errors.json`: 탐지 및 분류 단계별 오류
 - `visualizations/`: 품목명과 최종 점수를 표시한 이미지

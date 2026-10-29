@@ -39,7 +39,7 @@ crops/<약 코드>/<sample_id>.png   원본에서 bbox 사방 5% 여백 + 경계
 !unzip -q "/content/drive/MyDrive/gitkk_archive/training_package_classifier.zip" -d /content/training_package_classifier
 
 data_factory_path = "pilldata.classifier_dataset:build_classifier_inputs"
-config = TrainConfig(
+config = ClassifierConfig(
     ...,
     class_map_path="/content/training_package_classifier/class_map.json",
     data_summary_path="/content/training_package_classifier/data_summary.json",
@@ -71,7 +71,7 @@ transform = build_classifier_inference_transform()
 image = transform(crop_pill(original_image, (x, y, w, h)))
 ```
 - bbox는 원본 사진 픽셀 좌표 `[x, y, w, h]`다. 탐지기 출력(XYXY)은 `(x1, y1, x2 - x1, y2 - y1)`로 바꿔 넣는다
-- `detector/classifier_bridge.py`도 `pilldata.transforms`를 사용하므로 bbox 사방 5% 여백과 동일한 padding·정규화 설정이 적용된다
+- `pipeline/pill_recognition.py`도 `pilldata.transforms`를 사용하므로 bbox 사방 5% 여백과 동일한 padding·정규화 설정이 적용된다
 
 ## 평가할 때
 `near_dup_in_train=True`인 val 샘플 799개는 그룹은 다르지만 거의 같은 사진(알약 하나만 다른 조합)이 train에 있다.

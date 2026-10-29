@@ -49,13 +49,13 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate_parser.add_argument("--output-dir", type=Path)
 
     inference_parser = subparsers.add_parser(
-        "infer",
-        help="탐지기와 분류기의 통합 추론을 실행한다.",
+        "recognize-pills",
+        help="탐지기와 분류기를 연결해 알약 품목을 인식한다.",
     )
     inference_parser.add_argument(
         "--config",
         type=Path,
-        default=DEFAULT_CONFIG_DIR / "pipeline.yaml",
+        default=DEFAULT_CONFIG_DIR / "pill_recognition.yaml",
     )
 
     smoke_parser = subparsers.add_parser(
@@ -71,15 +71,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """CLI 인자를 해석해 해당 workflow에 전달한다."""
+    """CLI 인자를 해석해 해당 작업 함수에 전달한다."""
 
     args = build_parser().parse_args(argv)
     if args.command == "train-classifier":
-        from configs.schema import load_classifier_experiment_config
-        from pipeline.workflows import train_classifier_experiment
+        from classifier.train import train_classifier
+        from configs.classifier import load_classifier_config
 
-        experiment = load_classifier_experiment_config(args.config)
-        result = train_classifier_experiment(experiment)
+        config = load_classifier_config(args.config)
+        result = train_classifier(config)
         _print_json(
             {
                 "run_dir": str(result.run_dir),
@@ -91,11 +91,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "train-detector":
-        from configs.schema import load_detector_experiment_config
-        from pipeline.workflows import train_detector_experiment
+        from configs.detector import load_detector_config
+        from detector.train import train_detector
 
-        experiment = load_detector_experiment_config(args.config)
-        result = train_detector_experiment(experiment)
+        config = load_detector_config(args.config)
+        result = train_detector(config)
         _print_json(
             {
                 "run_dir": str(result.run_dir),
@@ -107,42 +107,39 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "evaluate":
-        from configs.schema import (
-            load_classifier_experiment_config,
-            load_detector_experiment_config,
-        )
-        from pipeline.workflows import (
-            evaluate_classifier_experiment,
-            evaluate_detector_experiment,
-        )
-
         if args.target == "classifier":
-            experiment = load_classifier_experiment_config(args.config)
-            artifacts = evaluate_classifier_experiment(
-                experiment,
+            from classifier.evaluate import evaluate_classifier_checkpoint
+            from configs.classifier import load_classifier_config
+
+            config = load_classifier_config(args.config)
+            artifacts = evaluate_classifier_checkpoint(
+                config,
                 args.checkpoint,
                 output_dir=args.output_dir,
             )
             _print_json(artifacts.metrics.to_dict())
         else:
-            experiment = load_detector_experiment_config(args.config)
-            result = evaluate_detector_experiment(
-                experiment,
+            from configs.detector import load_detector_config
+            from detector.evaluate import evaluate_detector_checkpoint
+
+            config = load_detector_config(args.config)
+            result = evaluate_detector_checkpoint(
+                config,
                 args.checkpoint,
                 output_dir=args.output_dir,
             )
             _print_json(result.to_dict())
         return 0
 
-    if args.command == "infer":
-        from configs.schema import load_pipeline_experiment_config
-        from pipeline.workflows import run_pipeline_experiment
+    if args.command == "recognize-pills":
+        from configs.pill_recognition import load_pill_recognition_config
+        from pipeline.pill_recognition import recognize_pills_from_config
 
-        experiment = load_pipeline_experiment_config(args.config)
-        result = run_pipeline_experiment(experiment)
+        config = load_pill_recognition_config(args.config)
+        result = recognize_pills_from_config(config)
         _print_json(
             {
-                "output_dir": str(experiment.output_dir),
+                "output_dir": str(config.output_dir),
                 "num_predictions": len(result.predictions),
                 "num_detector_errors": len(result.detector_errors),
                 "num_classifier_errors": len(result.classifier_errors),

@@ -1,5 +1,6 @@
 """단일 클래스 알약 탐지기 공용 인터페이스."""
 
+from configs.detector import DetectorConfig
 from detector.checkpoint import (
     CHECKPOINT_VERSION,
     capture_rng_state,
@@ -10,10 +11,9 @@ from detector.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
-from detector.classifier_bridge import build_classifier_batch, combine_scores
-from detector.config import DetectorConfig
 from detector.evaluate import (
     EvaluationResult,
+    evaluate_detector_checkpoint,
     evaluate_model,
     filter_predictions_by_score,
 )
@@ -29,7 +29,6 @@ from detector.inference import (
 )
 from detector.input_validation import (
     InputValidationError,
-    validate_detection_batch,
     validate_detector_data_summary,
     validate_detector_label_map,
     validate_detector_training_batch,
@@ -42,6 +41,7 @@ from detector.model import (
     select_device,
 )
 from detector.train import (
+    DetectorTrainingData,
     EarlyStopping,
     TrainingEpochResult,
     TrainingResult,
@@ -49,8 +49,10 @@ from detector.train import (
     build_optimizer,
     build_scheduler,
     move_detection_batch_to_device,
+    prepare_detector_data,
     run_training,
     set_seed,
+    train_detector,
     train_one_epoch,
 )
 
@@ -61,20 +63,20 @@ __all__ = [
     "DetectorInferenceError",
     "DetectorInferenceResult",
     "DetectorPrediction",
+    "DetectorTrainingData",
     "EarlyStopping",
     "EvaluationResult",
     "InputValidationError",
     "TrainingEpochResult",
     "TrainingResult",
     "available_detector_models",
-    "build_classifier_batch",
     "build_detector_model",
     "build_grad_scaler",
     "build_optimizer",
     "build_scheduler",
     "build_ssdlite320",
     "capture_rng_state",
-    "combine_scores",
+    "evaluate_detector_checkpoint",
     "evaluate_model",
     "filter_predictions_by_score",
     "hash_label_map",
@@ -83,6 +85,7 @@ __all__ = [
     "move_detection_batch_to_device",
     "plot_detection_comparison",
     "predict_detector",
+    "prepare_detector_data",
     "restore_checkpoint_state",
     "restore_rng_state",
     "run_training",
@@ -90,9 +93,9 @@ __all__ = [
     "save_inference_artifacts",
     "select_device",
     "set_seed",
+    "train_detector",
     "train_one_epoch",
     "validate_checkpoint_compatibility",
-    "validate_detection_batch",
     "validate_detector_data_summary",
     "validate_detector_label_map",
     "validate_detector_training_batch",

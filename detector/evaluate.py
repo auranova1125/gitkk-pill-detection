@@ -2,6 +2,7 @@
 
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -10,8 +11,10 @@ from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from torchvision.ops import box_iou
 from tqdm.auto import tqdm
 
+from configs.detector import DetectorConfig
 from detector.train import move_detection_batch_to_device
 from pilldata.validation import normalize_probability
+from utils.io import write_json
 
 HIGH_IOU_THRESHOLDS = [0.75, 0.80, 0.85, 0.90, 0.95]
 
@@ -276,3 +279,36 @@ def _metric_value(values: Mapping[str, torch.Tensor], name: str) -> float:
     if value < 0:
         raise ValueError(f"metric {name} is undefined for the provided validation data")
     return value
+
+
+def evaluate_detector_checkpoint(
+    config: DetectorConfig,
+    checkpoint_path: Path,
+    *,
+    output_dir: Path | None = None,
+) -> EvaluationResult:
+    """설정의 validation 데이터로 탐지기 checkpoint를 평가하고 저장한다."""
+
+    from detector.inference import load_inference_model
+    from detector.train import prepare_detector_data
+
+    data = prepare_detector_data(config)
+    model, device = load_inference_model(
+        checkpoint_path,
+        data.label_map,
+        device=data.device,
+    )
+    result = evaluate_model(
+        model,
+        data.val_loader,
+        device,
+        score_threshold=config.score_threshold,
+        show_progress=config.show_progress,
+        progress_description="Detector evaluation",
+    )
+    destination = (
+        Path(output_dir) if output_dir is not None else Path(checkpoint_path).parent
+    )
+    destination.mkdir(parents=True, exist_ok=True)
+    write_json(destination / "evaluation_metrics.json", result.to_dict())
+    return result

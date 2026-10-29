@@ -14,7 +14,6 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.models import ResNet50_Weights
 
 import classifier.model as model_module
-from classifier.config import TrainConfig
 from classifier.input_validation import (
     InputValidationError,
     validate_batch,
@@ -27,6 +26,7 @@ from classifier.model import (
     configure_model_for_stage,
     set_model_train_mode,
 )
+from configs.classifier import ClassifierConfig
 from pilldata.classifier_dataset import (
     build_classifier_inputs,
     read_samples,
@@ -124,7 +124,7 @@ def valid_batch() -> dict[str, Any]:
 
 
 def test_train_config_defaults_and_serialization(tmp_path: Path) -> None:
-    config = TrainConfig(
+    config = ClassifierConfig(
         run_name="baseline",
         output_dir=tmp_path / "outputs",
         class_map_path=tmp_path / "class_map.json",
@@ -165,7 +165,7 @@ def test_train_config_rejects_invalid_values(
     }
 
     with pytest.raises(ValueError):
-        TrainConfig(**values)
+        ClassifierConfig(**values)
 
 
 def test_validate_class_map_accepts_synthetic_mapping(
@@ -298,7 +298,7 @@ def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> No
         json.dumps(data_summary, ensure_ascii=False),
         encoding="utf-8",
     )
-    config = TrainConfig(
+    config = ClassifierConfig(
         run_name="runtime-loader",
         output_dir=tmp_path / "outputs",
         class_map_path=tmp_path / "class_map.json",

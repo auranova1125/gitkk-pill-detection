@@ -63,6 +63,23 @@ class InferenceResult:
         }
 
 
+def combine_prediction_scores(
+    detector_score: float,
+    classifier_score: float,
+) -> float:
+    """검증된 탐지 점수와 분류 확률을 곱해 최종 점수를 반환한다."""
+
+    normalized_detector_score = normalize_probability(
+        detector_score,
+        name="detector_score",
+    )
+    normalized_classifier_score = normalize_probability(
+        classifier_score,
+        name="classifier_score",
+    )
+    return normalized_detector_score * normalized_classifier_score
+
+
 def _validate_bbox(value: Any, batch_index: int) -> tuple[float, float, float, float]:
     return normalize_bbox_xywh(
         value,
@@ -143,10 +160,6 @@ def validate_classifier_crop_batch(
             }
         )
     return normalized_meta
-
-
-# 기존 Notebook과 외부 코드의 import 경로를 유지한다.
-validate_detection_batch = validate_classifier_crop_batch
 
 
 def _class_lookup(
@@ -251,7 +264,10 @@ def predict_detections(
                     category_id = raw_category_id
                     item_seq = raw_item_seq
 
-            final_score = meta["detector_score"] * classifier_score
+            final_score = combine_prediction_scores(
+                meta["detector_score"],
+                classifier_score,
+            )
             predictions.append(
                 DetectionPrediction(
                     image_id=meta["image_id"],

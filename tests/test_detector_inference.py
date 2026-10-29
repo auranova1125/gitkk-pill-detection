@@ -1,4 +1,4 @@
-"""탐지기 추론과 분류기 연결 adapter 테스트."""
+"""탐지기 추론과 알약 인식 연결 테스트."""
 
 import json
 from pathlib import Path
@@ -9,14 +9,8 @@ import torch
 from torch import nn
 
 import detector.inference as inference_module
+from classifier.inference import combine_prediction_scores
 from detector.checkpoint import hash_label_map, save_checkpoint
-from detector.classifier_bridge import (
-    IMAGENET_MEAN,
-    IMAGENET_STD,
-    PADDING_COLOR_RGB,
-    build_classifier_batch,
-    combine_scores,
-)
 from detector.inference import (
     DetectorPrediction,
     load_inference_model,
@@ -25,6 +19,12 @@ from detector.inference import (
     save_inference_artifacts,
     validate_inference_batch,
 )
+from pilldata.transforms import (
+    IMAGENET_MEAN,
+    IMAGENET_STD,
+    PADDING_COLOR_RGB,
+)
+from pipeline.pill_recognition import build_classifier_batch
 
 
 class FixedDetector(nn.Module):
@@ -331,9 +331,11 @@ def test_combine_scores(
     classifier_score: float,
     expected: float,
 ) -> None:
-    assert combine_scores(detector_score, classifier_score) == pytest.approx(expected)
+    assert combine_prediction_scores(detector_score, classifier_score) == pytest.approx(
+        expected
+    )
 
 
 def test_combine_scores_rejects_invalid_probability() -> None:
     with pytest.raises(ValueError, match="between"):
-        combine_scores(1.1, 0.5)
+        combine_prediction_scores(1.1, 0.5)

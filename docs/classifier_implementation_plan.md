@@ -305,16 +305,26 @@ CUDA → MPS → CPU
 
 ```text
 project/
+├── configs/
+│   ├── classifier.py
+│   ├── classifier.yaml
+│   └── yaml_loading.py
+├── pilldata/
+│   ├── classifier_dataset.py
+│   ├── transforms.py
+│   └── validation.py
 ├── classifier/
-│   ├── config.py
 │   ├── input_validation.py
 │   ├── model.py
 │   ├── train.py
 │   ├── evaluate.py
 │   ├── checkpoint.py
 │   └── inference.py
-├── common/
-│   └── reproducibility.py
+├── utils/
+│   ├── io.py
+│   └── runtime.py
+├── pipeline/
+│   └── pill_recognition.py
 ├── notebooks/
 │   └── train_classifier.ipynb
 ├── outputs/
@@ -326,16 +336,16 @@ project/
 
 | 파일 | 역할 |
 |---|---|
-| `config.py` | 학습 설정을 담는 `TrainConfig` dataclass |
+| `configs/classifier.py` | 분류기 학습·실행 설정과 YAML 로더 |
 | `input_validation.py` | loader batch, class map, data summary 검사 |
 | `model.py` | ResNet-50 생성, freeze와 unfreeze |
 | `train.py` | 2단계 학습, validation, early stopping |
 | `evaluate.py` | 지표 계산, 예측과 오류 사례 저장 |
 | `checkpoint.py` | 모델 저장과 중단 지점 재개 |
 | `inference.py` | 품목 예측, class map 변환, 탐지 점수 결합 |
-| `reproducibility.py` | seed 및 RNG 상태 설정·복원 |
+| `utils/runtime.py` | 장치 선택, seed 및 RNG 상태 설정·복원 |
 
-`TrainConfig`에는 최소한 다음 필드를 둔다.
+`ClassifierConfig`에는 최소한 다음 필드를 둔다.
 
 ```python
 run_name: str
@@ -358,7 +368,7 @@ resume_from: Path | None = None
 
 ```python
 run_training(
-    config: TrainConfig,
+    config: ClassifierConfig,
     train_loader: DataLoader,
     val_loader: DataLoader,
     class_map: dict,
@@ -375,7 +385,7 @@ run_training(
 `notebooks/train_classifier.ipynb`는 다음 순서로 실행한다.
 
 1. 프로젝트 모듈 import
-2. `TrainConfig` 생성
+2. `ClassifierConfig` 생성
 3. 설정된 batch size와 실행 장치에 맞춰 데이터 구성 파트의 함수로 `train_loader`, `val_loader`, `class_map`, `data_summary` 생성
 4. 입력 계약 검사
 5. 새 학습 또는 `resume_from` checkpoint 재개

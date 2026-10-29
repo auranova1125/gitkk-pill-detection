@@ -19,7 +19,6 @@ from classifier.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
-from classifier.config import TrainConfig
 from classifier.evaluate import EvaluationResult
 from classifier.model import TrainingStage
 from classifier.train import (
@@ -31,7 +30,8 @@ from classifier.train import (
     resolve_training_stage,
     run_training,
 )
-from common.reproducibility import set_seed
+from configs.classifier import ClassifierConfig
+from utils.runtime import set_seed
 
 NUM_CLASSES = 2
 
@@ -104,8 +104,8 @@ def make_config(
     head_only_epochs: int = 1,
     patience: int = 7,
     resume_from: Path | None = None,
-) -> TrainConfig:
-    return TrainConfig(
+) -> ClassifierConfig:
+    return ClassifierConfig(
         run_name=run_name,
         output_dir=tmp_path / "outputs",
         class_map_path=tmp_path / "class_map.json",

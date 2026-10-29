@@ -7,13 +7,8 @@ from pathlib import Path
 import pytest
 import torch
 
-from common.reproducibility import set_seed as legacy_set_seed
 from utils.io import append_csv_row, read_json, write_json
-from utils.runtime import build_grad_scaler, resolve_device, select_device, set_seed
-
-
-def test_legacy_seed_import_uses_canonical_implementation() -> None:
-    assert legacy_set_seed is set_seed
+from utils.runtime import build_grad_scaler, resolve_device, select_device
 
 
 @pytest.mark.parametrize(

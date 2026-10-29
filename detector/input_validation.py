@@ -253,10 +253,6 @@ def validate_detector_training_batch(
         _fail("batch image_id values must be unique")
 
 
-# 기존 Notebook과 외부 코드의 import 경로를 유지한다.
-validate_detection_batch = validate_detector_training_batch
-
-
 def _validate_image(image: Any, index: int) -> tuple[int, int]:
     name = f"batch.images[{index}]"
     return validate_rgb_image_tensor(

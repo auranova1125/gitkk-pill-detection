@@ -19,17 +19,40 @@ from classifier.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
-from classifier.config import TrainConfig
 from classifier.evaluate import EvaluationResult, evaluate_model
-from classifier.input_validation import validate_class_map, validate_data_summary
+from classifier.input_validation import (
+    validate_batch,
+    validate_class_map,
+    validate_data_summary,
+)
 from classifier.model import (
     TrainingStage,
     build_model,
     configure_model_for_stage,
     set_model_train_mode,
 )
+from configs.classifier import ClassifierConfig
+from pilldata.factory import load_data_factory
 from utils.io import append_csv_row, write_json
-from utils.runtime import build_grad_scaler, select_device, set_seed
+from utils.runtime import build_grad_scaler, resolve_device, select_device, set_seed
+
+TrainingFactoryResult = tuple[
+    Iterable[Mapping[str, Any]],
+    Iterable[Mapping[str, Any]],
+    Mapping[str, Any],
+    Mapping[str, Any],
+]
+
+
+@dataclass(frozen=True, slots=True)
+class ClassifierTrainingData:
+    """검증을 마쳐 Notebook 확인과 학습에 재사용할 수 있는 입력."""
+
+    train_loader: Iterable[Mapping[str, Any]]
+    val_loader: Iterable[Mapping[str, Any]]
+    class_map: Mapping[str, Any]
+    data_summary: Mapping[str, Any]
+    device: torch.device
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,7 +139,7 @@ def resolve_training_stage(epoch: int, head_only_epochs: int) -> TrainingStage:
 
 def build_optimizer(
     model: ResNet,
-    config: TrainConfig,
+    config: ClassifierConfig,
     stage: TrainingStage | str,
 ) -> AdamW:
     """
@@ -161,7 +184,7 @@ def build_optimizer(
 
 def build_scheduler(
     optimizer: Optimizer,
-    config: TrainConfig,
+    config: ClassifierConfig,
     stage: TrainingStage | str,
 ) -> LRScheduler | None:
     """fine-tuning 단계에서만 cosine scheduler를 생성한다."""
@@ -253,7 +276,7 @@ def train_one_epoch(
 
 
 def _prepare_run_directory(
-    config: TrainConfig,
+    config: ClassifierConfig,
     *,
     device: torch.device,
     class_map: Mapping[str, Any],
@@ -321,8 +344,48 @@ def _checkpoint_kwargs(
     }
 
 
+def prepare_classifier_data(config: ClassifierConfig) -> ClassifierTrainingData:
+    """분류기 factory를 한 번 호출하고 반환된 학습 입력을 검증한다."""
+
+    device = resolve_device(config.device)
+    factory = load_data_factory(config.data_factory_path)
+    training_data = _call_training_factory(factory, config=config, device=device)
+    _validate_classifier_training_data(
+        training_data,
+        expected_num_classes=config.expected_num_classes,
+    )
+    train_loader, val_loader, class_map, data_summary = training_data
+    return ClassifierTrainingData(
+        train_loader=train_loader,
+        val_loader=val_loader,
+        class_map=class_map,
+        data_summary=data_summary,
+        device=device,
+    )
+
+
+def train_classifier(
+    config: ClassifierConfig,
+    *,
+    data: ClassifierTrainingData | None = None,
+) -> TrainingResult:
+    """설정 하나로 분류기 데이터를 준비하고 학습을 실행한다."""
+
+    training_data = data or prepare_classifier_data(config)
+    return run_training(
+        config,
+        training_data.train_loader,
+        training_data.val_loader,
+        training_data.class_map,
+        training_data.data_summary,
+        expected_num_classes=config.expected_num_classes,
+        pretrained=config.pretrained,
+        device=training_data.device,
+    )
+
+
 def run_training(
-    config: TrainConfig,
+    config: ClassifierConfig,
     train_loader: Iterable[Mapping[str, Any]],
     val_loader: Iterable[Mapping[str, Any]],
     class_map: Mapping[str, Any],
@@ -499,3 +562,52 @@ def run_training(
         stopped_early=stopped_early,
         metrics=tuple(metrics_records),
     )
+
+
+def _call_training_factory(
+    factory: Any,
+    *,
+    config: ClassifierConfig,
+    device: torch.device,
+) -> TrainingFactoryResult:
+    value = factory(config=config, device=device)
+    if not isinstance(value, tuple) or len(value) != 4:
+        raise TypeError(
+            "training data factory must return "
+            "(train_loader, val_loader, class_map, data_summary)"
+        )
+    train_loader, val_loader, class_map, data_summary = value
+    if not isinstance(class_map, Mapping) or not isinstance(data_summary, Mapping):
+        raise TypeError("factory class map and data summary must be mappings")
+    return train_loader, val_loader, class_map, data_summary
+
+
+def _validate_classifier_training_data(
+    data: TrainingFactoryResult,
+    *,
+    expected_num_classes: int,
+) -> None:
+    train_loader, val_loader, class_map, data_summary = data
+    validate_class_map(class_map, expected_num_classes=expected_num_classes)
+    validate_data_summary(
+        data_summary,
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
+    validate_batch(
+        _first_batch(train_loader, name="train_loader"),
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
+    validate_batch(
+        _first_batch(val_loader, name="val_loader"),
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
+
+
+def _first_batch(loader: Iterable[Any], *, name: str) -> Any:
+    try:
+        return next(iter(loader))
+    except StopIteration as error:
+        raise ValueError(f"{name} must contain at least one batch") from error
