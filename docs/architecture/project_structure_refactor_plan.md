@@ -45,7 +45,7 @@
 | 7. runtime 데이터 이전 | 완료 | `dbb0ac6` |
 | 8. 오프라인 ETL 이전 | 완료 | `4a8029a` |
 | 9. 책임과 이름 정리 | 완료 | `5aedaf3`, `9a5dd35`, `d28446e` — 설정·실행·학습 데이터 준비·검증 책임 정리 |
-| 10. 최종 문서·구조 검증 | 완료 | 실제 구조와 문서 일치, 전체 테스트 `206 passed`, CLI·Notebook·import 검증 완료 |
+| 10. 최종 문서·구조 검증 | 완료 | 실제 구조와 문서 일치, 전체 테스트 `207 passed`, CLI·Notebook·import 검증 완료 |
 
 ## 3. 현재 문제
 
@@ -395,7 +395,7 @@ detector.validate_detection_batch
 
 | 검사 | 결과 |
 | --- | --- |
-| 전체 pytest | `206 passed` |
+| 전체 pytest | `207 passed` |
 | Ruff 검사 | `main.py`, runtime 패키지, scripts와 tests 전체 통과 |
 | Ruff format | 같은 범위의 Python 파일 61개 통과 |
 | Notebook | 4개 JSON 구조와 Python 코드 셀 문법 통과 |

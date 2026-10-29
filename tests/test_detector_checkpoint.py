@@ -1,6 +1,7 @@
 """탐지기 checkpoint, 재개와 조기 종료 테스트."""
 
 import csv
+import json
 import random
 from pathlib import Path
 from typing import Any
@@ -296,12 +297,37 @@ def test_run_training_saves_artifacts_and_best_checkpoint(
     with (result.run_dir / "metrics.csv").open(encoding="utf-8") as file:
         rows = list(csv.DictReader(file))
     assert [int(row["epoch"]) for row in rows] == [0, 1, 2]
+    resolved_config = json.loads(
+        (result.run_dir / "resolved_config.json").read_text(encoding="utf-8")
+    )
+    assert resolved_config["device"] == "cpu"
 
     best_checkpoint = load_checkpoint(
         result.best_checkpoint_path,
         torch.device("cpu"),
     )
     assert best_checkpoint["completed_epoch"] == 1
+
+
+def test_run_training_rejects_existing_artifacts(
+    tmp_path: Path,
+    detector_label_map: dict[str, Any],
+) -> None:
+    config = make_config(tmp_path, run_name="existing-run")
+    run_dir = config.output_dir / config.run_name
+    run_dir.mkdir(parents=True)
+    (run_dir / "last.pt").write_bytes(b"existing checkpoint")
+
+    with pytest.raises(FileExistsError, match=r"last\.pt"):
+        run_training(
+            config,
+            [],
+            [],
+            detector_label_map,
+            make_data_summary(),
+            pretrained_backbone=False,
+            device=torch.device("cpu"),
+        )
 
 
 def test_run_training_resumes_after_completed_epoch(

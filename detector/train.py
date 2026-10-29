@@ -230,6 +230,39 @@ def train_detector(
     )
 
 
+def _prepare_run_directory(
+    config: DetectorConfig,
+    *,
+    device: torch.device,
+    label_map: Mapping[str, Any],
+    data_summary: Mapping[str, Any],
+) -> Path:
+    run_dir = config.output_dir / config.run_name
+    run_dir.mkdir(parents=True, exist_ok=True)
+    if config.resume_from is None:
+        existing_artifacts = [
+            path
+            for path in (
+                run_dir / "last.pt",
+                run_dir / "best.pt",
+                run_dir / "metrics.csv",
+            )
+            if path.exists()
+        ]
+        if existing_artifacts:
+            names = ", ".join(path.name for path in existing_artifacts)
+            raise FileExistsError(
+                f"run directory already contains training artifacts: {names}"
+            )
+
+    resolved_config = config.to_dict()
+    resolved_config["device"] = str(device)
+    write_json(run_dir / "resolved_config.json", resolved_config, sort_keys=True)
+    write_json(run_dir / "label_map.json", label_map, sort_keys=True)
+    write_json(run_dir / "data_summary.json", data_summary, sort_keys=True)
+    return run_dir
+
+
 def run_training(
     config: DetectorConfig,
     train_loader: Iterable[Mapping[str, Any]],
@@ -249,6 +282,16 @@ def run_training(
 
     selected_device = device if device is not None else select_device()
     set_seed(config.seed)
+    run_dir = _prepare_run_directory(
+        config,
+        device=selected_device,
+        label_map=label_map,
+        data_summary=data_summary,
+    )
+    last_checkpoint_path = run_dir / "last.pt"
+    best_checkpoint_path = run_dir / "best.pt"
+    metrics_path = run_dir / "metrics.csv"
+
     model_config = {
         "num_classes": label_map["num_model_classes"],
         "pretrained_backbone": pretrained_backbone,
@@ -264,17 +307,6 @@ def run_training(
     scheduler = build_scheduler(optimizer, config)
     scaler = build_grad_scaler(selected_device)
     early_stopping = EarlyStopping(config.early_stopping_patience)
-
-    run_dir = config.output_dir / config.run_name
-    run_dir.mkdir(parents=True, exist_ok=True)
-    last_checkpoint_path = run_dir / "last.pt"
-    best_checkpoint_path = run_dir / "best.pt"
-    metrics_path = run_dir / "metrics.csv"
-    write_json(run_dir / "resolved_config.json", config.to_dict(), sort_keys=True)
-    write_json(run_dir / "label_map.json", label_map, sort_keys=True)
-    write_json(run_dir / "data_summary.json", data_summary, sort_keys=True)
-    if config.resume_from is None:
-        metrics_path.write_text("", encoding="utf-8")
 
     label_map_hash = hash_label_map(label_map)
     split_hash = data_summary["split_hash"]
