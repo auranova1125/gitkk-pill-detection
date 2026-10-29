@@ -2,7 +2,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 상태 | 완료 |
+| 상태 | 진행 중 |
 | 관련 이슈 | #16 |
 | 작업 브랜치 | `16-refactor-project-structure` |
 | 최초 작성 | 2026-10-29 |
@@ -41,6 +41,11 @@
 | 3. 설정과 `main.py` | 완료 | `256ff2d` |
 | 4. 검증 이름과 primitive | 완료 | `d86cea0` |
 | 5. 테스트와 문서 정리 | 완료 | 전체 테스트 `204 passed` 및 최종 문서 정리 |
+| 6. 문서 기준점 통합 | 검토 대기 | README 단일화, 문서 상태와 후속 구조 단계 정리 |
+| 7. runtime 데이터 이전 | 대기 | `classifier_data/` 구현을 `pilldata/`로 이전 |
+| 8. 오프라인 ETL 이전 | 대기 | `classifier_data_build/`를 `scripts/classifier_data/`로 이전 |
+| 9. 호환 계층과 Notebook 정리 | 대기 | `common/` 제거와 Notebook 조립 코드 축소 |
+| 10. 최종 문서·구조 검증 | 대기 | 실제 구조, 문서, import와 전체 테스트 일치 확인 |
 
 ## 3. 현재 문제
 
@@ -133,14 +138,21 @@ gitkk-pill-detection/
 │   └── checkpoint.py
 ├── pipeline/
 │   ├── inference.py
-│   ├── evaluate.py
 │   └── workflows.py
 ├── utils/
-│   ├── checkpoint_io.py
 │   ├── io.py
 │   └── runtime.py
 ├── scripts/
 │   └── classifier_data/
+│       ├── config.py
+│       ├── validate_labels.py
+│       ├── select_images.py
+│       ├── make_crops.py
+│       ├── split_dataset.py
+│       ├── count_crops.py
+│       ├── export_classifier_inputs.py
+│       ├── label_checklist.py
+│       └── classes.csv
 ├── tests/
 ├── notebooks/
 └── docs/
@@ -198,7 +210,7 @@ main.py ──┘
 - `pilldata/`: 학습과 추론 중 import하는 Dataset과 transform
 - `scripts/classifier_data/`: 원본 데이터에서 학습 패키지를 만드는 오프라인 ETL
 
-`classifier_data_build/`는 탐지기 DataLoader 작업과 충돌하지 않는 시점에 경로만 이동한다. 데이터 생성 기준 자체는 이번 이슈에서 변경하지 않는다.
+`classifier_data_build/`의 실행 코드는 `scripts/classifier_data/`로 이동한다. 데이터 생성 기준과 생성된 보고서의 값은 변경하지 않는다.
 
 ## 6. 단계별 작업
 
@@ -321,18 +333,52 @@ detector.validate_detection_batch
 - Notebook JSON 구조와 Python 문법 검사
 - `git diff --check`
 
-#### 계획 대비 실제 구현
+#### 1차 작업 후 남은 구조 차이
 
-초기 목표 구조는 방향을 설명하기 위한 제안이며, 이번 작업에서는 다음 경계를 의도적으로 유지했다.
+0~5단계에서는 공통 구현을 먼저 추가해 기존 구조 위에 새 계층이 겹쳐졌다. 아래 항목은 완료된 예외가 아니라 6~10단계에서 해소할 잔여 작업이다.
 
-| 계획 항목 | 실제 구현 | 이유 |
+| 남은 항목 | 현재 상태 | 처리 단계 |
 | --- | --- | --- |
-| 테스트를 소수 파일로 통합 | 기능별 테스트 파일 유지, `tests/conftest.py`만 추가 | 실패 범위와 모델별 책임을 빠르게 확인하기 위해 테스트 케이스를 억지로 합치지 않음 |
-| `pilldata/classifier_dataset.py` 추가 | 기존 `classifier_data/` 유지 | 실제 분류기 데이터 로더의 import 경로를 깨지 않고 탐지기 DataLoader 병합 이후 함께 정리하기 위함 |
-| `classifier_data_build/`를 `scripts/`로 이동 | 현재 경로 유지 | 팀원이 사용 중인 오프라인 ETL 경로 변경을 별도 이슈로 분리하기 위함 |
-| 공통 `utils/checkpoint_io.py` 추가 | 모델별 checkpoint와 공통 `utils/io.py` 유지 | 두 모델의 checkpoint schema와 재개 상태가 서로 다름 |
-| `pipeline/evaluate.py` 추가 | `pipeline/inference.py`와 `workflows.py`까지만 구현 | 실제 탐지 데이터와 평가 계약이 확정된 뒤 end-to-end 평가를 구현하기 위함 |
-| `common/` 제거 | `utils/`를 정식 구현으로 사용하고 `common/`은 호환 wrapper로 유지 | 기존 Notebook과 외부 import 경로를 보존하기 위함 |
+| runtime 분류 데이터 구현 중복 | `classifier_data/`와 `pilldata/`가 함께 존재 | 7단계에서 `pilldata/`로 이전하고 이전 패키지 제거 |
+| 오프라인 ETL이 최상위에 존재 | `classifier_data_build/`가 runtime 패키지처럼 보임 | 8단계에서 `scripts/classifier_data/`로 이전 |
+| 호환 패키지 잔존 | `common/`이 `utils/`를 다시 노출 | 9단계에서 내부 import 확인 후 제거 |
+| Notebook과 workflow 조립 중복 | Notebook에 직접 조립 코드가 일부 남음 | 9단계에서 workflow 호출 중심으로 축소 |
+| 문서 상태 혼재 | 계획서와 현재 명세가 같은 목록에 섞임 | 6단계에서 루트 README를 기준 문서 목록으로 통합 |
+
+### 6단계. 문서 기준점 통합
+
+- Git에 포함되는 README는 루트 `README.md` 하나만 유지
+- 현재 입력 명세, 구현 결정 기록과 결과 입력 양식을 구분
+- 오래된 module 경로와 완료 상태 표현 수정
+- 7~10단계의 실제 구조 이전 작업을 계획에 추가
+
+### 7단계. runtime 데이터 이전
+
+- `classifier_data/classifier_inputs.py`를 `pilldata/classifier_dataset.py`로 이전
+- 모든 내부 코드, Notebook과 문서의 factory 경로 갱신
+- `classifier_data/pill_square_crop.py` 호환 wrapper 제거
+- `classifier_data/` 패키지 제거 후 전체 입력 검증 회귀 테스트
+
+### 8단계. 오프라인 ETL 이전
+
+- `classifier_data_build/` 실행 코드를 `scripts/classifier_data/`로 이동
+- 스크립트 간 import와 실행 명령을 새 경로로 변경
+- 생성 보고서는 `reports/data/classifier/`로 정리
+- 데이터 생성 결과가 바뀌지 않는지 확인
+
+### 9단계. 호환 계층과 Notebook 정리
+
+- 내부에서 `common` import가 없는지 확인한 뒤 패키지 제거
+- 이전 검증 함수 alias의 실제 사용처 확인 및 제거 여부 결정
+- 세 Notebook이 config와 workflow를 호출하도록 조립 코드 축소
+- `main.py`, Notebook과 Python API의 실행 경로 문서화
+
+### 10단계. 최종 문서·구조 검증
+
+- 목표 폴더 구조와 실제 tree 비교
+- 현재 코드와 다른 계획·경로·명령 제거
+- 전체 테스트, Ruff, Notebook 문법과 링크 검사
+- 리팩터링 전후 파일 수와 중복 책임 비교
 
 ## 7. 탐지기 DataLoader 이후 작업
 
@@ -343,6 +389,7 @@ detector.validate_detection_batch
 - 실제 inference loader 연결
 - 분류기와 탐지기의 split manifest 공통 처리
 - 실제 데이터 기반 end-to-end 평가
+- `pipeline/evaluate.py` 구현
 - Dataset 공통 protocol 확정
 
 탐지기 DataLoader가 병합되면 현재 문서의 목표 구조와 실제 인터페이스를 다시 비교한 뒤 별도 이슈로 진행한다.
@@ -357,6 +404,10 @@ detector.validate_detection_batch
 - `main.py`가 명령 도움말과 synthetic smoke를 제공한다.
 - 데이터 factory가 없을 때 명확한 오류를 제공한다.
 - 기존 Notebook 3개의 구조와 Python 문법 검사가 통과한다.
+- Git에 추적되는 README는 루트 `README.md` 하나뿐이다.
+- runtime 데이터 코드는 `pilldata/`에만 존재한다.
+- 오프라인 데이터 생성 코드는 `scripts/classifier_data/` 아래에 존재한다.
+- `common/`, `classifier_data/`, `classifier_data_build/`가 최상위 패키지로 남지 않는다.
 - 각 단계가 검토 가능한 독립 커밋으로 기록된다.
 
 ## 9. 결정 기록

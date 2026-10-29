@@ -203,19 +203,34 @@ git merge origin/main
 
 ## 분류기 구현
 
-`classifier/`에는 현재 118종을 대상으로 하는 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 클래스 수는 실행 시 `expected_num_classes`로 변경할 수 있습니다. 실제 데이터 구성 함수가 준비되면 `notebooks/train_classifier.ipynb`의 `data_factory_path`를 설정해 학습을 실행합니다.
+`classifier/`에는 현재 118종을 기본값으로 사용하는 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 클래스 수는 실행 시 `expected_num_classes`로 변경할 수 있습니다. 현재 분류기 데이터 factory 경로는 `classifier_data.classifier_inputs:build_classifier_inputs`이며, 구조 정리 이후 `pilldata` 경로로 변경할 예정입니다.
 
 데이터 구성 함수와 DataLoader가 제공해야 하는 정확한 형식은 [`docs/classifier_input_spec.md`](docs/classifier_input_spec.md)를 참고합니다.
 
 학습 결과와 checkpoint는 `outputs/{run_name}/` 아래에 저장되며 Git에는 포함되지 않습니다. 실험 결과 요약은 `reports/classifier_report.md`에 기록합니다.
 
-## 구현 문서
+## 프로젝트 문서
 
-- [아키텍처 및 리팩터링 문서](docs/architecture/README.md)
+루트 `README.md`를 프로젝트의 유일한 README로 사용합니다. 세부 문서는 목적에 따라 다음과 같이 구분합니다.
+
+### 현재 구현과 입력 명세
+
+- [분류기 데이터 사용 안내](docs/classifier_data.md)
+- [분류기 입력 명세서](docs/classifier_input_spec.md)
+- [탐지기 입력 명세서](docs/detector_input_spec.md)
 - [프로젝트 구조 리팩터링 계획](docs/architecture/project_structure_refactor_plan.md)
-- [분류기 구현 계획서](docs/classifier_implementation_plan.md)
-- [단일 클래스 탐지기 구현 계획서](docs/detector_implementation_plan.md)
-- [단일 클래스 탐지기 입력 명세서](docs/detector_input_spec.md)
+
+### 구현 결정 기록
+
+- [분류기 구현 계획 및 결정](docs/classifier_implementation_plan.md)
+- [탐지기 구현 계획 및 결정](docs/detector_implementation_plan.md)
+
+### 실험 결과 문서
+
+- [분류기 결과 보고서](reports/classifier_report.md)
+- [탐지기 결과 보고서](reports/detector_report.md)
+
+두 결과 보고서는 실제 데이터 기준 학습 전까지 사용하는 결과 입력 양식이며, `TBD`는 아직 측정되지 않은 항목을 뜻합니다.
 
 ## 단일 클래스 알약 탐지기
 
@@ -226,7 +241,7 @@ git merge origin/main
 데이터 구성 모듈이 준비되면 [학습 Notebook](notebooks/train_detector.ipynb)의 `data_factory_path`를 다음과 같은 경로로 설정합니다.
 
 ```python
-data_factory_path = "data.detector_data:build_detector_inputs"
+data_factory_path = "your_package.detector_data:build_detector_inputs"
 ```
 
 Notebook은 입력 검증, 신규 학습 또는 `last.pt` 재개, 학습 곡선, `best.pt` 평가, bbox 시각화와 분류기 연결 batch 확인을 순서대로 실행합니다. 결과는 `outputs/{run_name}/` 아래에 저장하며 Git에는 포함하지 않습니다. 실험 결과는 [탐지기 결과 보고서](reports/detector_report.md)의 `TBD` 항목에 기록합니다.

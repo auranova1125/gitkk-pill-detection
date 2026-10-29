@@ -1,5 +1,7 @@
 # 단일 클래스 알약 탐지기 구현 계획서
 
+> **문서 상태:** 초기 구현 계획과 설계 결정 기록이다. 현재 실행 방법과 경로는 루트 [`README.md`](../README.md), 데이터 전달 계약은 [`detector_input_spec.md`](detector_input_spec.md)를 기준으로 한다.
+
 ## 1. 목표
 
 조합 이미지에서 알약의 위치만 찾는 단일 클래스 object detector를 구현한다. 탐지기는 세부 품목을 구분하지 않고 모든 알약을 `pill`로 예측한다. 예측 bbox는 기존 ResNet-50 분류기의 crop 입력으로 전달할 수 있게 한다.

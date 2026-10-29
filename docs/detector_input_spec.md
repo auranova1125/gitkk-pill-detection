@@ -1,5 +1,7 @@
 # 단일 클래스 탐지기 데이터 및 함수 입력 명세서
 
+> **문서 상태:** 탐지기 DataLoader와 factory가 지켜야 하는 현재 입력 계약이다. 실제 탐지기 DataLoader 구현이 병합되면 권장 module 경로만 갱신한다.
+
 ## 1. 목적과 범위
 
 이 문서는 데이터 구성 코드가 단일 클래스 알약 탐지기에 전달해야 하는 함수와 데이터 형식을 정의한다.
@@ -23,7 +25,7 @@ model num_classes = 2
 학습 Notebook은 다음 형식의 문자열로 데이터 구성 함수를 불러온다.
 
 ```python
-data_factory_path = "data.detector_data:build_detector_inputs"
+data_factory_path = "your_package.detector_data:build_detector_inputs"
 ```
 
 ### 2.2 함수 시그니처
