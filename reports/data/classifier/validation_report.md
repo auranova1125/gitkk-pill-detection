@@ -1,6 +1,6 @@
 # 라벨 검수 결과 (분류기 crop 데이터)
 
-- 실행일: 2026-10-28 / 스크립트: `classifier_data_build/validate_labels.py`
+- 실행일: 2026-10-28 / 현재 실행 명령: `python -m scripts.classifier_data.validate_labels`
 - 기준 문서: Obsidian 「알약 데이터 검증 체크리스트」
 - 대상: 조합 TL_1·3·4·5·6·7·8 중 촬영 조건(연회색·주백색·70/75/90°) 이미지 10523장, Kaggle train 232장, bbox 41164개
 - 기준값: 1mm당 픽셀 긴 변 18~33·짧은 변 18 이상, IoU > 0.7 또는 작은 bbox의 90% 이상 겹침, pHash 거리 ≤ 5

@@ -10,7 +10,7 @@
 jpg는 개수 세기·노트북 확인용이다. 학습에 쓰는 PNG crop(padding 전)은 export_classifier_inputs.py가 원본에서 다시 자른다.
 
 사용:
-    python classifier_data_build/make_crops.py
+    python -m scripts.classifier_data.make_crops
 """
 
 import io
@@ -19,10 +19,17 @@ import shutil
 import zipfile
 
 import pandas as pd
-from config import COMBO_ZIPS, CROPS, KAGGLE, META, save_table, ts_zip
 from PIL import Image
 
 from pilldata.transforms import crop_pill
+from scripts.classifier_data.config import (
+    COMBO_ZIPS,
+    CROPS,
+    KAGGLE,
+    META,
+    save_table,
+    ts_zip,
+)
 
 sel = pd.read_csv(META / "selected_images.csv")
 boxes = pd.read_csv(META / "boxes.csv").groupby("image")

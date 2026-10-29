@@ -12,7 +12,7 @@
 | `pilldata/transforms.py` | crop, 여백 5%, clip, padding, resize와 정규화의 공통 구현 |
 
 학습에는 위 runtime 모듈과 드라이브의 데이터만 있으면 된다.
-데이터를 만든 방법·기준, 검수 결과, 확인 노트북은 [`classifier_data_build/classifier_data_build.md`](../classifier_data_build/classifier_data_build.md)에 있다.
+데이터를 만든 방법·기준, 검수 결과, 확인 Notebook은 [분류기 데이터 구성 안내](classifier_data_build.md)에 있다.
 
 ## 데이터
 구글 드라이브 `gitkk_archive/training_package_classifier.zip` (탐지기 `training_package_detector.zip`과 같은 폴더)

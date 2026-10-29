@@ -16,7 +16,7 @@
 
 앞 단계: validate_labels → select_images → make_crops → split_dataset
 사용:
-    python classifier_data_build/export_classifier_inputs.py
+    python -m scripts.classifier_data.export_classifier_inputs
 """
 
 import io
@@ -28,12 +28,21 @@ from types import SimpleNamespace
 
 import pandas as pd
 import torch
-from config import CLASSES, COMBO_ZIPS, CROPS, EXPORT, KAGGLE, META, tl_zip, ts_zip
 from PIL import Image
 
 from pilldata import classifier_dataset as ci
 from pilldata.transforms import CROP_MARGIN as MARGIN
 from pilldata.transforms import cut_pill
+from scripts.classifier_data.config import (
+    CLASSES,
+    COMBO_ZIPS,
+    CROPS,
+    EXPORT,
+    KAGGLE,
+    META,
+    tl_zip,
+    ts_zip,
+)
 
 OUT = EXPORT
 PKG = OUT / "training_package_classifier"

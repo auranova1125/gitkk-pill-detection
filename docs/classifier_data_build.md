@@ -1,15 +1,17 @@
 # 분류기 데이터 구성
 
+> **문서 상태:** 분류기 학습 패키지를 생성하는 현재 오프라인 ETL 안내다. 실행 코드는 `scripts/classifier_data/`, 결과 문서는 `reports/data/classifier/`에 있다.
+
 조합 이미지(Kaggle train + AI Hub 경구약제 조합 1, 3~8번 세트)에서 알약을 bbox대로 잘라 118종 분류기 데이터를 만든다.
 라벨 검수 → 이미지 선정 → crop → train/val 분할 → 집계 → 분류기 입력 패키지(export) 순서다.
-만든 데이터를 학습에 쓰는 방법은 [`docs/classifier_data.md`](../docs/classifier_data.md)에 있다.
+만든 데이터를 학습에 쓰는 방법은 [`classifier_data.md`](classifier_data.md)에 있다.
 
 | 파일 | 내용 |
 |---|---|
-| `config.py`, `label_checklist.py`, `classes.csv` | 경로 설정·원본 zip 찾기, 「알약 데이터 검증 체크리스트」 항목 목록, 118종 클래스 표 (`class_id` = 모델 출력 번호 `class_index`) |
-| `validate_labels.py` … `export_classifier_inputs.py` | 데이터 생성 스크립트 (아래 '실행') |
-| `reports/` | 라벨 검수, 클래스별 개수, train/val 분할 결과 (스크립트가 자동 생성) |
-| `classifier_data_check.ipynb` | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 |
+| `scripts/classifier_data/config.py`, `label_checklist.py`, `classes.csv` | 경로 설정·원본 zip 찾기, 검증 항목 목록, 118종 클래스 표 (`class_id` = 모델 출력 번호 `class_index`) |
+| `scripts/classifier_data/validate_labels.py` … `export_classifier_inputs.py` | 데이터 생성 스크립트 (아래 '실행') |
+| `reports/data/classifier/` | 라벨 검수, 클래스별 개수, train/val 분할 결과 (스크립트가 자동 생성) |
+| `notebooks/classifier_data_check.ipynb` | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 |
 
 crop 함수는 `pilldata/transforms.py`, runtime 로더는 `pilldata/classifier_dataset.py`에 있다.
 
@@ -31,31 +33,31 @@ ln -s <Kaggle 데이터 폴더> data/kaggle
 
 ## 실행 (프로젝트 루트에서)
 ```bash
-uv run python classifier_data_build/validate_labels.py # 라벨 검수          → data/classifier/meta/label_issues.csv, classifier_data_build/reports/validation_report.md
-uv run python classifier_data_build/select_images.py   # 이미지 선정        → data/classifier/meta/
-uv run python classifier_data_build/make_crops.py      # crop 생성          → data/classifier/crops/<약 코드>/*.jpg
-uv run python classifier_data_build/split_dataset.py   # train/val 분할      → crops.csv에 split 열 (탐지기 분할 기준)
-uv run python classifier_data_build/count_crops.py     # 클래스별 개수      → data/classifier/crops/crop_counts.csv, classifier_data_build/reports/crop_counts.md
-uv run python classifier_data_build/export_classifier_inputs.py      # 분류기 입력 패키지 → data/classifier/export/training_package_classifier(.zip)
+uv run python -m scripts.classifier_data.validate_labels          # 라벨 검수
+uv run python -m scripts.classifier_data.select_images            # 이미지 선정
+uv run python -m scripts.classifier_data.make_crops               # 확인용 crop 생성
+uv run python -m scripts.classifier_data.split_dataset            # train/val 분할
+uv run python -m scripts.classifier_data.count_crops              # 클래스별 개수
+uv run python -m scripts.classifier_data.export_classifier_inputs # 학습 입력 패키지
 ```
 `split_dataset.py`는 `data/detector/training_package_detector.zip`(탐지기 학습 패키지)의 `split_manifest.csv`로 train/val을 나눈다.
 
 ## 결과 문서
-이 문서에는 **방법**만 적는다. 숫자는 데이터를 다시 만들 때마다 바뀌므로 스크립트가 `reports/`에 자동으로 쓴다 (직접 고치지 않는다).
+이 문서에는 **방법**만 적는다. 숫자는 데이터를 다시 만들 때마다 바뀌므로 스크립트가 `reports/data/classifier/`에 자동으로 쓴다 (직접 고치지 않는다).
 
 | 문서 | 내용 | 만드는 스크립트 |
 |---|---|---|
-| [`validation_report.md`](reports/validation_report.md) | 체크리스트 항목별 검수 결과, 제외한 이미지·bbox 수 | `validate_labels.py` |
-| [`crop_counts.md`](reports/crop_counts.md) | **crop 총 개수**(맨 위 요약), 클래스별 crop 개수 (Kaggle/조합) | `count_crops.py` |
-| [`split_report.md`](reports/split_report.md) | train/val 분할 기준, 클래스별 train·val crop 수, 유사 사진 확인 | `split_dataset.py` |
-| [`classifier_data_check.ipynb`](classifier_data_check.ipynb) | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 | 직접 실행 |
+| [라벨 검수 결과](../reports/data/classifier/validation_report.md) | 체크리스트 항목별 검수 결과, 제외한 이미지·bbox 수 | `validate_labels.py` |
+| [클래스별 crop 개수](../reports/data/classifier/crop_counts.md) | **crop 총 개수**(맨 위 요약), 클래스별 crop 개수 (Kaggle/조합) | `count_crops.py` |
+| [train/val 분할 결과](../reports/data/classifier/split_report.md) | 분할 기준, 클래스별 train·val crop 수, 유사 사진 확인 | `split_dataset.py` |
+| [데이터 확인 Notebook](../notebooks/classifier_data_check.ipynb) | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 | 직접 실행 |
 
 ## 규칙
 | 단계 | 내용 |
 |---|---|
 | 사용 세트 | 조합 1, 3~8번(TS 이미지 + TL 라벨). 2번 세트(TS_2·TL_2) 제외   |
 | 촬영 조건 | 연회색 배경, 주백색 조명, 70/75/90° |
-| 라벨 검수 | 「알약 데이터 검증 체크리스트」 항목 전체 검사. 라벨 오류가 있는 조합 이미지는 이미지째, Kaggle은 해당 bbox만 제외. 결과: [`validation_report.md`](reports/validation_report.md) |
+| 라벨 검수 | 「알약 데이터 검증 체크리스트」 항목 전체 검사. 라벨 오류가 있는 조합 이미지는 이미지째, Kaggle은 해당 bbox만 제외. 결과: [라벨 검수 결과](../reports/data/classifier/validation_report.md) |
 | 선정 방법 | Kaggle 전부 + 조합은 목표 초과를 최소화하는 정수계획, 각 각도 30% 이상 |
 | crop | bbox 사방 5% 여백 → 이미지 경계에서 clip → 고정색 padding으로 정사각형 (아래 'crop 기준과 방법') |
 | 분할 | 탐지기 `split_manifest.csv`의 그룹(파일명의 알약 조합) 분할을 그대로 따름. 탐지기 목록에 없는 그룹은 train |

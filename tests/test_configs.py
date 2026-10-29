@@ -13,6 +13,7 @@ from configs.schema import (
 from pilldata.classifier_dataset import build_classifier_inputs
 from pilldata.factory import load_data_factory
 from pipeline.workflows import train_detector_experiment
+from scripts.classifier_data.config import CLASSES, REPORTS, ROOT
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -89,6 +90,13 @@ def test_classifier_yaml_uses_canonical_runtime_factory() -> None:
     factory = load_data_factory(experiment.data_factory_path)
 
     assert factory is build_classifier_inputs
+
+
+def test_classifier_etl_paths_use_scripts_and_reports_directories() -> None:
+    assert ROOT == PROJECT_ROOT
+    assert CLASSES == PROJECT_ROOT / "scripts" / "classifier_data" / "classes.csv"
+    assert REPORTS == PROJECT_ROOT / "reports" / "data" / "classifier"
+    assert not (PROJECT_ROOT / "classifier_data_build").exists()
 
 
 def test_detector_workflow_reports_missing_factory() -> None:

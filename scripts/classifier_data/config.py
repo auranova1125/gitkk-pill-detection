@@ -7,7 +7,7 @@ import unicodedata
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))  # 프로젝트 runtime 모듈을 import하기 위해
 DATA = ROOT / "data"  # git에 올리지 않음 (.gitignore의 /data/)
 # 원본 위치. 다른 곳에 있으면 환경 변수로 지정하거나 data/ 아래에 심볼릭 링크를 둔다
@@ -18,7 +18,7 @@ KAGGLE = Path(
     os.environ.get("KAGGLE_DIR", DATA / "kaggle")
 ).expanduser()  # train_images/, train_annotations/
 CLASSES = (
-    ROOT / "classifier_data_build" / "classes.csv"
+    ROOT / "scripts" / "classifier_data" / "classes.csv"
 )  # class_id, code, category_id, name (118종)
 META = DATA / "classifier" / "meta"  # 선정 목록, bbox
 CROPS = DATA / "classifier" / "crops"  # crops/<약 코드>/*.jpg
@@ -27,7 +27,7 @@ DETECTOR_PACKAGE = (
     DATA / "detector" / "training_package_detector.zip"
 )  # 탐지기 학습 패키지 (split_manifest.csv)
 REPORTS = (
-    ROOT / "classifier_data_build" / "reports"
+    ROOT / "reports" / "data" / "classifier"
 )  # 실행 결과 문서 (자동 생성, git에 올림)
 
 COMBO_ZIPS = [

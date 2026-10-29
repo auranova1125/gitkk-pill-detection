@@ -112,8 +112,8 @@ uv run python main.py infer --config configs/pipeline.yaml
 
 ```bash
 uv run python -m pytest -q
-uv run ruff check main.py classifier configs detector common pilldata pipeline utils tests
-uv run ruff format --check main.py classifier detector common configs pilldata pipeline utils tests
+uv run ruff check main.py classifier configs detector common pilldata pipeline scripts utils tests
+uv run ruff format --check main.py classifier detector common configs pilldata pipeline scripts utils tests
 ```
 
 ## Jupyter Notebook Git 설정
@@ -216,6 +216,7 @@ git merge origin/main
 ### 현재 구현과 입력 명세
 
 - [분류기 데이터 사용 안내](docs/classifier_data.md)
+- [분류기 데이터 구성 안내](docs/classifier_data_build.md)
 - [분류기 입력 명세서](docs/classifier_input_spec.md)
 - [탐지기 입력 명세서](docs/detector_input_spec.md)
 - [프로젝트 구조 리팩터링 계획](docs/architecture/project_structure_refactor_plan.md)
