@@ -17,15 +17,6 @@ from detector import (
 )
 
 
-def make_label_map() -> dict[str, Any]:
-    return {
-        "num_foreground_classes": 1,
-        "num_model_classes": 2,
-        "background_label": 0,
-        "classes": [{"label": 1, "name": "pill"}],
-    }
-
-
 def make_data_summary() -> dict[str, Any]:
     return {
         "num_train_images": 4,
@@ -109,8 +100,8 @@ def collate_detector_samples(samples: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 @pytest.fixture
-def label_map() -> dict[str, Any]:
-    return make_label_map()
+def label_map(detector_label_map: dict[str, Any]) -> dict[str, Any]:
+    return detector_label_map
 
 
 @pytest.fixture
@@ -178,8 +169,10 @@ def test_detector_config_rejects_invalid_values(
         make_config(tmp_path, **{field_name: field_value})
 
 
-def test_validate_detector_label_map_accepts_pill_mapping() -> None:
-    validate_detector_label_map(make_label_map())
+def test_validate_detector_label_map_accepts_pill_mapping(
+    detector_label_map: dict[str, Any],
+) -> None:
+    validate_detector_label_map(detector_label_map)
 
 
 @pytest.mark.parametrize(
@@ -191,18 +184,21 @@ def test_validate_detector_label_map_accepts_pill_mapping() -> None:
     ],
 )
 def test_validate_detector_label_map_rejects_invalid_counts(
+    detector_label_map: dict[str, Any],
     field_name: str,
     field_value: int,
 ) -> None:
-    label_map = make_label_map()
+    label_map = detector_label_map
     label_map[field_name] = field_value
 
     with pytest.raises(InputValidationError, match=field_name):
         validate_detector_label_map(label_map)
 
 
-def test_validate_detector_label_map_rejects_non_pill_class() -> None:
-    label_map = make_label_map()
+def test_validate_detector_label_map_rejects_non_pill_class(
+    detector_label_map: dict[str, Any],
+) -> None:
+    label_map = detector_label_map
     label_map["classes"][0] = {"label": 2, "name": "tablet"}
 
     with pytest.raises(InputValidationError):

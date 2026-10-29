@@ -34,21 +34,6 @@ class FixedClassifier(nn.Module):
         return logits
 
 
-def make_class_map() -> dict[str, Any]:
-    return {
-        "num_classes": 3,
-        "classes": [
-            {
-                "class_index": index,
-                "category_id": 1900 + index,
-                "item_seq": f"item-{index}",
-                "name": f"drug-{index}",
-            }
-            for index in range(3)
-        ],
-    }
-
-
 def make_batch(*, image_id: int = 7) -> dict[str, Any]:
     return {
         "images": [torch.full((3, 24, 32), 0.5, dtype=torch.float32)],
@@ -63,12 +48,14 @@ def make_batch(*, image_id: int = 7) -> dict[str, Any]:
     }
 
 
-def test_run_end_to_end_inference_combines_predictions() -> None:
+def test_run_end_to_end_inference_combines_predictions(
+    classifier_class_map: dict[str, Any],
+) -> None:
     result = run_end_to_end_inference(
         FixedDetector(),
         FixedClassifier(),
         [make_batch()],
-        make_class_map(),
+        classifier_class_map,
         torch.device("cpu"),
         score_threshold=0.5,
         detector_name="fixed-detector",
@@ -96,13 +83,15 @@ def test_run_end_to_end_inference_combines_predictions() -> None:
     )
 
 
-def test_run_end_to_end_inference_rejects_duplicate_image_ids() -> None:
+def test_run_end_to_end_inference_rejects_duplicate_image_ids(
+    classifier_class_map: dict[str, Any],
+) -> None:
     with pytest.raises(ValueError, match="duplicate image_id"):
         run_end_to_end_inference(
             FixedDetector(),
             FixedClassifier(),
             [make_batch(), make_batch()],
-            make_class_map(),
+            classifier_class_map,
             torch.device("cpu"),
             score_threshold=0.5,
             detector_name="fixed-detector",
@@ -110,12 +99,15 @@ def test_run_end_to_end_inference_rejects_duplicate_image_ids() -> None:
         )
 
 
-def test_save_and_plot_end_to_end_artifacts(tmp_path: Path) -> None:
+def test_save_and_plot_end_to_end_artifacts(
+    tmp_path: Path,
+    classifier_class_map: dict[str, Any],
+) -> None:
     result = run_end_to_end_inference(
         FixedDetector(),
         FixedClassifier(),
         [make_batch()],
-        make_class_map(),
+        classifier_class_map,
         torch.device("cpu"),
         score_threshold=0.5,
         detector_name="fixed-detector",

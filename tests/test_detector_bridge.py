@@ -75,15 +75,6 @@ class TinyInferenceModel(nn.Module):
         self.weight = nn.Parameter(torch.tensor(1.0))
 
 
-def make_label_map() -> dict[str, Any]:
-    return {
-        "num_foreground_classes": 1,
-        "num_model_classes": 2,
-        "background_label": 0,
-        "classes": [{"label": 1, "name": "pill"}],
-    }
-
-
 def make_inference_batch(image_id: int = 7) -> dict[str, Any]:
     return {
         "images": [torch.full((3, 20, 30), 0.5, dtype=torch.float32)],
@@ -220,8 +211,9 @@ def test_plot_detection_comparison_draws_ground_truth_and_prediction() -> None:
 def test_load_inference_model_restores_without_pretrained_download(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    detector_label_map: dict[str, Any],
 ) -> None:
-    label_map = make_label_map()
+    label_map = detector_label_map
     model = TinyInferenceModel()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
     checkpoint_path = tmp_path / "detector.pt"

@@ -22,21 +22,6 @@ class FixedValidationModel(nn.Module):
         return self.fixed_logits[: images.shape[0]]
 
 
-def make_class_map() -> dict[str, Any]:
-    return {
-        "num_classes": NUM_CLASSES,
-        "classes": [
-            {
-                "class_index": index,
-                "category_id": 1900 + index,
-                "item_seq": f"item-{index}",
-                "name": f"합성 품목 {index}",
-            }
-            for index in range(NUM_CLASSES)
-        ],
-    }
-
-
 def make_validation_batch() -> dict[str, Any]:
     return {
         "images": torch.zeros(2, 3, 224, 224, dtype=torch.float32),
@@ -57,7 +42,9 @@ def make_validation_batch() -> dict[str, Any]:
     }
 
 
-def test_evaluate_with_predictions_maps_and_records_errors() -> None:
+def test_evaluate_with_predictions_maps_and_records_errors(
+    classifier_class_map: dict[str, Any],
+) -> None:
     model = FixedValidationModel(
         torch.tensor(
             [
@@ -70,7 +57,7 @@ def test_evaluate_with_predictions_maps_and_records_errors() -> None:
     artifacts = evaluate_with_predictions(
         model,
         [make_validation_batch()],
-        make_class_map(),
+        classifier_class_map,
         nn.CrossEntropyLoss(),
         torch.device("cpu"),
         expected_num_classes=NUM_CLASSES,
@@ -87,12 +74,15 @@ def test_evaluate_with_predictions_maps_and_records_errors() -> None:
     assert artifacts.error_samples[0].sample_id == "sample-1"
 
 
-def test_save_validation_artifacts_writes_json(tmp_path: Path) -> None:
+def test_save_validation_artifacts_writes_json(
+    tmp_path: Path,
+    classifier_class_map: dict[str, Any],
+) -> None:
     model = FixedValidationModel(torch.tensor([[5.0, 1.0, 0.0], [4.0, 1.0, 0.0]]))
     artifacts = evaluate_with_predictions(
         model,
         [make_validation_batch()],
-        make_class_map(),
+        classifier_class_map,
         nn.CrossEntropyLoss(),
         torch.device("cpu"),
         expected_num_classes=NUM_CLASSES,

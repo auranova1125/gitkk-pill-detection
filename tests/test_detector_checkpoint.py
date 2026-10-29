@@ -38,15 +38,6 @@ class TinyCheckpointDetector(nn.Module):
         self.weight = nn.Parameter(torch.tensor(1.0))
 
 
-def make_label_map() -> dict[str, Any]:
-    return {
-        "num_foreground_classes": 1,
-        "num_model_classes": 2,
-        "background_label": 0,
-        "classes": [{"label": 1, "name": "pill"}],
-    }
-
-
 def make_data_summary() -> dict[str, Any]:
     return {
         "num_train_images": 2,
@@ -159,8 +150,10 @@ def patch_training_components(
     monkeypatch.setattr("detector.evaluate.evaluate_model", fake_evaluate_model)
 
 
-def test_hash_label_map_is_independent_of_dictionary_key_order() -> None:
-    first = make_label_map()
+def test_hash_label_map_is_independent_of_dictionary_key_order(
+    detector_label_map: dict[str, Any],
+) -> None:
+    first = detector_label_map
     second = {
         "classes": [{"name": "pill", "label": 1}],
         "background_label": 0,
@@ -173,6 +166,7 @@ def test_hash_label_map_is_independent_of_dictionary_key_order() -> None:
 
 def test_checkpoint_restores_model_optimizer_scheduler_and_rng(
     tmp_path: Path,
+    detector_label_map: dict[str, Any],
 ) -> None:
     config = make_config(tmp_path)
     model = TinyCheckpointDetector()
@@ -195,7 +189,7 @@ def test_checkpoint_restores_model_optimizer_scheduler_and_rng(
         best_map_75_95=0.5,
         best_mean_average_recall=0.6,
         epochs_without_improvement=0,
-        label_map_hash=hash_label_map(make_label_map()),
+        label_map_hash=hash_label_map(detector_label_map),
         split_hash="synthetic-split",
     )
     expected_random_values = (random.random(), np.random.rand(), torch.rand(1))
@@ -275,6 +269,7 @@ def test_early_stopping_uses_recall_to_break_map_tie() -> None:
 def test_run_training_saves_artifacts_and_best_checkpoint(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    detector_label_map: dict[str, Any],
 ) -> None:
     patch_training_components(
         monkeypatch,
@@ -285,7 +280,7 @@ def test_run_training_saves_artifacts_and_best_checkpoint(
         make_config(tmp_path),
         [],
         [],
-        make_label_map(),
+        detector_label_map,
         make_data_summary(),
         pretrained_backbone=False,
         device=torch.device("cpu"),
@@ -313,6 +308,7 @@ def test_run_training_saves_artifacts_and_best_checkpoint(
 def test_run_training_resumes_after_completed_epoch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    detector_label_map: dict[str, Any],
 ) -> None:
     config = make_config(tmp_path, run_name="resume")
     model = TinyCheckpointDetector()
@@ -332,7 +328,7 @@ def test_run_training_resumes_after_completed_epoch(
         best_map_75_95=0.4,
         best_mean_average_recall=0.5,
         epochs_without_improvement=0,
-        label_map_hash=hash_label_map(make_label_map()),
+        label_map_hash=hash_label_map(detector_label_map),
         split_hash="synthetic-split",
     )
     patch_training_components(monkeypatch, [(0.5, 0.5), (0.5, 0.6)])
@@ -346,7 +342,7 @@ def test_run_training_resumes_after_completed_epoch(
         resume_config,
         [],
         [],
-        make_label_map(),
+        detector_label_map,
         make_data_summary(),
         pretrained_backbone=False,
         device=torch.device("cpu"),
@@ -360,6 +356,7 @@ def test_run_training_resumes_after_completed_epoch(
 def test_run_training_rejects_incompatible_resume(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    detector_label_map: dict[str, Any],
 ) -> None:
     config = make_config(tmp_path)
     model = TinyCheckpointDetector()
@@ -378,7 +375,7 @@ def test_run_training_rejects_incompatible_resume(
         best_map_75_95=0.4,
         best_mean_average_recall=0.5,
         epochs_without_improvement=0,
-        label_map_hash=hash_label_map(make_label_map()),
+        label_map_hash=hash_label_map(detector_label_map),
         split_hash="synthetic-split",
     )
     patch_training_components(monkeypatch, [(0.5, 0.5), (0.5, 0.6)])
@@ -388,7 +385,7 @@ def test_run_training_rejects_incompatible_resume(
             make_config(tmp_path, resume_from=checkpoint_path),
             [],
             [],
-            make_label_map(),
+            detector_label_map,
             make_data_summary(),
             pretrained_backbone=False,
             device=torch.device("cpu"),

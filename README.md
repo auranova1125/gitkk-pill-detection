@@ -100,11 +100,21 @@ uv run python main.py evaluate classifier \
 uv run python main.py infer --config configs/pipeline.yaml
 ```
 
-`configs/*.yaml`은 기존 `TrainConfig`와 `DetectorConfig`로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
+`configs/*.yaml`은 기존 `TrainConfig`와 `DetectorConfig`로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 같은 config 객체를 직접 생성해 셀에서 실험값을 바꿀 수 있습니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
 
 탐지기 DataLoader 작업이 완료되기 전까지 `configs/detector.yaml`의 `data_factory_path`와 `configs/pipeline.yaml`의 `inference_factory_path`는 `null`입니다. 전달받은 factory의 `module:function` 경로로 변경한 뒤 학습 또는 통합 추론을 실행합니다.
 
-현재 `configs/detector.yaml`과 `configs/pipeline.yaml`의 데이터 factory는 `null`입니다. 탐지기 DataLoader가 준비되면 각각 `data_factory_path`와 `inference_factory_path`를 `module:function` 형식으로 설정합니다. 설정 전 실행하면 필요한 항목을 알리는 오류로 중단됩니다.
+설정 전 실행하면 필요한 factory 항목을 알리는 오류로 중단됩니다.
+
+## 전체 품질 검사
+
+프로젝트 루트에서 전체 테스트와 정적 검사를 실행합니다.
+
+```bash
+uv run python -m pytest -q
+uv run ruff check main.py classifier classifier_data configs detector common pilldata pipeline utils tests
+uv run ruff format --check main.py classifier detector common configs pilldata pipeline utils tests
+```
 
 ## Jupyter Notebook Git 설정
 
@@ -197,14 +207,6 @@ git merge origin/main
 
 데이터 구성 함수와 DataLoader가 제공해야 하는 정확한 형식은 [`docs/classifier_input_spec.md`](docs/classifier_input_spec.md)를 참고합니다.
 
-전체 단위 테스트와 코드 검사는 다음 명령으로 실행합니다.
-
-```bash
-uv run pytest -q
-uv run ruff check classifier common tests
-uv run ruff format --check classifier common tests
-```
-
 학습 결과와 checkpoint는 `outputs/{run_name}/` 아래에 저장되며 Git에는 포함되지 않습니다. 실험 결과 요약은 `reports/classifier_report.md`에 기록합니다.
 
 ## 구현 문서
@@ -228,14 +230,6 @@ data_factory_path = "data.detector_data:build_detector_inputs"
 ```
 
 Notebook은 입력 검증, 신규 학습 또는 `last.pt` 재개, 학습 곡선, `best.pt` 평가, bbox 시각화와 분류기 연결 batch 확인을 순서대로 실행합니다. 결과는 `outputs/{run_name}/` 아래에 저장하며 Git에는 포함하지 않습니다. 실험 결과는 [탐지기 결과 보고서](reports/detector_report.md)의 `TBD` 항목에 기록합니다.
-
-전체 단위 테스트와 코드 검사는 다음 명령으로 실행합니다.
-
-```bash
-uv run python -m pytest -q
-uv run ruff check detector tests
-uv run ruff format --check detector tests
-```
 
 실제 SSDLite의 합성 이미지 forward/backward와 NMS smoke test만 다시 실행하려면 다음 명령을 사용합니다.
 

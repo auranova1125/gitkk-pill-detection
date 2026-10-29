@@ -42,21 +42,6 @@ class TinyInferenceModel(nn.Module):
         return self.layers(images)
 
 
-def make_class_map(num_classes: int = NUM_CLASSES) -> dict[str, Any]:
-    return {
-        "num_classes": num_classes,
-        "classes": [
-            {
-                "class_index": index,
-                "category_id": 1900 + index,
-                "item_seq": f"item-{index}",
-                "name": f"합성 품목 {index}",
-            }
-            for index in range(num_classes)
-        ],
-    }
-
-
 def make_batch(batch_size: int = 2) -> dict[str, Any]:
     return {
         "images": torch.zeros(batch_size, 3, 224, 224, dtype=torch.float32),
@@ -81,7 +66,9 @@ def test_validate_classifier_crop_batch_normalizes_metadata() -> None:
     assert normalized_meta[1]["detector_score"] == 0.5
 
 
-def test_predict_detections_maps_classes_and_combines_scores() -> None:
+def test_predict_detections_maps_classes_and_combines_scores(
+    classifier_class_map: dict[str, Any],
+) -> None:
     logits = torch.tensor([[0.0, 3.0, 1.0], [0.0, 1.0, 4.0]])
     model = FixedLogitModel(logits)
     batch = make_batch()
@@ -89,7 +76,7 @@ def test_predict_detections_maps_classes_and_combines_scores() -> None:
     result = predict_detections(
         model,
         [batch],
-        make_class_map(),
+        classifier_class_map,
         torch.device("cpu"),
     )
 
@@ -109,8 +96,10 @@ def test_predict_detections_maps_classes_and_combines_scores() -> None:
     )
 
 
-def test_predict_detections_keeps_prediction_when_mapping_is_missing() -> None:
-    class_map = make_class_map()
+def test_predict_detections_keeps_prediction_when_mapping_is_missing(
+    classifier_class_map: dict[str, Any],
+) -> None:
+    class_map = classifier_class_map
     class_map["classes"] = class_map["classes"][:2]
     model = FixedLogitModel(torch.tensor([[0.0, 1.0, 4.0]]))
 
@@ -140,23 +129,27 @@ def test_validate_classifier_crop_batch_rejects_invalid_detector_score(
         validate_classifier_crop_batch(batch)
 
 
-def test_predict_detections_rejects_wrong_logit_shape() -> None:
+def test_predict_detections_rejects_wrong_logit_shape(
+    classifier_class_map: dict[str, Any],
+) -> None:
     model = FixedLogitModel(torch.zeros(1, 4))
 
     with pytest.raises(ValueError, match="logits must have shape"):
         predict_detections(
             model,
             [make_batch(batch_size=1)],
-            make_class_map(),
+            classifier_class_map,
             torch.device("cpu"),
         )
 
 
-def test_predict_detections_accepts_empty_loader() -> None:
+def test_predict_detections_accepts_empty_loader(
+    classifier_class_map: dict[str, Any],
+) -> None:
     result = predict_detections(
         FixedLogitModel(torch.zeros(1, NUM_CLASSES)),
         [],
-        make_class_map(),
+        classifier_class_map,
         torch.device("cpu"),
     )
 
@@ -167,8 +160,9 @@ def test_predict_detections_accepts_empty_loader() -> None:
 def test_load_inference_model_restores_checkpoint_without_pretrained_download(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    classifier_class_map: dict[str, Any],
 ) -> None:
-    class_map = make_class_map()
+    class_map = classifier_class_map
     original_model = TinyInferenceModel(NUM_CLASSES)
     checkpoint_path = tmp_path / "best.pt"
     optimizer = torch.optim.AdamW(original_model.parameters())

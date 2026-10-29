@@ -2,7 +2,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 상태 | 진행 중 |
+| 상태 | 완료 |
 | 관련 이슈 | #16 |
 | 작업 브랜치 | `16-refactor-project-structure` |
 | 최초 작성 | 2026-10-29 |
@@ -39,8 +39,8 @@
 | 1. runtime과 공통 I/O | 완료 | `371cf3d` |
 | 2. crop과 transform 통합 | 완료 | `1364053` |
 | 3. 설정과 `main.py` | 완료 | `256ff2d` |
-| 4. 검증 이름과 primitive | 검토 대기 | 명확한 검증 이름, 호환 alias와 공통 저수준 검증 추가 |
-| 5. 테스트와 문서 정리 | 대기 | 4단계 승인 후 진행 |
+| 4. 검증 이름과 primitive | 완료 | `d86cea0` |
+| 5. 테스트와 문서 정리 | 완료 | 전체 테스트 `204 passed` 및 최종 문서 정리 |
 
 ## 3. 현재 문제
 
@@ -320,6 +320,19 @@ detector.validate_detection_batch
 - 전체 소스 Ruff와 format 검사
 - Notebook JSON 구조와 Python 문법 검사
 - `git diff --check`
+
+#### 계획 대비 실제 구현
+
+초기 목표 구조는 방향을 설명하기 위한 제안이며, 이번 작업에서는 다음 경계를 의도적으로 유지했다.
+
+| 계획 항목 | 실제 구현 | 이유 |
+| --- | --- | --- |
+| 테스트를 소수 파일로 통합 | 기능별 테스트 파일 유지, `tests/conftest.py`만 추가 | 실패 범위와 모델별 책임을 빠르게 확인하기 위해 테스트 케이스를 억지로 합치지 않음 |
+| `pilldata/classifier_dataset.py` 추가 | 기존 `classifier_data/` 유지 | 실제 분류기 데이터 로더의 import 경로를 깨지 않고 탐지기 DataLoader 병합 이후 함께 정리하기 위함 |
+| `classifier_data_build/`를 `scripts/`로 이동 | 현재 경로 유지 | 팀원이 사용 중인 오프라인 ETL 경로 변경을 별도 이슈로 분리하기 위함 |
+| 공통 `utils/checkpoint_io.py` 추가 | 모델별 checkpoint와 공통 `utils/io.py` 유지 | 두 모델의 checkpoint schema와 재개 상태가 서로 다름 |
+| `pipeline/evaluate.py` 추가 | `pipeline/inference.py`와 `workflows.py`까지만 구현 | 실제 탐지 데이터와 평가 계약이 확정된 뒤 end-to-end 평가를 구현하기 위함 |
+| `common/` 제거 | `utils/`를 정식 구현으로 사용하고 `common/`은 호환 wrapper로 유지 | 기존 Notebook과 외부 import 경로를 보존하기 위함 |
 
 ## 7. 탐지기 DataLoader 이후 작업
 
