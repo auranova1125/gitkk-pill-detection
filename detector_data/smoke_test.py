@@ -1,4 +1,5 @@
 """공유 표본 4장으로 모델 연결을 검사한다. 표본을 새로 만들지 않는다."""
+
 import hashlib
 import importlib.metadata
 import json
@@ -15,15 +16,31 @@ def verify_samples(package):
     manifest = read_json(package / "smoke_package_manifest.json")
     if manifest["version"] != "pill-smoke-package-v1":
         raise ValueError("지원하지 않는 스모크 표본 형식입니다.")
-    if (manifest["batch_size"] != 2 or manifest["seed"] != 42
-        or manifest["augmentation"] != DEFAULT_SETTINGS["augmentation"]):
+    if (
+        manifest["batch_size"] != 2
+        or manifest["seed"] != 42
+        or manifest["augmentation"] != DEFAULT_SETTINGS["augmentation"]
+    ):
         raise ValueError("표본 검사 조건은 배치 2, 시드 42, 증강 없음이어야 합니다.")
-    keys = ("version", "files_sha256", "code_sha256", "selected_image_ids",
-            "augmentation", "batch_size", "seed")
-    encoded = json.dumps({key: manifest[key] for key in keys}, sort_keys=True, separators=(",", ":")).encode()
+    keys = (
+        "version",
+        "files_sha256",
+        "code_sha256",
+        "selected_image_ids",
+        "augmentation",
+        "batch_size",
+        "seed",
+    )
+    encoded = json.dumps(
+        {key: manifest[key] for key in keys}, sort_keys=True, separators=(",", ":")
+    ).encode()
     if hashlib.sha256(encoded).hexdigest() != manifest["package_hash"]:
         raise ValueError("표본 패키지 식별값이 기록과 다릅니다.")
-    required = {"split_manifest.csv", "annotations/train.json", "annotations/validation.json"}
+    required = {
+        "split_manifest.csv",
+        "annotations/train.json",
+        "annotations/validation.json",
+    }
     if not required.issubset(manifest["files_sha256"]):
         raise ValueError("표본 파일 해시 기록이 부족합니다.")
     for name, expected in manifest["files_sha256"].items():
@@ -36,8 +53,10 @@ def verify_samples(package):
             raise ValueError(f"표본 파일이 변경되었습니다: {name}")
     settings = {
         "package_dir": str(package),
-        "image_roots": {"select": str(package / "images/select_aihub"),
-                        "codeit": str(package / "images/select_codeit")},
+        "image_roots": {
+            "select": str(package / "images/select_aihub"),
+            "codeit": str(package / "images/select_codeit"),
+        },
         "augmentation": dict(DEFAULT_SETTINGS["augmentation"]),
     }
     records, _, summary = read_records(settings)
@@ -55,27 +74,38 @@ def verify_samples(package):
 
 
 def run_model_smoke(package, *, device_name="cpu"):
-    from .start import make_config, checked_loaders
     import torch
+
     from detector import build_detector_model, validate_detection_batch
+
+    from .start import checked_loaders, make_config
 
     settings, manifest, _ = verify_samples(package)
     print("[1/3 통과] 공유 표본 파일·ID·박스 수 확인")
     config = make_config(run_name="smoke_test", batch_size=2, seed=42)
     device, train, val, label_map, summary = checked_loaders(
-        config=config, device_name=device_name, settings=settings,
+        config=config,
+        device_name=device_name,
+        settings=settings,
     )
     train_batch, val_batch = next(iter(train)), next(iter(val))
     for batch in (train_batch, val_batch):
         validate_detection_batch(batch, label_map)
     print("[2/3 통과] Train·Validation 입력 형식 확인")
     torch.manual_seed(config.seed)
-    model = build_detector_model(config.model_name, num_classes=2, pretrained_backbone=False).to(device)
+    model = build_detector_model(
+        config.model_name, num_classes=2, pretrained_backbone=False
+    ).to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=config.learning_rate)
     model.train()
     images = [image.to(device) for image in train_batch["images"]]
-    targets = [{key: value.to(device) if isinstance(value, torch.Tensor) else value
-                for key, value in target.items()} for target in train_batch["targets"]]
+    targets = [
+        {
+            key: value.to(device) if isinstance(value, torch.Tensor) else value
+            for key, value in target.items()
+        }
+        for target in train_batch["targets"]
+    ]
     optimizer.zero_grad(set_to_none=True)
     losses = model(images, targets)
     if not losses:
@@ -94,13 +124,25 @@ def run_model_smoke(package, *, device_name="cpu"):
     if len(predictions) != len(val_batch["images"]):
         raise ValueError("Validation 예측 개수가 이미지 수와 다릅니다.")
     for prediction in predictions:
-        boxes, labels, scores = (prediction[key] for key in ("boxes", "labels", "scores"))
+        boxes, labels, scores = (
+            prediction[key] for key in ("boxes", "labels", "scores")
+        )
         count = len(scores)
-        if boxes.shape != (count, 4) or labels.shape != (count,) or scores.shape != (count,):
+        if (
+            boxes.shape != (count, 4)
+            or labels.shape != (count,)
+            or scores.shape != (count,)
+        ):
             raise ValueError("Validation 예측 형식이 올바르지 않습니다.")
-        if not torch.isfinite(boxes).all().item() or not torch.isfinite(scores).all().item():
+        if (
+            not torch.isfinite(boxes).all().item()
+            or not torch.isfinite(scores).all().item()
+        ):
             raise ValueError("Validation 예측 수치가 유효하지 않습니다.")
-        if not ((scores >= 0) & (scores <= 1)).all().item() or not (labels == 1).all().item():
+        if (
+            not ((scores >= 0) & (scores <= 1)).all().item()
+            or not (labels == 1).all().item()
+        ):
             raise ValueError("Validation 예측 점수 또는 라벨 오류입니다.")
     verify_samples(package)
     print("[3/3 통과] 손실 계산·역전파·가중치 갱신 1회·Validation 예측 확인")
@@ -114,15 +156,28 @@ def run_model_smoke(package, *, device_name="cpu"):
     for folder in ("detector", "detector_data"):
         for path in sorted((REPOSITORY_ROOT / folder).glob("*.py")):
             code_hashes[path.relative_to(REPOSITORY_ROOT).as_posix()] = hashlib.sha256(
-                path.read_text(encoding="utf-8").encode("utf-8")).hexdigest()
+                path.read_text(encoding="utf-8").encode("utf-8")
+            ).hexdigest()
     return {
-        "scope": "shared_fixed_samples", "device": str(device), "batch_size": 2,
-        "package_hash": manifest["package_hash"], "sample_files_verified": True,
-        "legacy_code_hash_enforced": False, "current_code_sha256": code_hashes,
-        "environment": environment, "label_map": label_map, "data_summary": summary,
-        "selected_image_ids": manifest["selected_image_ids"], "input_validation": "passed",
-        "model_step": {"status": "passed", "model_name": config.model_name,
-                       "loss": float(loss.detach().cpu()), "optimizer_steps": 1,
-                       "validation_predictions": len(predictions),
-                       "pretrained_backbone": False, "checkpoint_saved": False},
+        "scope": "shared_fixed_samples",
+        "device": str(device),
+        "batch_size": 2,
+        "package_hash": manifest["package_hash"],
+        "sample_files_verified": True,
+        "legacy_code_hash_enforced": False,
+        "current_code_sha256": code_hashes,
+        "environment": environment,
+        "label_map": label_map,
+        "data_summary": summary,
+        "selected_image_ids": manifest["selected_image_ids"],
+        "input_validation": "passed",
+        "model_step": {
+            "status": "passed",
+            "model_name": config.model_name,
+            "loss": float(loss.detach().cpu()),
+            "optimizer_steps": 1,
+            "validation_predictions": len(predictions),
+            "pretrained_backbone": False,
+            "checkpoint_saved": False,
+        },
     }

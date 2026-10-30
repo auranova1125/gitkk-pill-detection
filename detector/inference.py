@@ -289,9 +289,7 @@ def load_inference_model(
     checkpoint = load_checkpoint(checkpoint_path, selected_device)
 
     if checkpoint["label_map_hash"] != hash_label_map(label_map):
-        raise ValueError(
-            "checkpoint label map hash does not match current label map"
-        )
+        raise ValueError("checkpoint label map hash does not match current label map")
 
     model_config = checkpoint["model_config"]
     num_classes = model_config.get("num_classes")
@@ -299,16 +297,12 @@ def load_inference_model(
     pretrained_backbone = model_config.get("pretrained_backbone")
 
     if num_classes != label_map["num_model_classes"]:
-        raise ValueError(
-            "checkpoint class count does not match current label map"
-        )
+        raise ValueError("checkpoint class count does not match current label map")
 
     _validate_probability(nms_threshold, name="checkpoint nms_threshold")
 
     if not isinstance(pretrained_backbone, bool):
-        raise ValueError(
-            "체크포인트의 pretrained_backbone 설정이 올바르지 않습니다."
-        )
+        raise TypeError("체크포인트의 pretrained_backbone 설정이 올바르지 않습니다.")
 
     model = build_detector_model(
         checkpoint["model_name"],
@@ -320,6 +314,7 @@ def load_inference_model(
     model.load_state_dict(checkpoint["model_state"])
     model.eval()
     return model, selected_device
+
 
 def _validate_inference_image(image: Any, *, index: int) -> None:
     name = f"batch.images[{index}]"
