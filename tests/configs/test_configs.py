@@ -22,7 +22,7 @@ from etl.classifier.paths import CLASSES, REPORTS, ROOT
 from pilldata.classifier_dataset import build_classifier_inputs
 from pilldata.factory import load_data_factory
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_default_yaml_configs_load_into_existing_model_configs() -> None:

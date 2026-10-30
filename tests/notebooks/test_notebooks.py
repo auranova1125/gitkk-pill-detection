@@ -7,14 +7,15 @@ from typing import Any
 
 import pytest
 
-NOTEBOOK_DIR = Path(__file__).parents[1] / "notebooks"
-NOTEBOOK_PATHS = sorted(NOTEBOOK_DIR.glob("*.ipynb"))
+PROJECT_ROOT = Path(__file__).parents[2]
+NOTEBOOK_DIR = PROJECT_ROOT / "notebooks"
+NOTEBOOK_PATHS = sorted(NOTEBOOK_DIR.rglob("*.ipynb"))
 
 
 @pytest.mark.parametrize(
     "notebook_path",
     NOTEBOOK_PATHS,
-    ids=lambda path: path.name,
+    ids=lambda path: path.relative_to(NOTEBOOK_DIR).as_posix(),
 )
 def test_notebook_code_cells_have_valid_python_syntax(notebook_path: Path) -> None:
     """Notebook을 JSON으로 읽고 각 Python code cell을 독립적으로 파싱한다."""

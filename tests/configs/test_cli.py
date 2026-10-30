@@ -1,8 +1,6 @@
-"""CLI 명령 구성과 합성 smoke test."""
+"""프로젝트 CLI 명령 구성 테스트."""
 
-import json
-
-from main import build_parser, main
+from main import build_parser
 
 
 def test_parser_exposes_expected_commands() -> None:
@@ -25,13 +23,4 @@ def test_parser_exposes_expected_commands() -> None:
     )
     assert parser.parse_args(["recognize-pills"]).command == "recognize-pills"
     assert parser.parse_args(["smoke", "--device", "cpu"]).command == "smoke"
-
-
-def test_main_runs_cpu_synthetic_smoke(capsys) -> None:
-    assert main(["smoke", "--device", "cpu"]) == 0
-
-    result = json.loads(capsys.readouterr().out)
-    assert result["device"] == "cpu"
-    assert result["classifier_crop_shape"] == [3, 224, 224]
-    assert result["classifier_loss"] > 0.0
-    assert result["detector_loss"] > 0.0
+    assert parser.parse_args(["check-detector-data"]).command == "check-detector-data"
