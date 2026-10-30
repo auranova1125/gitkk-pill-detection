@@ -191,12 +191,12 @@ uv run ruff format --check classifier common tests
 
 `detector/`에는 이미지 속 모든 알약을 `pill` 하나의 foreground 클래스로 찾는 SSDLite320 MobileNetV3-Large baseline이 있습니다. 모델 출력 클래스는 background `0`과 pill `1`을 포함한 2개이며, 세부 약품명은 탐지 bbox crop을 별도 분류기에 전달해 결정합니다.
 
-실제 데이터 구성 함수는 아직 저장소에 포함하지 않습니다. 함수가 반환해야 하는 DataLoader, label map과 data summary 형식은 [탐지기 입력 명세서](docs/detector_input_spec.md)를 따릅니다. 전체 설계와 단계별 결정은 [탐지기 구현 계획서](docs/detector_implementation_plan.md)에서 확인할 수 있습니다.
+`detector_data/`는 `data/`에 배치한 고정 분할과 annotation을 읽어 탐지기 학습 입력을 구성합니다. DataLoader, label map과 data summary 형식은 [탐지기 입력 명세서](docs/detector_input_spec.md)를 따릅니다. 전체 설계와 단계별 결정은 [탐지기 구현 계획서](docs/detector_implementation_plan.md)에서 확인할 수 있습니다.
 
-데이터 구성 모듈이 준비되면 [학습 Notebook](notebooks/train_detector.ipynb)의 `data_factory_path`를 다음과 같은 경로로 설정합니다.
+탐지기 학습은 [학습 Notebook](notebooks/train_detector.ipynb)에서 다음 데이터 구성 함수를 불러와 실행합니다.
 
 ```python
-data_factory_path = "data.detector_data:build_detector_inputs"
+data_factory_path = "detector_data.detector_inputs:build_detector_inputs"
 ```
 
 Notebook은 입력 검증, 신규 학습 또는 `last.pt` 재개, 학습 곡선, `best.pt` 평가, bbox 시각화와 분류기 연결 batch 확인을 순서대로 실행합니다. 결과는 `outputs/{run_name}/` 아래에 저장하며 Git에는 포함하지 않습니다. 실험 결과는 [탐지기 결과 보고서](reports/detector_report.md)의 `TBD` 항목에 기록합니다.

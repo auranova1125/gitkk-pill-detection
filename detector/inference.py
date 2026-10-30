@@ -282,26 +282,35 @@ def load_inference_model(
     *,
     device: torch.device | None = None,
 ) -> tuple[nn.Module, torch.device]:
-    """checkpoint에서 pretrained 다운로드 없이 detector를 복원한다."""
+    """체크포인트의 학습 설정에 맞춰 탐지기를 복원한다."""
 
     validate_detector_label_map(label_map)
     selected_device = device if device is not None else select_device()
     checkpoint = load_checkpoint(checkpoint_path, selected_device)
+
     if checkpoint["label_map_hash"] != hash_label_map(label_map):
         raise ValueError("checkpoint label map hash does not match current label map")
 
     model_config = checkpoint["model_config"]
     num_classes = model_config.get("num_classes")
     nms_threshold = model_config.get("nms_threshold")
+    pretrained_backbone = model_config.get("pretrained_backbone")
+
     if num_classes != label_map["num_model_classes"]:
         raise ValueError("checkpoint class count does not match current label map")
+
     _validate_probability(nms_threshold, name="checkpoint nms_threshold")
+
+    if not isinstance(pretrained_backbone, bool):
+        raise TypeError("체크포인트의 pretrained_backbone 설정이 올바르지 않습니다.")
+
     model = build_detector_model(
         checkpoint["model_name"],
         num_classes=num_classes,
-        pretrained_backbone=False,
+        pretrained_backbone=pretrained_backbone,
         nms_threshold=float(nms_threshold),
     ).to(selected_device)
+
     model.load_state_dict(checkpoint["model_state"])
     model.eval()
     return model, selected_device
