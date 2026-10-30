@@ -78,6 +78,7 @@ class DataTests(unittest.TestCase):
                             "id": iid * 10 + k,
                             "image_id": iid,
                             "category_id": iid * 2 - 1 + k,
+                            "drug_code": f"K-{iid * 2 - 1 + k:06d}",
                             "bbox": [k * 12, 2, 10, 20],
                             "area": 200,
                             "iscrowd": 0,
@@ -275,6 +276,22 @@ class DataTests(unittest.TestCase):
         self.save()
         with self.assertRaisesRegex(ValueError, "면적"):
             read_records(self.settings)
+
+    def test_missing_or_invalid_drug_code_rejected(self):
+        for value in (None, "", "000001", "K-1", "K-00000A"):
+            with self.subTest(value=value):
+                self.ann()["drug_code"] = value
+                self.save()
+                with self.assertRaisesRegex(ValueError, "drug_code"):
+                    read_records(self.settings)
+
+    def test_invalid_category_id_rejected(self):
+        for value in (True, -1, "1"):
+            with self.subTest(value=value):
+                self.ann()["category_id"] = value
+                self.save()
+                with self.assertRaisesRegex(ValueError, "category_id"):
+                    read_records(self.settings)
 
     def test_ignore_and_crowd_rejected(self):
         for field in ("ignore", "iscrowd"):
