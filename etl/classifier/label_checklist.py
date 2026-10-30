@@ -1,4 +1,4 @@
-"""분류 데이터 라벨 검증 항목. validate_labels.py가 사용한다."""
+"""분류 데이터 라벨 검증 항목. validate_source_labels.py가 사용한다."""
 
 # 체크리스트 순서: (항목, 구분, 결과 성격)
 CHECKS = [

@@ -6,7 +6,7 @@
 탐지기 목록에 없는 그룹은 train에 넣는다 (분류기 val ⊂ 탐지기 validation 그룹).
 
 사용:
-    python -m scripts.classifier_data.split_dataset [--package data/detector/training_package_detector.zip]
+    python -m etl.classifier.assign_data_splits [--package data/detector/training_package_detector.zip]
 """
 
 import argparse
@@ -64,7 +64,7 @@ def assign_data_splits(package: Path = DETECTOR_PACKAGE) -> None:
     )
     print(f"val이 없는 클래스 {(t.val == 0).sum()}종: {t[t.val == 0].index.tolist()}")
 
-    # 그룹은 달라도 거의 같은 사진(pHash 거리 ≤ 5)이 train과 val에 나뉜 경우 (validate_labels.py 기록)
+    # 그룹은 달라도 거의 같은 사진(pHash 거리 ≤ 5)이 train과 val에 나뉜 경우 (validate_source_labels.py 기록)
     iss = pd.read_csv(META / "label_issues.csv", keep_default_na=False)
     sim = iss[iss.check == "중복·유사 이미지"]
     other = sim.detail.str.extract(r"^(.+?)와 pHash")[0]
@@ -113,7 +113,7 @@ def assign_data_splits(package: Path = DETECTOR_PACKAGE) -> None:
     md = [
         "# train/val 분할 결과 (분류기 crop)",
         "",
-        f"`python -m scripts.classifier_data.split_dataset` 결과 ({date.today()}). `data/classifier/crops/crops.csv`의 `split` 열 기준이다.",
+        f"`python -m etl.classifier.assign_data_splits` 결과 ({date.today()}). `data/classifier/crops/crops.csv`의 `split` 열 기준이다.",
         "",
         "## 분할 기준",
         "",

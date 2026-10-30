@@ -2,7 +2,7 @@
 
 규칙
 - 촬영 조건: 연회색 배경, 주백색 조명, 70/75/90° (test와 같은 조건)
-- 제외: validate_labels.py가 정한 라벨 오류 (조합은 이미지째, Kaggle은 해당 bbox만). 먼저 실행해야 한다
+- 제외: validate_source_labels.py가 정한 라벨 오류 (조합은 이미지째, Kaggle은 해당 bbox만). 먼저 실행해야 한다
 - Kaggle은 전부 쓰고, 모자란 만큼만 조합 이미지로 채운다. 목표에 못 미치는 클래스는 있는 만큼만 쓴다.
 - 고르는 방법(정수계획, scipy milp): 목표를 넘는 bbox 수를 최소화.
   각 각도가 30% 이상이 되게 하고, 같은 조합보다 서로 다른 조합을 우선한다.
@@ -13,7 +13,7 @@
     data/classifier/meta/class_summary.csv    클래스별 kaggle, combo, total, 조합 가용 수
 
 사용:
-    python -m scripts.classifier_data.select_images [--target 108]
+    python -m etl.classifier.select_source_images [--target 108]
 """
 
 import argparse

@@ -14,9 +14,9 @@
 
 로더와 crop 코드는 패키지에 넣지 않고 레포의 pilldata 모듈을 사용한다.
 
-앞 단계: validate_labels → select_images → make_crops → split_dataset
+앞 단계: validate_source_labels → select_source_images → create_pill_crops → assign_data_splits
 사용:
-    python -m scripts.classifier_data.export_classifier_inputs
+    python -m etl.classifier.export_training_package
 """
 
 import io

@@ -1,6 +1,6 @@
 # 라벨 검수 결과 (분류기 crop 데이터)
 
-- 실행일: 2026-10-28 / 현재 실행 명령: `python -m scripts.classifier_data.validate_labels`
+- 실행일: 2026-10-28 / 현재 실행 명령: `python -m etl.classifier.validate_source_labels`
 - 기준 문서: Obsidian 「알약 데이터 검증 체크리스트」
 - 대상: 조합 TL_1·3·4·5·6·7·8 중 촬영 조건(연회색·주백색·70/75/90°) 이미지 10523장, Kaggle train 232장, bbox 41164개
 - 기준값: 1mm당 픽셀 긴 변 18~33·짧은 변 18 이상, IoU > 0.7 또는 작은 bbox의 90% 이상 겹침, pHash 거리 ≤ 5
@@ -64,7 +64,7 @@ Annotation ID·이미지 ID 중복은 Kaggle만 검사했다. 조합 JSON은 약
 
 - 조합의 제외 bbox에는 같은 이미지에 있던 정상 알약 bbox도 들어 있다 (이미지째 빼므로).
 - AI Hub `-오류` 폴더 라벨은 읽지 않았으므로 대상·제외 bbox 수에 들어 있지 않다 (이미지 수에는 들어 있다).
-- 남은 수는 crop 후보이고, 실제로 쓴 이미지는 `select_images.py`가 이 중에서 고른다.
+- 남은 수는 crop 후보이고, 실제로 쓴 이미지는 `select_source_images.py`가 이 중에서 고른다.
 
 ### 제외 사유별 이미지 수
 

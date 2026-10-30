@@ -1,6 +1,6 @@
 """「알약 데이터 검증 체크리스트」대로 라벨을 검사하고, 이미지 선정 전에 뺄 이미지와 bbox를 정한다.
 
-대상: select_images.py의 후보 전체
+대상: select_source_images.py의 후보 전체
     - 조합 TL_1·3~8 중 촬영 조건(연회색 배경, 주백색 조명, 70/75/90°)에 맞는 이미지
     - Kaggle train 전부
 
@@ -14,7 +14,7 @@
     reports/data/classifier/validation_report.md  항목별 건수와 처리 (기록용)
 
 사용:
-    python -m scripts.classifier_data.validate_labels [--skip-png]
+    python -m etl.classifier.validate_source_labels [--skip-png]
 """
 
 import argparse
@@ -59,7 +59,7 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
 
     # ── 라벨 읽기: bbox 하나당 한 줄 ──────────────────────────────────────────
     recs, issues = [], []
-    files = []  # 검수 대상 라벨 JSON 목록 (약 하나당 한 파일). export_classifier_inputs.py가 item_seq·drug_dir를 읽을 때 쓴다
+    files = []  # 검수 대상 라벨 JSON 목록 (약 하나당 한 파일). export_training_package.py가 item_seq·drug_dir를 읽을 때 쓴다
 
     def issue(source, image, code, check, action, detail=""):
         issues.append(
@@ -558,7 +558,7 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
     lines = [
         "# 라벨 검수 결과 (분류기 crop 데이터)",
         "",
-        f"- 실행일: {date.today()} / 스크립트: `python -m scripts.classifier_data.validate_labels`"
+        f"- 실행일: {date.today()} / 스크립트: `python -m etl.classifier.validate_source_labels`"
         + (" (PNG 검사 생략)" if skip_png else ""),
         "- 기준 문서: Obsidian 「알약 데이터 검증 체크리스트」",
         f"- 대상: 조합 TL_{'·'.join(map(str, COMBO_ZIPS))} 중 촬영 조건(연회색·주백색·70/75/90°) 이미지 {n_combo}장, Kaggle train {n_kaggle}장, bbox {len(d)}개",
@@ -643,7 +643,7 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
         "",
         "- 조합의 제외 bbox에는 같은 이미지에 있던 정상 알약 bbox도 들어 있다 (이미지째 빼므로).",
         "- AI Hub `-오류` 폴더 라벨은 읽지 않았으므로 대상·제외 bbox 수에 들어 있지 않다 (이미지 수에는 들어 있다).",
-        "- 남은 수는 crop 후보이고, 실제로 쓴 이미지는 `select_images.py`가 이 중에서 고른다.",
+        "- 남은 수는 crop 후보이고, 실제로 쓴 이미지는 `select_source_images.py`가 이 중에서 고른다.",
         "",
         "### 제외 사유별 이미지 수",
         "",

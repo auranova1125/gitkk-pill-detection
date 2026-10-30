@@ -1,6 +1,6 @@
 # 클래스별 crop 개수
 
-`data/classifier/crops/<약 코드>/` 폴더의 jpg 개수 (2026-10-28, `python -m scripts.classifier_data.count_crops` 결과).
+`data/classifier/crops/<약 코드>/` 폴더의 jpg 개수 (2026-10-28, `python -m etl.classifier.summarize_crops` 결과).
 출처(Kaggle/조합)는 `data/classifier/crops/crops.csv` 기준이다. 목표 108개 미만은 **굵게** 표시.
 
 ## 요약

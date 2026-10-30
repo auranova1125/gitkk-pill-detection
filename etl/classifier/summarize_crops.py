@@ -2,7 +2,7 @@
 개수는 폴더에 실제로 있는 파일 기준, 출처와 split별 개수는 crops.csv 기준.
 
 사용:
-    python -m scripts.classifier_data.count_crops [--min 108]
+    python -m etl.classifier.summarize_crops [--min 108]
 """
 
 import argparse
@@ -58,7 +58,7 @@ def summarize_crops(*, minimum: int = 108) -> None:
     md = [
         "# 클래스별 crop 개수",
         "",
-        f"`data/classifier/crops/<약 코드>/` 폴더의 jpg 개수 ({date.today()}, `python -m scripts.classifier_data.count_crops` 결과).",
+        f"`data/classifier/crops/<약 코드>/` 폴더의 jpg 개수 ({date.today()}, `python -m etl.classifier.summarize_crops` 결과).",
         f"출처(Kaggle/조합)는 `data/classifier/crops/crops.csv` 기준이다. 목표 {minimum}개 미만은 **굵게** 표시.",
         "",
         "## 요약",
