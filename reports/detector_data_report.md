@@ -46,7 +46,7 @@
 | target area | 경계 처리·변환 후 bbox에서 재계산 |
 | iscrowd | 정수 0 |
 | 배치 | `images`, `targets`, `meta` 각각 리스트 |
-| 원본 약품 코드 | `meta`에 보존 |
+| 원본 약품 코드 | annotation의 실제 `drug_code`를 `meta`에 보존 |
 | 현재 학습 증강 | 적용하지 않음 |
 | Validation 무작위 변환 | 적용하지 않음 |
 | 외부 resize·ImageNet 정규화 | 적용하지 않음 |
@@ -110,12 +110,24 @@ detector_data.detector_inputs:build_detector_inputs
 
 공유 패키지와 GitHub용 코드에서 동일한 값을 확인하였다. 다른 구현의 해시는 계산 방식이 다를 수 있으므로 값만으로 직접 비교하지 않는다.
 
-## 8. 확인 범위와 한계
+## 8. 실행 검증
 
-- 현재는 전달받은 단일 클래스 SSDLite 입력 명세를 기준으로 검증하였다.
+2026년 10월 30일 현재 코드에서 합성데이터로 공식 `notebooks/train_detector.ipynb` 흐름을 실행하였다.
+
+- 장치: MPS
+- Train 2장, Validation 2장
+- SSDLite 1 epoch 학습
+- `best.pt`, `last.pt`, `metrics.csv` 저장
+- 최적 checkpoint 복원
+- Validation 평가와 예측 JSON 저장
+- 탐지 bbox의 분류기 입력 변환
+
+전체 자동 테스트는 190개와 subtest 7개가 통과하였다. 실제 학습 데이터로 확인한 이미지·박스·그룹 집계는 이 보고서의 2절과 같지만, 정리된 공식 Notebook으로 전체 epoch 학습을 다시 수행한 결과는 별도 실험 보고서에 기록한다.
+
+## 9. 확인 범위와 한계
+
+- 현재는 단일 클래스 SSDLite 입력 명세를 기준으로 검증하였다.
 - 다른 탐지 모델과의 입력·학습 코드 호환성은 별도로 확인해야 한다.
-- 전체 이미지의 픽셀을 DataLoader로 반복 순회하는 검사는 이번 연결 단계에서 수행하지 않았다.
+- 합성데이터 학습은 실행 연결 검증이며 모델 성능을 의미하지 않는다.
 - 첫 배치 검증과 표본 시각 검토가 전체 annotation의 정확성을 보장하지 않는다.
-- 모델 생성, 순전파, 역전파 및 실제 학습은 아직 검증하지 않았다.
-
-다음 확인 단계는 담당 모델에서 첫 배치의 손실 계산·역전파·가중치 갱신을 수행하는 짧은 학습 테스트이다.
+- 실제 전체 데이터의 장기 학습 성능은 `reports/detector_report.md`에 기록한다.
