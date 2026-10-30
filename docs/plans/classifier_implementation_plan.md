@@ -1,6 +1,6 @@
 # 경구약제 118종 분류기 구현 계획서
 
-> **문서 상태:** 초기 구현 계획과 설계 결정 기록이다. 현재 실행 방법과 경로는 루트 [`README.md`](../README.md), 데이터 전달 계약은 [`classifier_input_spec.md`](classifier_input_spec.md)를 기준으로 한다.
+> **문서 상태:** 초기 구현 계획과 설계 결정 기록이다. 현재 실행 방법과 경로는 루트 [`README.md`](../../README.md), 데이터 전달 계약은 [분류기 입력 명세](../specs/classifier_input_spec.md)를 기준으로 한다.
 
 ## 1. 목표와 범위
 
@@ -384,7 +384,7 @@ run_training(
 
 ## 7. 학습 노트북
 
-`notebooks/train_classifier.ipynb`는 다음 순서로 실행한다.
+`notebooks/baseline/train_classifier.ipynb`는 다음 순서로 실행한다.
 
 1. 프로젝트 모듈 import
 2. `ClassifierConfig` 생성

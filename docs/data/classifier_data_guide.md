@@ -2,7 +2,7 @@
 
 > **문서 상태:** 현재 분류기 데이터 사용 안내다. runtime Dataset과 전처리의 기준 구현은 `pilldata/`에 있다.
 
-「분류기 데이터 및 함수 입력 명세서」(`docs/classifier_input_spec.md`)에 변경 사항 2가지를 더한 분류기 데이터 구성 함수다.
+[분류기 데이터 및 함수 입력 명세서](../specs/classifier_input_spec.md)에 변경 사항 2가지를 더한 분류기 데이터 구성 함수다.
 - 변경 1: bbox 사방 5% 여백 + 이미지 경계 clip
 - 변경 2: 탐지 결과도 `crop_pill`로 자른다
 
@@ -12,7 +12,7 @@
 | `pilldata/transforms.py` | crop, 여백 5%, clip, padding, resize와 정규화의 공통 구현 |
 
 학습에는 위 runtime 모듈과 드라이브의 데이터만 있으면 된다.
-데이터를 만든 방법·기준, 검수 결과, 확인 Notebook은 [분류기 데이터 구성 안내](classifier_data_build.md)에 있다.
+데이터를 만든 방법·기준, 검수 결과, 확인 Notebook은 [분류 데이터 ETL](classifier_etl.md)에 있다.
 
 ## 데이터
 구글 드라이브 `gitkk_archive/training_package_classifier.zip` (탐지기 `training_package_detector.zip`과 같은 폴더)
@@ -33,7 +33,7 @@ crops/<약 코드>/<sample_id>.png   원본에서 bbox 사방 5% 여백 + 경계
 | split_hash | `49d2afee86a4ec8f48c25488eac9b1f9081b36066e5533eba40670087f60430c` |
 
 ## 사용법
-`notebooks/train_classifier.ipynb` 설정 셀에서 다음을 바꾼다. 로더는 `class_map_path`와 같은 폴더에서 `samples.csv`와 `crops/`를 읽는다.
+`notebooks/baseline/train_classifier.ipynb` 설정 셀에서 다음을 바꾼다. 로더는 `class_map_path`와 같은 폴더에서 `samples.csv`와 `crops/`를 읽는다.
 ```python
 # 드라이브에서 바로 읽으면 느리므로 Colab 로컬에 푼다
 !unzip -q "/content/drive/MyDrive/gitkk_archive/training_package_classifier.zip" -d /content/training_package_classifier

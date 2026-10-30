@@ -108,7 +108,7 @@ final_score = detector_score × classifier_score
 
 ## 8. 한계와 후속 작업
 
-- 실제 DataLoader가 아직 저장소에 연결되지 않아 기준 학습 수치는 미기재 상태다.
+- 실제 DataLoader는 저장소에 연결됐지만, 전체 데이터 baseline 학습 수치는 아직 미기재 상태다.
 - 입력 검증은 source annotation에서 target으로 변환되는 누락은 찾지만 원본 annotation 자체의 누락은 찾지 못한다.
 - score와 NMS threshold는 validation 결과를 확인한 뒤 확정해야 한다.
 - SSDLite의 높은 IoU 위치 정밀도가 부족하면 같은 split에서 SSD300 또는 FPN 계열 모델을 비교한다.
@@ -116,8 +116,8 @@ final_score = detector_score × classifier_score
 
 ## 9. 재현 방법
 
-1. 데이터 구성 모듈에서 입력 명세에 맞는 loader, label map과 data summary를 생성한다.
-2. `notebooks/train_detector.ipynb`의 `data_factory_path`를 설정한다.
+1. [탐지 데이터 사용 안내](../docs/data/detector_data_guide.md)에 맞춰 이미지와 annotation을 배치한다.
+2. `notebooks/baseline/train_detector.ipynb`에서 경로와 실행 설정을 확인한다.
 3. 입력 검증 셀과 bbox 시각화 셀로 annotation을 확인한다.
 4. 신규 학습 또는 `last.pt` 재개 셀을 실행한다.
 5. `best.pt` 평가와 예측 저장 셀을 실행한다.

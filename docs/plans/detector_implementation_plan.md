@@ -1,6 +1,6 @@
 # 단일 클래스 알약 탐지기 구현 계획서
 
-> **문서 상태:** 초기 구현 계획과 설계 결정 기록이다. 현재 실행 방법과 경로는 루트 [`README.md`](../README.md), 데이터 전달 계약은 [`detector_input_spec.md`](detector_input_spec.md)를 기준으로 한다.
+> **문서 상태:** 초기 구현 계획과 설계 결정 기록이다. 현재 실행 방법과 경로는 루트 [`README.md`](../../README.md), 데이터 전달 계약은 [탐지기 입력 명세](../specs/detector_input_spec.md)를 기준으로 한다.
 
 ## 1. 목표
 
@@ -41,7 +41,7 @@
 - 제출 파일 생성과 모델 ensemble
 - 전체 데이터 최종 재학습 여부 결정
 
-데이터 구성 코드는 별도 파트에서 제공하며, 분류기와 마찬가지로 탐지기 코드가 요구하는 입력 형식은 [`detector_input_spec.md`](detector_input_spec.md)에 명시한다.
+데이터 구성 코드는 별도 파트에서 제공하며, 분류기와 마찬가지로 탐지기 코드가 요구하는 입력 형식은 [탐지기 입력 명세](../specs/detector_input_spec.md)에 명시한다.
 
 ## 3. 확인된 원본 데이터 구조
 
@@ -419,7 +419,7 @@ final_score = detector_score × classifier_score
 
 ## 14. 학습 Notebook
 
-`notebooks/train_detector.ipynb`는 orchestration만 담당한다.
+`notebooks/baseline/train_detector.ipynb`는 orchestration만 담당한다.
 
 1. 프로젝트 import와 경로 설정
 2. `DetectorConfig` 생성
@@ -550,7 +550,7 @@ feat: SSD300 비교 실험 구성 추가
 
 ## 16. 테스트 계획
 
-실제 DataLoader가 준비되기 전에는 합성 이미지와 bbox를 사용한다.
+초기 구현 당시 실제 DataLoader가 준비되기 전에는 합성 이미지와 bbox를 사용한다.
 
 - 올바른 batch 검증 통과
 - 잘못된 dtype, shape, bbox, label 거부

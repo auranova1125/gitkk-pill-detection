@@ -102,9 +102,7 @@ uv run python main.py recognize-pills --config configs/pill_recognition.yaml
 
 `configs/*.yaml`은 `configs/classifier.py`, `configs/detector.py`, `configs/pill_recognition.py`의 설정 객체로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 같은 설정 객체를 직접 생성해 셀에서 실험값을 바꿀 수 있습니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
 
-탐지기 DataLoader 작업이 완료되기 전까지 `configs/detector.yaml`의 `data_factory_path`와 `configs/pill_recognition.yaml`의 `inference_factory_path`는 `null`입니다. 전달받은 factory의 `module:function` 경로로 변경한 뒤 학습 또는 통합 추론을 실행합니다.
-
-설정 전 실행하면 필요한 factory 항목을 알리는 오류로 중단됩니다.
+기본 YAML은 저장소가 제공하는 `pilldata` factory를 사용합니다. 데이터가 저장소 밖에 있으면 탐지기는 `data_settings_path`, 분류기는 `class_map_path`와 `data_summary_path`, 통합 추론은 `input_dir`을 실제 경로에 맞게 바꿉니다.
 
 ## 전체 품질 검사
 
@@ -112,8 +110,8 @@ uv run python main.py recognize-pills --config configs/pill_recognition.yaml
 
 ```bash
 uv run python -m pytest -q
-uv run ruff check main.py classifier configs detector pilldata pipeline scripts utils tests
-uv run ruff format --check main.py classifier detector configs pilldata pipeline scripts utils tests
+uv run ruff check main.py classifier configs detector etl pilldata pipeline utils tests
+uv run ruff format --check main.py classifier configs detector etl pilldata pipeline utils tests
 ```
 
 ## Jupyter Notebook Git 설정
@@ -201,66 +199,76 @@ git merge origin/main
 
 상세 협업 규칙은 프로젝트 Notion을 참고합니다.
 
-## 분류기 구현
+## 프로젝트 구조
 
-`classifier/`에는 현재 118종을 기본값으로 사용하는 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 클래스 수는 실행 시 `expected_num_classes`로 변경할 수 있습니다. 분류기 데이터 factory 경로는 `pilldata.classifier_dataset:build_classifier_inputs`입니다.
+| 경로 | 책임 |
+| --- | --- |
+| `classifier/` | 품목 분류 모델, 학습·평가·추론, checkpoint |
+| `detector/` | 단일 `pill` 클래스 탐지 모델, 학습·평가·추론, checkpoint |
+| `pilldata/` | 학습·추론 중 사용하는 Dataset, DataLoader, transform |
+| `etl/` | 원천 데이터에서 학습 패키지를 만드는 오프라인 ETL |
+| `pipeline/` | 탐지 bbox를 분류기에 연결하는 알약 인식 |
+| `configs/` | 검증된 실행 설정과 기본 YAML |
+| `utils/` | 장치, RNG, artifact 저장 등 저수준 공통 기능 |
 
-데이터 구성 함수와 DataLoader가 제공해야 하는 정확한 형식은 [`docs/classifier_input_spec.md`](docs/classifier_input_spec.md)를 참고합니다.
+설계 기준과 전체 tree는 [프로젝트 구조](docs/architecture/project_structure.md)에서 확인합니다.
 
-학습 결과와 checkpoint는 `outputs/{run_name}/` 아래에 저장되며 Git에는 포함되지 않습니다. 실험 결과 요약은 `reports/classifier_report.md`에 기록합니다.
+## 데이터 흐름
 
-## 프로젝트 문서
-
-루트 `README.md`를 프로젝트의 유일한 README로 사용합니다. 세부 문서는 목적에 따라 다음과 같이 구분합니다.
-
-### 현재 구현과 입력 명세
-
-- [분류기 데이터 사용 안내](docs/classifier_data.md)
-- [분류기 데이터 구성 안내](docs/classifier_data_build.md)
-- [분류기 입력 명세서](docs/classifier_input_spec.md)
-- [탐지기 입력 명세서](docs/detector_input_spec.md)
-- [프로젝트 구조 리팩터링 계획](docs/architecture/project_structure_refactor_plan.md)
-
-### 구현 결정 기록
-
-- [분류기 구현 계획 및 결정](docs/classifier_implementation_plan.md)
-- [탐지기 구현 계획 및 결정](docs/detector_implementation_plan.md)
-
-### 실험 결과 문서
-
-- [분류기 결과 보고서](reports/classifier_report.md)
-- [탐지기 결과 보고서](reports/detector_report.md)
-
-두 결과 보고서는 실제 데이터 기준 학습 전까지 사용하는 결과 입력 양식이며, `TBD`는 아직 측정되지 않은 항목을 뜻합니다.
-
-## 단일 클래스 알약 탐지기
-
-`detector/`에는 이미지 속 모든 알약을 `pill` 하나의 foreground 클래스로 찾는 SSDLite320 MobileNetV3-Large baseline이 있습니다. 모델 출력 클래스는 background `0`과 pill `1`을 포함한 2개이며, 세부 약품명은 탐지 bbox crop을 별도 분류기에 전달해 결정합니다.
-
-`pilldata/detector_dataset.py`는 `data/`에 배치한 고정 분할과 annotation을 읽어 탐지기 학습 입력을 구성합니다. DataLoader, label map과 data summary 형식은 [탐지기 입력 명세서](docs/detector_input_spec.md)를 따릅니다. 전체 설계와 단계별 결정은 [탐지기 구현 계획서](docs/detector_implementation_plan.md)에서 확인할 수 있습니다.
-
-탐지기 학습은 [학습 Notebook](notebooks/train_detector.ipynb)에서 다음 데이터 구성 함수를 불러와 실행합니다.
-
-```python
-data_factory_path = "pilldata.detector_dataset:build_detector_inputs"
+```text
+원천 데이터 → etl/ → data/ 학습 패키지 → pilldata/ → classifier/ 또는 detector/
+                                                     └→ pipeline/ 알약 인식
 ```
 
-Notebook은 입력 검증, 신규 학습 또는 `last.pt` 재개, 학습 곡선, `best.pt` 평가, bbox 시각화와 분류기 연결 batch 확인을 순서대로 실행합니다. 결과는 `outputs/{run_name}/` 아래에 저장하며 Git에는 포함하지 않습니다. 실험 결과는 [탐지기 결과 보고서](reports/detector_report.md)의 `TBD` 항목에 기록합니다.
-
-실제 SSDLite의 합성 이미지 forward/backward와 NMS smoke test만 다시 실행하려면 다음 명령을 사용합니다.
+분류 학습 패키지 ETL은 다음 명령으로 실행합니다. 기존 출력을 교체하려면 `--overwrite`를 명시해야 합니다.
 
 ```bash
-uv run python -m pytest -q tests/test_detector_model.py
+uv run python -m etl.classifier.build_classifier_dataset
 ```
 
-## 탐지·분류 통합 추론
+탐지 학습 패키지는 다음 명령으로 라벨·분할·경로를 검사합니다.
 
-[알약 인식 Notebook](notebooks/recognize_pills.ipynb)은 학습된 탐지기와 분류기의 `best.pt`를 불러와 원본 이미지에서 알약 bbox와 세부 품목을 순서대로 예측합니다. 각 모델의 학습은 기존 개별 Notebook에서 수행합니다.
+```bash
+uv run python main.py check-detector-data
+```
 
-통합 Notebook의 `inference_factory_path`에는 `factory(batch_size=...)` 호출로 추론 DataLoader를 반환하는 함수 경로를 지정합니다. DataLoader batch는 [탐지기 입력 명세서의 추론 형식](docs/detector_input_spec.md#12-추론-dataloader)을 따라야 합니다.
+## Notebook
 
-결과는 `outputs/pill_recognition/` 아래에 저장됩니다.
+### Baseline
 
-- `pill_predictions.json`: bbox, 품목 정보, 탐지·분류·결합 점수
-- `pill_recognition_errors.json`: 탐지 및 분류 단계별 오류
-- `visualizations/`: 품목명과 최종 점수를 표시한 이미지
+- [분류기 학습](notebooks/baseline/train_classifier.ipynb)
+- [탐지기 학습](notebooks/baseline/train_detector.ipynb)
+- [탐·분 통합 알약 인식](notebooks/baseline/run_pill_recognition.ipynb)
+
+### 실험·EDA
+
+- [분류기 baseline 분석](notebooks/experiments/classifier_baseline_analysis.ipynb)
+- [분류 데이터 품질 확인](notebooks/eda/classifier_data_quality.ipynb)
+
+Notebook은 설정과 시각화를 담당하며, 학습·평가 핵심 로직은 Python 모듈을 호출합니다. 자동화나 재현이 필요한 경우 `main.py`의 `train-classifier`, `train-detector`, `evaluate`, `recognize-pills`, `smoke` 명령을 사용합니다.
+
+## 검증
+
+```bash
+# 전체 테스트
+uv run pytest -q
+
+# 합성 데이터 소형 smoke
+uv run pytest -q -m smoke
+
+# 코드 스타일
+uv run ruff check classifier detector pipeline pilldata configs utils etl tests main.py
+uv run ruff format --check classifier detector pipeline pilldata configs utils etl tests main.py
+```
+
+학습 결과와 checkpoint는 `outputs/<run_name>/`에 저장하며 Git에 포함하지 않습니다. 분류 클래스 수의 기본값은 118이지만 `expected_num_classes`로 변경할 수 있으며, 검증 로직이 118을 절대값으로 강제하지 않습니다.
+
+## 문서
+
+루트 `README.md`를 유일한 README로 사용합니다.
+
+- 구조: [프로젝트 구조](docs/architecture/project_structure.md)
+- 데이터: [분류 데이터](docs/data/classifier_data_guide.md), [분류 ETL](docs/data/classifier_etl.md), [탐지 데이터](docs/data/detector_data_guide.md)
+- 입력 명세: [분류기](docs/specs/classifier_input_spec.md), [탐지기](docs/specs/detector_input_spec.md)
+- 초기 계획·결정: [분류기](docs/plans/classifier_implementation_plan.md), [탐지기](docs/plans/detector_implementation_plan.md)
+- 결과: [분류기](reports/classifier_report.md), [탐지기](reports/detector_report.md)

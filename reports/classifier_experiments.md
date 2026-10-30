@@ -7,10 +7,10 @@
 | 항목 | 기준 |
 | --- | --- |
 | 데이터 | `training_package_classifier.zip`, `split_hash` `49d2afee…` (`data_summary.json`) |
-| 학습 | `notebooks/train_classifier.ipynb`, `TrainConfig` 기본값 (seed 42, batch 32, 최대 30 epoch, head-only 3 epoch, early stopping 7) |
+| 학습 | `notebooks/baseline/train_classifier.ipynb`, `ClassifierConfig` 기본값 (seed 42, batch 32, 최대 30 epoch, head-only 3 epoch, early stopping 7) |
 | 모델 선택 | `best.pt` (val macro F1 최대, 같으면 Top-1이 높은 epoch) |
 | 평가 | macro F1은 val support가 1 이상인 클래스만. 전체 val과 `near_dup_in_train` 제외 val을 함께 기록 |
-| 분석 | `notebooks/classifier_baseline_analysis.ipynb`에 같은 `run_name`으로 실행 |
+| 분석 | `notebooks/experiments/classifier_baseline_analysis.ipynb`에 같은 `run_name`으로 실행 |
 
 데이터를 바꾸는 실험(라벨 오류 제거, crop 여백 변경 등)은 `split_hash`가 달라져 같은 val로 비교하는 것이 아니다. 아래 표의 `split_hash` 열에 데이터 버전을 꼭 적는다.
 

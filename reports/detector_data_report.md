@@ -112,7 +112,7 @@ pilldata.detector_dataset:build_detector_inputs
 
 ## 8. 실행 검증
 
-2026년 10월 30일 현재 코드에서 합성데이터로 공식 `notebooks/train_detector.ipynb` 흐름을 실행하였다.
+2026년 10월 30일 당시 코드에서 합성데이터로 현재의 `notebooks/baseline/train_detector.ipynb`에 해당하는 흐름을 실행하였다.
 
 - 장치: MPS
 - Train 2장, Validation 2장
