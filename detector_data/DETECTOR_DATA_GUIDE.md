@@ -71,30 +71,30 @@ JSON 경로를 직접 수정할 필요가 없습니다.
 `class_mapping.csv`는 원본 약품 클래스 연결 정보입니다. 단일 클래스 탐지 라벨 생성에는 사용하지 않습니다.
 `dataset_info.json`은 필요하지 않습니다.
 
-## 4. 전체 데이터로 학습 준비
+## 4. 전체 데이터 학습
 
-`detector_data/START_DETECTOR_DATA.ipynb`을 열어 위에서부터 실행합니다.
+공식 실행 파일은 `notebooks/train_detector.ipynb` 하나입니다. 위에서부터 실행하면 데이터 연결, 입력 검증, bbox 확인, 학습·재개, 최적 checkpoint 평가와 분류기 연결까지 진행합니다.
 
-1. 저장소와 Python 위치 확인
-2. 전체 라벨·분할·이미지 파일 존재 검사
-3. 전체 DataLoader 생성과 첫 배치 검증
+설정 셀에서 다음 값을 실험에 맞게 변경합니다.
 
-3번에서 `config`, `device`, `train_loader`, `val_loader`, `label_map`, `data_summary`가 준비됩니다.
-이 Notebook은 학습을 시작하지 않습니다.
-실제 학습을 시작할 때만 새 셀에 다음 코드를 작성합니다.
+- `run_name`
+- `batch_size`
+- `max_epochs`
+- `resume_from`
+- `pretrained_backbone`
+- `data_settings_path`
+- `output_root`
+
+저장소의 `data/`를 사용하면 `data_settings_path=None`을 유지합니다. 저장소 밖의 데이터를 사용하면 `detector_data_settings.example.json`을 복사해 절대 경로로 수정한 뒤 `data_settings_path`에 지정합니다.
+
+Colab에서는 먼저 Google Drive를 연결하고 다음 두 경로를 Drive 위치로 바꿉니다.
 
 ```python
-from detector import run_training
-
-result = run_training(
-    config, train_loader, val_loader, label_map, data_summary,
-    device=device,
-)
+data_settings_path = Path("/content/drive/MyDrive/detector_data_settings.json")
+output_root = Path("/content/drive/MyDrive/gitkk_runs/detector")
 ```
 
-이 호출은 전체 학습을 시작하고 사전 학습 가중치를 다운로드할 수 있습니다.
-같은 `run_name`의 학습 결과가 있으면 새로운 이름을 지정하세요.
-현재 모델 연결 검사는 팀원의 SSDLite 구현 기준입니다. 다른 탐지 모델은 입력 형식이 같은지 별도로 확인해야 합니다.
+Drive에서 이미지를 직접 읽으면 학습 I/O가 느릴 수 있습니다. 데이터와 출력 경로는 학습 도중 변경하지 않습니다. 첫 실행에서는 ImageNet backbone 가중치를 다운로드할 수 있습니다.
 
 ## 5. 코드에서 볼 부분
 
