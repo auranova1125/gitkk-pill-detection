@@ -1,7 +1,7 @@
 task: pill_recognition
 device: auto
-# 탐지기 추론 DataLoader가 준비되면 module:function 경로로 변경한다.
-inference_factory_path: null
+inference_factory_path: pilldata.pill_recognition_dataset:build_pill_recognition_inputs
+input_dir: data/inference
 batch_size: 4
 score_threshold: 0.25
 show_progress: true

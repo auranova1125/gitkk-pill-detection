@@ -283,9 +283,9 @@ def recognize_pills_from_config(
         raise TypeError("class_map.num_classes must be an integer")
     validate_classifier_class_map(class_map, expected_num_classes=num_classes)
 
-    inference_loader = factory(batch_size=config.batch_size)
+    inference_loader = factory(config=config, batch_size=config.batch_size)
     validate_inference_batch(_first_batch(inference_loader, name="inference_loader"))
-    inference_loader = factory(batch_size=config.batch_size)
+    inference_loader = factory(config=config, batch_size=config.batch_size)
     detector_model, device = load_detector_inference_model(
         config.detector_checkpoint_path,
         detector_label_map,

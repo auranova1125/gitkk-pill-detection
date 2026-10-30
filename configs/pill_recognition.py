@@ -19,6 +19,7 @@ class PillRecognitionConfig:
     """탐지기와 분류기를 연결하는 통합 추론 설정."""
 
     inference_factory_path: str | None
+    input_dir: Path
     detector_checkpoint_path: Path
     classifier_checkpoint_path: Path
     detector_label_map_path: Path
@@ -41,6 +42,7 @@ class PillRecognitionConfig:
             "detector_label_map_path",
             "classifier_class_map_path",
             "output_dir",
+            "input_dir",
         ):
             object.__setattr__(self, field_name, Path(getattr(self, field_name)))
         if not isinstance(self.detector_name, str) or not self.detector_name.strip():
@@ -58,6 +60,7 @@ def load_pill_recognition_config(path: Path) -> PillRecognitionConfig:
     allowed = {
         "task",
         "inference_factory_path",
+        "input_dir",
         "detector_checkpoint_path",
         "classifier_checkpoint_path",
         "detector_label_map_path",
@@ -75,6 +78,7 @@ def load_pill_recognition_config(path: Path) -> PillRecognitionConfig:
         required={
             "task",
             "inference_factory_path",
+            "input_dir",
             "detector_checkpoint_path",
             "classifier_checkpoint_path",
             "detector_label_map_path",

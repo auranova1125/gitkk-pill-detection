@@ -38,7 +38,11 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert (
         detector.data_factory_path == "pilldata.detector_dataset:build_detector_inputs"
     )
-    assert pill_recognition.inference_factory_path is None
+    assert (
+        pill_recognition.inference_factory_path
+        == "pilldata.pill_recognition_dataset:build_pill_recognition_inputs"
+    )
+    assert pill_recognition.input_dir == Path("data/inference")
 
 
 def test_classifier_yaml_rejects_unknown_field(tmp_path: Path) -> None:
@@ -63,6 +67,7 @@ training:
 def test_pill_recognition_config_rejects_non_finite_threshold(tmp_path: Path) -> None:
     values = {
         "inference_factory_path": None,
+        "input_dir": tmp_path / "images",
         "detector_checkpoint_path": tmp_path / "detector.pt",
         "classifier_checkpoint_path": tmp_path / "classifier.pt",
         "detector_label_map_path": tmp_path / "label_map.json",
