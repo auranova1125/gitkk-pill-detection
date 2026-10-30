@@ -8,8 +8,6 @@ pretrained_backbone: true
 training:
   run_name: ssdlite320_baseline
   output_dir: outputs
-  label_map_path: data/detector_label_map.json
-  data_summary_path: data/detector_data_summary.json
   model_name: ssdlite320_mobilenet_v3_large
   seed: 42
   batch_size: 8

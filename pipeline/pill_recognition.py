@@ -284,8 +284,6 @@ def recognize_pills_from_config(
     validate_classifier_class_map(class_map, expected_num_classes=num_classes)
 
     inference_loader = factory(config=config, batch_size=config.batch_size)
-    validate_inference_batch(_first_batch(inference_loader, name="inference_loader"))
-    inference_loader = factory(config=config, batch_size=config.batch_size)
     detector_model, device = load_detector_inference_model(
         config.detector_checkpoint_path,
         detector_label_map,
@@ -348,7 +346,7 @@ def plot_pill_predictions(
     from matplotlib import pyplot as plt
     from matplotlib.patches import Rectangle
 
-    _validate_image(image)
+    validate_rgb_image_tensor(image)
     if isinstance(predictions, (str, bytes)) or not isinstance(predictions, Sequence):
         raise TypeError("predictions must be a sequence")
 
@@ -381,14 +379,3 @@ def plot_pill_predictions(
         )
     axis.set_axis_off()
     return figure
-
-
-def _validate_image(image: Any) -> None:
-    validate_rgb_image_tensor(image)
-
-
-def _first_batch(loader: Iterable[Any], *, name: str) -> Any:
-    try:
-        return next(iter(loader))
-    except StopIteration as error:
-        raise ValueError(f"{name} must contain at least one batch") from error

@@ -77,8 +77,6 @@ def make_config(tmp_path: Path) -> DetectorConfig:
     return DetectorConfig(
         run_name="training-test",
         output_dir=tmp_path / "outputs",
-        label_map_path=tmp_path / "label_map.json",
-        data_summary_path=tmp_path / "data_summary.json",
         learning_rate=0.1,
         momentum=0.9,
         weight_decay=5e-4,

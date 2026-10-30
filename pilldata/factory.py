@@ -1,8 +1,15 @@
-"""설정 문자열에서 데이터 구성 함수를 안전하게 불러온다."""
+"""설정 문자열에서 데이터 factory를 불러오고 공통 반환 계약을 검증한다."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from importlib import import_module
 from typing import Any
+
+TrainingFactoryResult = tuple[
+    Iterable[Mapping[str, Any]],
+    Iterable[Mapping[str, Any]],
+    Mapping[str, Any],
+    Mapping[str, Any],
+]
 
 
 def load_data_factory(
@@ -32,3 +39,32 @@ def load_data_factory(
     if not callable(factory):
         raise TypeError(f"{factory_path!r} must reference a callable")
     return factory
+
+
+def call_training_data_factory(
+    factory_path: str | None,
+    *,
+    config: Any,
+    device: Any,
+) -> TrainingFactoryResult:
+    """학습 factory를 호출하고 공통 4개 반환값 계약을 검증한다."""
+
+    value = load_data_factory(factory_path)(config=config, device=device)
+    if not isinstance(value, tuple) or len(value) != 4:
+        raise TypeError(
+            "training data factory must return "
+            "(train_loader, val_loader, metadata, data_summary)"
+        )
+    train_loader, val_loader, metadata, data_summary = value
+    if not isinstance(metadata, Mapping) or not isinstance(data_summary, Mapping):
+        raise TypeError("factory metadata and data summary must be mappings")
+    return train_loader, val_loader, metadata, data_summary
+
+
+def first_batch(loader: Iterable[Any], *, name: str) -> Any:
+    """DataLoader의 첫 batch를 반환하고 비어 있으면 명확한 오류를 낸다."""
+
+    try:
+        return next(iter(loader))
+    except StopIteration as error:
+        raise ValueError(f"{name} must contain at least one batch") from error

@@ -30,6 +30,7 @@ import pandas as pd
 import torch
 from PIL import Image
 
+import pilldata.classifier_dataset as ci
 from classifier.training_data import validate_classifier_training_data
 from etl.classifier.paths import (
     CLASSES,
@@ -41,7 +42,6 @@ from etl.classifier.paths import (
     tl_zip,
     ts_zip,
 )
-from pilldata import classifier_dataset as ci
 from pilldata.transforms import CROP_MARGIN as MARGIN
 from pilldata.transforms import cut_pill
 

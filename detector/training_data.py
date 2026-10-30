@@ -12,15 +12,12 @@ from detector.input_validation import (
     validate_detector_label_map,
     validate_detector_training_batch,
 )
-from pilldata.factory import load_data_factory
+from pilldata.factory import (
+    TrainingFactoryResult,
+    call_training_data_factory,
+    first_batch,
+)
 from utils.runtime import resolve_device
-
-TrainingFactoryResult = tuple[
-    Iterable[Mapping[str, Any]],
-    Iterable[Mapping[str, Any]],
-    Mapping[str, Any],
-    Mapping[str, Any],
-]
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,8 +35,11 @@ def prepare_detector_data(config: DetectorConfig) -> DetectorTrainingData:
     """탐지기 factory를 한 번 호출하고 반환된 학습 입력을 검증한다."""
 
     device = resolve_device(config.device)
-    factory = load_data_factory(config.data_factory_path)
-    training_data = _call_training_factory(factory, config=config, device=device)
+    training_data = call_training_data_factory(
+        config.data_factory_path,
+        config=config,
+        device=device,
+    )
     _validate_detector_training_data(training_data)
     train_loader, val_loader, label_map, data_summary = training_data
     return DetectorTrainingData(
@@ -92,40 +92,15 @@ def move_detection_batch_to_device(
     return moved_images, moved_targets
 
 
-def _call_training_factory(
-    factory: Any,
-    *,
-    config: DetectorConfig,
-    device: torch.device,
-) -> TrainingFactoryResult:
-    value = factory(config=config, device=device)
-    if not isinstance(value, tuple) or len(value) != 4:
-        raise TypeError(
-            "training data factory must return "
-            "(train_loader, val_loader, label_map, data_summary)"
-        )
-    train_loader, val_loader, label_map, data_summary = value
-    if not isinstance(label_map, Mapping) or not isinstance(data_summary, Mapping):
-        raise TypeError("factory label map and data summary must be mappings")
-    return train_loader, val_loader, label_map, data_summary
-
-
 def _validate_detector_training_data(data: TrainingFactoryResult) -> None:
     train_loader, val_loader, label_map, data_summary = data
     validate_detector_label_map(label_map)
     validate_detector_data_summary(data_summary, label_map)
     validate_detector_training_batch(
-        _first_batch(train_loader, name="train_loader"),
+        first_batch(train_loader, name="train_loader"),
         label_map,
     )
     validate_detector_training_batch(
-        _first_batch(val_loader, name="val_loader"),
+        first_batch(val_loader, name="val_loader"),
         label_map,
     )
-
-
-def _first_batch(loader: Iterable[Any], *, name: str) -> Any:
-    try:
-        return next(iter(loader))
-    except StopIteration as error:
-        raise ValueError(f"{name} must contain at least one batch") from error

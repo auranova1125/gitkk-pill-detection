@@ -228,8 +228,6 @@ tests/
 model_name: str = "ssdlite320_mobilenet_v3_large"
 run_name: str
 output_dir: Path
-label_map_path: Path
-data_summary_path: Path
 seed: int = 42
 batch_size: int = 8
 max_epochs: int = 50

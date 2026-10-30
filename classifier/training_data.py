@@ -12,15 +12,12 @@ from classifier.input_validation import (
     validate_classifier_training_batch,
 )
 from configs.classifier import ClassifierConfig
-from pilldata.factory import load_data_factory
+from pilldata.factory import (
+    TrainingFactoryResult,
+    call_training_data_factory,
+    first_batch,
+)
 from utils.runtime import resolve_device
-
-TrainingFactoryResult = tuple[
-    Iterable[Mapping[str, Any]],
-    Iterable[Mapping[str, Any]],
-    Mapping[str, Any],
-    Mapping[str, Any],
-]
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,8 +35,11 @@ def prepare_classifier_data(config: ClassifierConfig) -> ClassifierTrainingData:
     """분류기 factory를 한 번 호출하고 반환된 학습 입력을 검증한다."""
 
     device = resolve_device(config.device)
-    factory = load_data_factory(config.data_factory_path)
-    training_data = _call_training_factory(factory, config=config, device=device)
+    training_data = call_training_data_factory(
+        config.data_factory_path,
+        config=config,
+        device=device,
+    )
     validate_classifier_training_data(
         training_data,
         expected_num_classes=config.expected_num_classes,
@@ -52,24 +52,6 @@ def prepare_classifier_data(config: ClassifierConfig) -> ClassifierTrainingData:
         data_summary=data_summary,
         device=device,
     )
-
-
-def _call_training_factory(
-    factory: Any,
-    *,
-    config: ClassifierConfig,
-    device: torch.device,
-) -> TrainingFactoryResult:
-    value = factory(config=config, device=device)
-    if not isinstance(value, tuple) or len(value) != 4:
-        raise TypeError(
-            "training data factory must return "
-            "(train_loader, val_loader, class_map, data_summary)"
-        )
-    train_loader, val_loader, class_map, data_summary = value
-    if not isinstance(class_map, Mapping) or not isinstance(data_summary, Mapping):
-        raise TypeError("factory class map and data summary must be mappings")
-    return train_loader, val_loader, class_map, data_summary
 
 
 def validate_classifier_training_data(
@@ -90,19 +72,12 @@ def validate_classifier_training_data(
         expected_num_classes=expected_num_classes,
     )
     validate_classifier_training_batch(
-        _first_batch(train_loader, name="train_loader"),
+        first_batch(train_loader, name="train_loader"),
         class_map,
         expected_num_classes=expected_num_classes,
     )
     validate_classifier_training_batch(
-        _first_batch(val_loader, name="val_loader"),
+        first_batch(val_loader, name="val_loader"),
         class_map,
         expected_num_classes=expected_num_classes,
     )
-
-
-def _first_batch(loader: Iterable[Any], *, name: str) -> Any:
-    try:
-        return next(iter(loader))
-    except StopIteration as error:
-        raise ValueError(f"{name} must contain at least one batch") from error

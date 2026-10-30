@@ -21,8 +21,6 @@ class DetectorConfig:
 
     run_name: str
     output_dir: Path
-    label_map_path: Path
-    data_summary_path: Path
     learning_rate: float
     weight_decay: float
     score_threshold: float
@@ -42,8 +40,6 @@ class DetectorConfig:
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
-        self.label_map_path = Path(self.label_map_path)
-        self.data_summary_path = Path(self.data_summary_path)
         if self.resume_from is not None:
             self.resume_from = Path(self.resume_from)
         if self.data_settings_path is not None:
@@ -131,8 +127,6 @@ class DetectorConfig:
         values = asdict(self)
         for field_name in (
             "output_dir",
-            "label_map_path",
-            "data_summary_path",
             "data_settings_path",
             "resume_from",
         ):

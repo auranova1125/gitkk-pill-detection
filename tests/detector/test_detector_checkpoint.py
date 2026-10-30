@@ -70,8 +70,6 @@ def make_config(
     return DetectorConfig(
         run_name=run_name,
         output_dir=tmp_path / "outputs",
-        label_map_path=tmp_path / "label_map.json",
-        data_summary_path=tmp_path / "data_summary.json",
         learning_rate=0.1,
         weight_decay=5e-4,
         score_threshold=0.5,

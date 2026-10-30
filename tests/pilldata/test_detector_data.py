@@ -2,7 +2,6 @@
 
 import copy
 import csv
-import hashlib
 import json
 import struct
 import subprocess
@@ -22,7 +21,6 @@ from detector.input_validation import (
 )
 from pilldata.detector_dataset import PillDetectionDataset, build_detector_inputs
 from pilldata.detector_records import read_records
-from pilldata.detector_sample_validation import verify_detector_sample_package
 from pilldata.detector_settings import (
     DEFAULT_SETTINGS,
     REPOSITORY_ROOT,
@@ -357,70 +355,6 @@ class DataTests(unittest.TestCase):
         process, report = self.run_cli()
         self.assertEqual(process.returncode, 1)
         self.assertEqual(report["status"], "failed")
-
-    def bundle(self):
-        manifest = {
-            "version": "pill-smoke-package-v1",
-            "code_sha256": {"old_code.py": "old"},
-            "selected_image_ids": {"train": [1, 2], "validation": [3, 4]},
-            "augmentation": DEFAULT_SETTINGS["augmentation"],
-            "batch_size": 2,
-            "seed": 42,
-            "counts": {
-                split: {"images": 2, "boxes": 4} for split in ("train", "validation")
-            },
-            "files_sha256": {
-                p.relative_to(self.package).as_posix(): hashlib.sha256(
-                    p.read_bytes()
-                ).hexdigest()
-                for p in self.package.rglob("*")
-                if p.is_file()
-            },
-        }
-        keys = (
-            "version",
-            "files_sha256",
-            "code_sha256",
-            "selected_image_ids",
-            "augmentation",
-            "batch_size",
-            "seed",
-        )
-        manifest["package_hash"] = hashlib.sha256(
-            json.dumps(
-                {k: manifest[k] for k in keys}, sort_keys=True, separators=(",", ":")
-            ).encode()
-        ).hexdigest()
-        (self.package / "smoke_package_manifest.json").write_text(json.dumps(manifest))
-
-    def test_existing_bundle_accepts_changed_code_and_keeps_data_checks(self):
-        self.bundle()
-        _, manifest, summary = verify_detector_sample_package(self.package)
-        self.assertEqual(manifest["code_sha256"], {"old_code.py": "old"})
-        self.assertEqual(summary["num_train_images"], 2)
-
-    def test_modified_bundle_image_rejected(self):
-        self.bundle()
-        resolve_image_path(
-            self.rows[0]["image_path"], self.settings["image_roots"]
-        ).write_bytes(b"changed")
-        with self.assertRaisesRegex(ValueError, "변경"):
-            verify_detector_sample_package(self.package)
-
-    def test_modified_bundle_manifest_rejected(self):
-        self.bundle()
-        path = self.package / "smoke_package_manifest.json"
-        manifest = json.loads(path.read_text())
-        manifest["selected_image_ids"]["train"] = [99, 100]
-        path.write_text(json.dumps(manifest))
-        with self.assertRaisesRegex(ValueError, "식별값"):
-            verify_detector_sample_package(self.package)
-
-    def test_sample_check_only_validates_package_integrity(self):
-        self.bundle()
-        _, manifest, summary = verify_detector_sample_package(self.package)
-        self.assertEqual(manifest["selected_image_ids"]["train"], [1, 2])
-        self.assertEqual(summary["num_val_images"], 2)
 
 
 if __name__ == "__main__":

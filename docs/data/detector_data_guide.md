@@ -9,7 +9,6 @@
 | `pilldata/detector_settings.py` | 데이터 패키지와 출처별 이미지 경로 해석 |
 | `pilldata/detector_records.py` | JSON·split manifest를 읽고 이미지별 전체 bbox 연결 |
 | `pilldata/detector_dataset.py` | Dataset, DataLoader와 factory 제공 |
-| `pilldata/detector_sample_validation.py` | 실제 표본의 이미지·bbox 연결 확인 |
 
 DataLoader는 이미지 한 장과 그 이미지의 모든 알약 bbox를 함께 반환한다. 모든 target label은 `pill=1`이며 background는 모델 내부에서 `0`으로 처리한다. 원본 약품 코드는 추적용 metadata로만 보존한다. 자세한 형식은 [탐지기 입력 명세](../specs/detector_input_spec.md)를 따른다.
 

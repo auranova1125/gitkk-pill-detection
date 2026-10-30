@@ -119,8 +119,6 @@ def make_config(tmp_path: Path, **overrides: Any) -> DetectorConfig:
     values = {
         "run_name": "ssdlite-baseline",
         "output_dir": tmp_path / "outputs",
-        "label_map_path": tmp_path / "label_map.json",
-        "data_summary_path": tmp_path / "data_summary.json",
         "learning_rate": 1e-3,
         "weight_decay": 5e-4,
         "score_threshold": 0.25,

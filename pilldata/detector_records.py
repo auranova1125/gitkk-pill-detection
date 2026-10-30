@@ -12,12 +12,9 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
+from utils.io import read_json
+
 from .detector_settings import resolve_data_paths, resolve_image_path
-
-
-def read_json(path):
-    with Path(path).open("r", encoding="utf-8") as file:
-        return json.load(file)
 
 
 def original_file_name(file_name):
