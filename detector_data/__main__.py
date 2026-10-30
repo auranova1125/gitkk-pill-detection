@@ -10,10 +10,9 @@ from .settings import load_settings, repository_path
 def main(argv=None):
     parser = argparse.ArgumentParser(description="탐지 데이터 검사와 공유 표본 모델 연결 검사")
     parser.add_argument("command", choices=("check", "smoke", "smoke-check"))
-    parser.add_argument("--package", default="datasets/smoke_test")
+    parser.add_argument("--package", default="data/smoke_test")
     parser.add_argument("--report")
     parser.add_argument("--device", choices=("cpu", "cuda", "mps", "auto"), default="cpu")
-    parser.add_argument("--model-step", action="store_true", help="호환 옵션. smoke는 항상 모델 연결을 검사합니다.")
     args = parser.parse_args(argv)
     destination = repository_path(args.report or f"outputs/detector_data/{args.command}_report.json")
     package = repository_path(args.package)

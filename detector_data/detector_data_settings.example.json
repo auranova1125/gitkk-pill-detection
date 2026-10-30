@@ -1,8 +1,8 @@
 {
-  "package_dir": "datasets",
+  "package_dir": "data",
   "image_roots": {
-    "select": "datasets/images/select_aihub",
-    "codeit": "datasets/images/select_codeit"
+    "select": "data/images/select_aihub",
+    "codeit": "data/images/select_codeit"
   },
   "augmentation": {
     "horizontal_flip": 0.0,

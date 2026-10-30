@@ -16,19 +16,19 @@ Notebook 커널은 저장소의 학습 환경을 선택합니다.
 Drive의 기존 `smoke_test.zip`을 받아 압축을 풀면 아래 위치여야 합니다.
 
 ```text
-datasets/smoke_test/smoke_package_manifest.json
-datasets/smoke_test/annotations/train.json
-datasets/smoke_test/annotations/validation.json
-datasets/smoke_test/split_manifest.csv
-datasets/smoke_test/images/select_aihub/...
-datasets/smoke_test/images/select_codeit/...
+data/smoke_test/smoke_package_manifest.json
+data/smoke_test/annotations/train.json
+data/smoke_test/annotations/validation.json
+data/smoke_test/split_manifest.csv
+data/smoke_test/images/select_aihub/...
+data/smoke_test/images/select_codeit/...
 ```
 
 저장소 루트에서 다음 명령을 실행합니다.
 
 ```bash
 uv run python -m detector_data smoke \
-  --package datasets/smoke_test \
+  --package data/smoke_test \
   --report outputs/detector_data/shared_smoke_report.json
 ```
 
@@ -55,12 +55,12 @@ ZIP 안의 예전 README 대신 이 안내와 저장소의 Notebook을 따르세
 
 | 기존 자료 | 저장소 안에 둘 위치 |
 |---|---|
-| `select/images/` 안의 이미지 파일 | `datasets/images/select_aihub/` |
-| `codeit_train_validated.zip`의 `images/` 안의 이미지 파일 | `datasets/images/select_codeit/` |
-| `training_package_detector.zip` 안 `training_package/annotations/train.json` | `datasets/annotations/train.json` |
-| 같은 패키지의 `annotations/validation.json` | `datasets/annotations/validation.json` |
-| 같은 패키지의 `split_manifest.csv` | `datasets/split_manifest.csv` |
-| 같은 패키지의 `class_mapping.csv` | `datasets/class_mapping.csv` |
+| `select/images/` 안의 이미지 파일 | `data/images/select_aihub/` |
+| `codeit_train_validated.zip`의 `images/` 안의 이미지 파일 | `data/images/select_codeit/` |
+| `training_package_detector.zip` 안 `training_package/annotations/train.json` | `data/annotations/train.json` |
+| 같은 패키지의 `annotations/validation.json` | `data/annotations/validation.json` |
+| 같은 패키지의 `split_manifest.csv` | `data/split_manifest.csv` |
+| 같은 패키지의 `class_mapping.csv` | `data/class_mapping.csv` |
 
 추가 5장을 제외한 라벨 기준: Train 8,256장·31,673개 박스, Validation 2,063장·7,915개 박스입니다.
 다운로드한 라벨이 이 수량과 맞는지 확인하세요.
