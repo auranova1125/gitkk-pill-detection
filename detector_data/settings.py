@@ -9,10 +9,10 @@ from pathlib import Path, PurePosixPath
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SETTINGS = {
-    "package_dir": "datasets",
+    "package_dir": "data",
     "image_roots": {
-        "select": "datasets/images/select_aihub",
-        "codeit": "datasets/images/select_codeit",
+        "select": "data/images/select_aihub",
+        "codeit": "data/images/select_codeit",
     },
     "augmentation": {
         "horizontal_flip": 0.0,
