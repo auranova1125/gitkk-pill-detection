@@ -27,6 +27,26 @@ def save_table(df, path, index=False):
     df.to_csv(path, index=index, encoding="utf-8-sig")
 
 
+REVIEW_COLS = ["판정", "조치", "메모", "검수"]
+
+
+def keep_review(df, path):
+    """검수 칸(판정·조치·메모·검수)을 붙인다. 이미 사람이 채운 CSV가 있으면 sample_id로 이어받는다 (다시 실행해도 판정이 지워지지 않게)."""
+    import pandas as pd
+
+    df = df.copy()
+    for c in REVIEW_COLS:
+        df[c] = ""
+    if path.exists():
+        old = pd.read_csv(path, dtype=str, keep_default_na=False).set_index("sample_id")
+        hit = df.sample_id.isin(old.index)
+        for c in REVIEW_COLS:
+            if c in old.columns:
+                df.loc[hit, c] = df.loc[hit, "sample_id"].map(old[c])
+        print(f"  기존 검수 {hit.sum()}줄 이어받음, 새 의심 {(~hit).sum()}줄")
+    return df
+
+
 def _nfc(s):
     return unicodedata.normalize("NFC", s)      # macOS 파일명은 한글이 NFD로 저장된다
 

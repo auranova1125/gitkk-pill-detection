@@ -23,9 +23,10 @@
 
 결과
     data/classifier/meta/label_audit/position_scores.csv    bbox마다 점수 (전체)
-    data/classifier/meta/label_audit/position_suspects.csv  의심 bbox와 검수 칸(판정, 조치)
-    data/classifier/meta/label_audit/sheets/p<등급>_<번호>.jpg  검수용 그림
-        초록·빨강 = 라벨 bbox(빨강이 의심, 숫자는 match_iou), 분홍 = 찾은 알약 영역
+    data/classifier/meta/label_audit/position_suspects.csv  의심 bbox와 검수 칸(판정, 조치, 메모, 검수)
+        이미 사람이 채운 파일이 있으면 sample_id로 판정을 이어받는다 (config.keep_review)
+    data/classifier/meta/label_audit/review/p<등급>_review_<번호>.jpg  검수용 그림 (12장씩, 그림번호 = 사진 왼쪽 위 숫자)
+        빨강 = 이 등급 의심 bbox, 주황 = 다른 등급 의심 bbox, 초록 = 의심 아님, 분홍 = 찾은 알약 영역
 
 사용:
     python classifier_data_build/audit_bbox_position.py [--no-sheets]
@@ -43,7 +44,7 @@ import pandas as pd
 from PIL import Image
 from scipy.optimize import linear_sum_assignment
 
-from config import COMBO_ZIPS, EXPORT, KAGGLE, META, save_table, ts_zip
+from config import COMBO_ZIPS, EXPORT, KAGGLE, META, keep_review, save_table, ts_zip
 
 S = 4                 # 축소 배율
 FG = 12               # 배경과 다른 정도 기준
@@ -175,9 +176,11 @@ def run_group(args):
     return rows
 
 
-def draw_sheet(items, samples, scores, where, path):
-    """의심 사진 24장을 6열로 그린다"""
+def draw_sheet(items, samples, sus, grade, where, path):
+    """의심 사진 12장을 4열로 그린다.
+    빨강 = 이 등급 의심 bbox, 주황 = 다른 등급 의심 bbox, 초록 = 의심 아님, 분홍 = 찾은 알약 영역"""
     zips, tiles = {}, []
+    grade_of = sus.set_index("sample_id").priority
     for k, image_id in items:
         g = samples[samples.image_id == image_id]
         im = load_image(image_id, g.source.iloc[0], where, zips)
@@ -187,17 +190,17 @@ def draw_sheet(items, samples, scores, where, path):
             cv2.rectangle(o, (x, y), (x + w, y + h), (255, 0, 255), 3)
         for r in g.itertuples():
             x, y, w, h = map(int, json.loads(r.bbox_xywh))
-            sc = scores.loc[r.sample_id]
-            col = (255, 0, 0) if sc.priority else (0, 200, 0)
-            cv2.rectangle(o, (x, y), (x + w, y + h), col, 6)
-            cv2.putText(o, f"{r.code[-6:]} {sc.match_iou:.2f}", (x, max(30, y - 8)), 0, 1.3, col, 3)
-        o = cv2.resize(o, (366, 480))
-        cv2.putText(o, f"{k} {image_id[:29]}", (4, 472), 0, 0.45, (255, 255, 0), 1)
+            p = grade_of.get(r.sample_id, 0)
+            col = (255, 0, 0) if p == grade else (255, 140, 0) if p else (0, 200, 0)
+            cv2.rectangle(o, (x, y), (x + w, y + h), col, 7)
+            cv2.putText(o, r.code[-6:], (x + 5, y + 45), 0, 1.6, col, 4)
+        o = cv2.resize(o, (488, 640))
+        cv2.putText(o, str(k), (8, 40), 0, 1.4, (255, 255, 0), 3)
         tiles.append(o)
-    while len(tiles) % 6:
+    while len(tiles) % 4:
         tiles.append(np.zeros_like(tiles[0]))
-    sheet = np.vstack([np.hstack(tiles[i:i + 6]) for i in range(0, len(tiles), 6)])
-    cv2.imwrite(str(path), cv2.cvtColor(sheet, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 80])
+    sheet = np.vstack([np.hstack(tiles[i:i + 4]) for i in range(0, len(tiles), 4)])
+    cv2.imwrite(str(path), cv2.cvtColor(sheet, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 85])
 
 
 if __name__ == "__main__":
@@ -217,7 +220,14 @@ if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     save_table(scores, OUT / "position_scores.csv")
     sus = scores[scores.priority > 0].sort_values(["priority", "match_iou", "fg_in"]).copy()
-    sus["판정"], sus["조치"], sus["메모"] = "", "", ""
+    # 그림 번호: 등급마다 사진 순서대로 (한 사진에 의심 bbox가 여러 개면 같은 번호)
+    num = {}
+    for p in (1, 2, 3):
+        for n, img in enumerate(dict.fromkeys(sus[sus.priority == p].image_id)):
+            num[(p, img)] = n
+    sus.insert(0, "그림번호", [num[(p, i)] for p, i in zip(sus.priority, sus.image_id)])
+    sus.insert(1, "그림파일", [f"review/p{p}_review_{n // 12 + 1}.jpg" for p, n in zip(sus.priority, sus.그림번호)])
+    sus = keep_review(sus, OUT / "position_suspects.csv")
     save_table(sus, OUT / "position_suspects.csv")
 
     print(f"bbox {len(scores)}개 / 사진 {scores.image_id.nunique()}장")
@@ -226,12 +236,11 @@ if __name__ == "__main__":
         print(f"  {p}등급: bbox {len(s)}개, 사진 {s.image_id.nunique()}장 (train {(s.split == 'train').sum()}, val {(s.split == 'val').sum()})")
 
     if not args.no_sheets:
-        (OUT / "sheets").mkdir(exist_ok=True)
-        for old in (OUT / "sheets").glob("*.jpg"):
+        (OUT / "review").mkdir(exist_ok=True)
+        for old in (OUT / "review").glob("p*_review_*.jpg"):
             old.unlink()
-        sc = scores.set_index("sample_id")
         for p in (1, 2, 3):
             ids = list(dict.fromkeys(sus[sus.priority == p].image_id))
-            for n in range(0, len(ids), 24):
-                draw_sheet(list(enumerate(ids[n:n + 24], n)), samples, sc, where, OUT / "sheets" / f"p{p}_{n // 24 + 1}.jpg")
-        print(f"검수 그림: {OUT / 'sheets'}")
+            for n in range(0, len(ids), 12):
+                draw_sheet(list(enumerate(ids[n:n + 12], n)), samples, sus, p, where, OUT / "review" / f"p{p}_review_{n // 12 + 1}.jpg")
+        print(f"검수 그림: {OUT / 'review'}")
