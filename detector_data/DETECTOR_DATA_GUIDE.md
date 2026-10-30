@@ -24,7 +24,14 @@ datasets/smoke_test/images/select_aihub/...
 datasets/smoke_test/images/select_codeit/...
 ```
 
-`detector_data/detector_data_smoke_test/smok_test.ipynb`을 열어 위에서부터 실행합니다.
+저장소 루트에서 다음 명령을 실행합니다.
+
+```bash
+uv run python -m detector_data smoke \
+  --package datasets/smoke_test \
+  --report outputs/detector_data/shared_smoke_report.json
+```
+
 이 검사는 전체 학습 데이터를 요구하지 않습니다. 팀원이 ZIP을 새로 만들거나 다시 업로드할 필요도 없습니다.
 
 검사하는 내용:
@@ -113,9 +120,7 @@ Validation에는 무작위 변환이 없고 현재 기본 학습 증강도 꺼�
 이 폴더는 개인 실행 결과이므로 자동으로 Git에 올라가지 않을 수 있습니다.
 리뷰 근거로 공유할 때는 직접 확인한 보고서를 `reports/`로 복사해 커밋합니다.
 
-`reports/previous_shared_smoke_report.json`은 변경 전 코드의 실행 기록입니다.
-이번 변경 코드의 모델 검사 통과를 증명하는 파일로 사용하면 안 됩니다.
-새로 실행한 `shared_smoke_report.json`을 공유하고, 보고서에서 표본 수·장치·모델 검사 상태를 보여주세요.
+검사 결과를 리뷰 근거로 공유할 때는 새로 실행한 `shared_smoke_report.json`에서 표본 수·장치·모델 검사 상태를 확인합니다.
 
 ## 7. 터미널에서 실행할 경우
 
@@ -131,7 +136,6 @@ python -m detector_data smoke --report outputs/detector_data/shared_smoke_report
 `check`는 전체 라벨과 경로만 검사합니다. 전체 이미지 픽셀을 다시 읽거나 실제 알약 위치를 판단하지 않습니다.
 `smoke`는 항상 공유 표본으로 모델 연결까지 검사합니다.
 모델 실행 없이 표본 파일만 확인하려면 `python -m detector_data smoke-check`를 사용합니다.
-기존 긴 `smoke_bundle check/run` 명령은 짧은 명령으로 연결하는 호환 코드만 남겼습니다.
 
 데이터를 저장소 밖에 두어야 하는 팀원만 `detector_data_settings.example.json`을 복사해 경로를 설정하고
 `DETECTOR_DATA_SETTINGS` 환경 변수로 지정합니다. 위 기본 배치를 사용하면 개인 설정은 필요 없습니다.
