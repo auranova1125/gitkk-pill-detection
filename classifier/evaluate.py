@@ -10,8 +10,11 @@ import torch
 from torch import nn
 from tqdm.auto import tqdm
 
-from classifier.inference import load_inference_model
-from classifier.input_validation import validate_batch, validate_class_map
+from classifier.inference import load_classifier_inference_model
+from classifier.input_validation import (
+    validate_classifier_class_map,
+    validate_classifier_training_batch,
+)
 from classifier.training_data import prepare_classifier_data
 from configs.classifier import ClassifierConfig
 from utils.io import write_json
@@ -324,7 +327,10 @@ def evaluate_with_predictions(
     - 정답 여부
     """
 
-    validate_class_map(class_map, expected_num_classes=expected_num_classes)
+    validate_classifier_class_map(
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
     class_lookup = {entry["class_index"]: entry for entry in class_map["classes"]}
     model.eval()
     use_amp = device.type == "cuda"
@@ -345,7 +351,7 @@ def evaluate_with_predictions(
         dynamic_ncols=True,
     )
     for batch in progress:
-        validate_batch(
+        validate_classifier_training_batch(
             batch,
             class_map,
             expected_num_classes=expected_num_classes,
@@ -453,7 +459,7 @@ def evaluate_classifier_checkpoint(
     """설정의 validation 데이터로 분류기 checkpoint를 평가하고 저장한다."""
 
     data = prepare_classifier_data(config)
-    model, device = load_inference_model(
+    model, device = load_classifier_inference_model(
         checkpoint_path,
         data.class_map,
         expected_num_classes=config.expected_num_classes,

@@ -277,7 +277,7 @@ def plot_detection_comparison(
     return figure
 
 
-def load_inference_model(
+def load_detector_inference_model(
     checkpoint_path: Path,
     label_map: Mapping[str, Any],
     *,

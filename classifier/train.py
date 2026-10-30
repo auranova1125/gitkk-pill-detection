@@ -20,16 +20,19 @@ from classifier.checkpoint import (
     validate_checkpoint_compatibility,
 )
 from classifier.evaluate import EvaluationResult, evaluate_model
-from classifier.input_validation import validate_class_map, validate_data_summary
+from classifier.input_validation import (
+    validate_classifier_class_map,
+    validate_classifier_data_summary,
+)
 from classifier.model import (
     TrainingStage,
-    build_model,
+    build_classifier_model,
     configure_model_for_stage,
     set_model_train_mode,
 )
 from classifier.training_data import ClassifierTrainingData, prepare_classifier_data
 from configs.classifier import ClassifierConfig
-from utils.io import append_csv_row, write_json
+from utils.io import append_csv_row, prepare_training_run_directory
 from utils.runtime import build_grad_scaler, select_device, set_seed
 
 
@@ -253,39 +256,6 @@ def train_one_epoch(
     )
 
 
-def _prepare_run_directory(
-    config: ClassifierConfig,
-    *,
-    device: torch.device,
-    class_map: Mapping[str, Any],
-    data_summary: Mapping[str, Any],
-) -> Path:
-    run_dir = config.output_dir / config.run_name
-    run_dir.mkdir(parents=True, exist_ok=True)
-    if config.resume_from is None:
-        existing_artifacts = [
-            path
-            for path in (
-                run_dir / "last.pt",
-                run_dir / "best.pt",
-                run_dir / "metrics.csv",
-            )
-            if path.exists()
-        ]
-        if existing_artifacts:
-            names = ", ".join(path.name for path in existing_artifacts)
-            raise FileExistsError(
-                f"run directory already contains training artifacts: {names}"
-            )
-
-    resolved_config = config.to_dict()
-    resolved_config["device"] = str(device)
-    write_json(run_dir / "resolved_config.json", resolved_config, sort_keys=True)
-    write_json(run_dir / "class_map.json", class_map, sort_keys=True)
-    write_json(run_dir / "data_summary.json", data_summary, sort_keys=True)
-    return run_dir
-
-
 def _learning_rates(optimizer: Optimizer) -> dict[str, float | None]:
     rates = {group.get("name"): float(group["lr"]) for group in optimizer.param_groups}
     return {
@@ -356,8 +326,11 @@ def run_training(
     """새 학습 또는 checkpoint 재개를 실행하고 best/last artifact를 저장한다."""
 
     # 입력 검증
-    validate_class_map(class_map, expected_num_classes=expected_num_classes)
-    validate_data_summary(
+    validate_classifier_class_map(
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
+    validate_classifier_data_summary(
         data_summary,
         class_map,
         expected_num_classes=expected_num_classes,
@@ -368,11 +341,17 @@ def run_training(
 
     # 실행 디렉터리와 설정파일 생성
     set_seed(config.seed)
-    run_dir = _prepare_run_directory(
-        config,
-        device=selected_device,
-        class_map=class_map,
-        data_summary=data_summary,
+    resolved_config = config.to_dict()
+    resolved_config["device"] = str(selected_device)
+    run_dir = prepare_training_run_directory(
+        output_dir=config.output_dir,
+        run_name=config.run_name,
+        resume_from=config.resume_from,
+        resolved_config=resolved_config,
+        metadata_files={
+            "class_map.json": class_map,
+            "data_summary.json": data_summary,
+        },
     )
     last_checkpoint_path = run_dir / "last.pt"
     best_checkpoint_path = run_dir / "best.pt"
@@ -381,7 +360,10 @@ def run_training(
     split_hash = data_summary["split_hash"]
 
     # 모델 생성
-    model = build_model(expected_num_classes, pretrained=pretrained).to(selected_device)
+    model = build_classifier_model(
+        expected_num_classes,
+        pretrained=pretrained,
+    ).to(selected_device)
     criterion = nn.CrossEntropyLoss()
     scaler = build_grad_scaler(selected_device)
     early_stopping = EarlyStopping(config.early_stopping_patience)

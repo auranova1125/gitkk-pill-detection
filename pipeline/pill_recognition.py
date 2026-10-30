@@ -10,24 +10,18 @@ from torch import nn
 from tqdm.auto import tqdm
 
 from classifier.inference import (
-    InferenceError as ClassifierInferenceError,
+    ClassifierInferenceError,
+    classify_detections,
+    load_classifier_inference_model,
 )
-from classifier.inference import (
-    load_inference_model as load_classifier_model,
-)
-from classifier.inference import (
-    predict_detections,
-)
-from classifier.input_validation import validate_class_map
+from classifier.input_validation import validate_classifier_class_map
 from configs.pill_recognition import PillRecognitionConfig
 from detector.inference import (
     DetectorInferenceError,
     DetectorPrediction,
+    load_detector_inference_model,
     predict_detector,
     validate_inference_batch,
-)
-from detector.inference import (
-    load_inference_model as load_detector_model,
 )
 from detector.input_validation import validate_detector_label_map
 from pilldata.factory import load_data_factory
@@ -175,7 +169,7 @@ def recognize_pills(
     num_classes = class_map.get("num_classes")
     if not isinstance(num_classes, int) or isinstance(num_classes, bool):
         raise TypeError("class_map.num_classes must be an integer")
-    validate_class_map(class_map, expected_num_classes=num_classes)
+    validate_classifier_class_map(class_map, expected_num_classes=num_classes)
     if not isinstance(show_progress, bool):
         raise TypeError("show_progress must be a boolean")
     score_threshold = normalize_probability(score_threshold, name="score_threshold")
@@ -234,7 +228,7 @@ def recognize_pills(
                 detections=len(detector_predictions),
             )
 
-    classifier_result = predict_detections(
+    classifier_result = classify_detections(
         classifier_model,
         classifier_batches(),
         class_map,
@@ -287,17 +281,17 @@ def recognize_pills_from_config(
     num_classes = class_map.get("num_classes")
     if not isinstance(num_classes, int) or isinstance(num_classes, bool):
         raise TypeError("class_map.num_classes must be an integer")
-    validate_class_map(class_map, expected_num_classes=num_classes)
+    validate_classifier_class_map(class_map, expected_num_classes=num_classes)
 
     inference_loader = factory(batch_size=config.batch_size)
     validate_inference_batch(_first_batch(inference_loader, name="inference_loader"))
     inference_loader = factory(batch_size=config.batch_size)
-    detector_model, device = load_detector_model(
+    detector_model, device = load_detector_inference_model(
         config.detector_checkpoint_path,
         detector_label_map,
         device=device,
     )
-    classifier_model, device = load_classifier_model(
+    classifier_model, device = load_classifier_inference_model(
         config.classifier_checkpoint_path,
         class_map,
         expected_num_classes=num_classes,

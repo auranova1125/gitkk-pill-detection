@@ -137,7 +137,7 @@ def patch_tiny_model(monkeypatch: pytest.MonkeyPatch) -> None:
         del pretrained
         return TinyStageClassifier(num_classes)
 
-    monkeypatch.setattr(train_module, "build_model", build_tiny_model)
+    monkeypatch.setattr(train_module, "build_classifier_model", build_tiny_model)
 
 
 def test_hash_class_map_is_independent_of_dictionary_key_order() -> None:

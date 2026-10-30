@@ -7,7 +7,7 @@ import pytest
 import torch
 from torch import nn
 
-from detector import DetectorConfig
+from configs.detector import DetectorConfig
 from detector.evaluate import evaluate_model, filter_predictions_by_score
 from detector.train import (
     build_optimizer,

@@ -10,8 +10,8 @@ from torch import nn
 import classifier.inference as inference_module
 from classifier.checkpoint import hash_class_map, save_checkpoint
 from classifier.inference import (
-    load_inference_model,
-    predict_detections,
+    classify_detections,
+    load_classifier_inference_model,
     validate_classifier_crop_batch,
 )
 from classifier.model import TrainingStage
@@ -73,7 +73,7 @@ def test_predict_detections_maps_classes_and_combines_scores(
     model = FixedLogitModel(logits)
     batch = make_batch()
 
-    result = predict_detections(
+    result = classify_detections(
         model,
         [batch],
         classifier_class_map,
@@ -103,7 +103,7 @@ def test_predict_detections_keeps_prediction_when_mapping_is_missing(
     class_map["classes"] = class_map["classes"][:2]
     model = FixedLogitModel(torch.tensor([[0.0, 1.0, 4.0]]))
 
-    result = predict_detections(
+    result = classify_detections(
         model,
         [make_batch(batch_size=1)],
         class_map,
@@ -135,7 +135,7 @@ def test_predict_detections_rejects_wrong_logit_shape(
     model = FixedLogitModel(torch.zeros(1, 4))
 
     with pytest.raises(ValueError, match="logits must have shape"):
-        predict_detections(
+        classify_detections(
             model,
             [make_batch(batch_size=1)],
             classifier_class_map,
@@ -146,7 +146,7 @@ def test_predict_detections_rejects_wrong_logit_shape(
 def test_predict_detections_accepts_empty_loader(
     classifier_class_map: dict[str, Any],
 ) -> None:
-    result = predict_detections(
+    result = classify_detections(
         FixedLogitModel(torch.zeros(1, NUM_CLASSES)),
         [],
         classifier_class_map,
@@ -187,9 +187,13 @@ def test_load_inference_model_restores_checkpoint_without_pretrained_download(
         pretrained_values.append(pretrained)
         return TinyInferenceModel(num_classes)
 
-    monkeypatch.setattr(inference_module, "build_model", build_tiny_model)
+    monkeypatch.setattr(
+        inference_module,
+        "build_classifier_model",
+        build_tiny_model,
+    )
 
-    restored_model, device = load_inference_model(
+    restored_model, device = load_classifier_inference_model(
         checkpoint_path,
         class_map,
         expected_num_classes=NUM_CLASSES,

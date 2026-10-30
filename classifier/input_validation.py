@@ -82,11 +82,14 @@ def _class_entries_by_index(
     *,
     expected_num_classes: int,
 ) -> dict[int, Mapping[str, Any]]:
-    validate_class_map(class_map, expected_num_classes=expected_num_classes)
+    validate_classifier_class_map(
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
     return {entry["class_index"]: entry for entry in class_map["classes"]}
 
 
-def validate_class_map(
+def validate_classifier_class_map(
     class_map: Mapping[str, Any],
     *,
     expected_num_classes: int = 118,
@@ -189,7 +192,7 @@ def _validate_count_mapping(
     return parsed_counts
 
 
-def validate_data_summary(
+def validate_classifier_data_summary(
     data_summary: Mapping[str, Any],
     class_map: Mapping[str, Any],
     *,
@@ -198,7 +201,10 @@ def validate_data_summary(
     """분할 요약과 클래스 coverage 정보를 검증한다."""
 
     _validate_num_classes(expected_num_classes)
-    validate_class_map(class_map, expected_num_classes=expected_num_classes)
+    validate_classifier_class_map(
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
     data_summary = _require_mapping(data_summary, "data_summary")
     _require_fields(data_summary, _REQUIRED_SUMMARY_FIELDS, "data_summary")
 
@@ -284,7 +290,7 @@ def _validate_bbox(value: Any, index: int) -> None:
     )
 
 
-def validate_batch(
+def validate_classifier_training_batch(
     batch: Mapping[str, Any],
     class_map: Mapping[str, Any],
     *,

@@ -14,7 +14,7 @@ class TrainingStage(StrEnum):
     LAYER4_FINE_TUNING = "layer4_fine_tuning"
 
 
-def build_model(num_classes: int, pretrained: bool = True) -> ResNet:
+def build_classifier_model(num_classes: int, pretrained: bool = True) -> ResNet:
     """ImageNet ResNet-50의 분류 head를 지정한 클래스 수로 교체한다."""
 
     if not isinstance(num_classes, int) or isinstance(num_classes, bool):

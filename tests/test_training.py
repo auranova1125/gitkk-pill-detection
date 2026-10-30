@@ -11,7 +11,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from classifier.evaluate import compute_classification_metrics, evaluate_model
-from classifier.model import TrainingStage, build_model
+from classifier.model import TrainingStage, build_classifier_model
 from classifier.train import (
     build_optimizer,
     build_scheduler,
@@ -170,7 +170,7 @@ def test_resolve_training_stage(
 
 
 def test_build_head_optimizer(train_config: ClassifierConfig) -> None:
-    model = build_model(NUM_CLASSES, pretrained=False)
+    model = build_classifier_model(NUM_CLASSES, pretrained=False)
 
     optimizer = build_optimizer(model, train_config, TrainingStage.HEAD_ONLY)
 
@@ -183,7 +183,7 @@ def test_build_head_optimizer(train_config: ClassifierConfig) -> None:
 def test_build_fine_tuning_optimizer_and_scheduler(
     train_config: ClassifierConfig,
 ) -> None:
-    model = build_model(NUM_CLASSES, pretrained=False)
+    model = build_classifier_model(NUM_CLASSES, pretrained=False)
 
     optimizer = build_optimizer(
         model,

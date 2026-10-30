@@ -7,9 +7,9 @@ from typing import Any
 import torch
 
 from classifier.input_validation import (
-    validate_batch,
-    validate_class_map,
-    validate_data_summary,
+    validate_classifier_class_map,
+    validate_classifier_data_summary,
+    validate_classifier_training_batch,
 )
 from configs.classifier import ClassifierConfig
 from pilldata.factory import load_data_factory
@@ -80,18 +80,21 @@ def validate_classifier_training_data(
     """factory 반환값의 클래스 정보와 첫 학습·검증 batch를 검증한다."""
 
     train_loader, val_loader, class_map, data_summary = data
-    validate_class_map(class_map, expected_num_classes=expected_num_classes)
-    validate_data_summary(
+    validate_classifier_class_map(
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
+    validate_classifier_data_summary(
         data_summary,
         class_map,
         expected_num_classes=expected_num_classes,
     )
-    validate_batch(
+    validate_classifier_training_batch(
         _first_batch(train_loader, name="train_loader"),
         class_map,
         expected_num_classes=expected_num_classes,
     )
-    validate_batch(
+    validate_classifier_training_batch(
         _first_batch(val_loader, name="val_loader"),
         class_map,
         expected_num_classes=expected_num_classes,

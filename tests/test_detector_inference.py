@@ -13,7 +13,7 @@ from classifier.inference import combine_prediction_scores
 from detector.checkpoint import hash_label_map, save_checkpoint
 from detector.inference import (
     DetectorPrediction,
-    load_inference_model,
+    load_detector_inference_model,
     plot_detection_comparison,
     predict_detector,
     save_inference_artifacts,
@@ -245,7 +245,7 @@ def test_load_inference_model_restores_matching_backbone_structure(
 
     monkeypatch.setattr(inference_module, "build_detector_model", build_tiny_model)
 
-    loaded_model, device = load_inference_model(
+    loaded_model, device = load_detector_inference_model(
         checkpoint_path,
         label_map,
         device=torch.device("cpu"),

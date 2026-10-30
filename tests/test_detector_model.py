@@ -9,7 +9,7 @@ from torchvision.models import MobileNet_V3_Large_Weights
 from torchvision.models.detection.ssd import SSD
 
 import detector.model as model_module
-from detector import (
+from detector.model import (
     MODEL_BUILDERS,
     available_detector_models,
     build_detector_model,

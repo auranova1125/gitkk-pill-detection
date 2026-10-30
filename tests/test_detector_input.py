@@ -8,8 +8,8 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from detector import (
-    DetectorConfig,
+from configs.detector import DetectorConfig
+from detector.input_validation import (
     InputValidationError,
     validate_detector_data_summary,
     validate_detector_label_map,

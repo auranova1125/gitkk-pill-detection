@@ -16,13 +16,13 @@ from torchvision.models import ResNet50_Weights
 import classifier.model as model_module
 from classifier.input_validation import (
     InputValidationError,
-    validate_batch,
-    validate_class_map,
-    validate_data_summary,
+    validate_classifier_class_map,
+    validate_classifier_data_summary,
+    validate_classifier_training_batch,
 )
 from classifier.model import (
     TrainingStage,
-    build_model,
+    build_classifier_model,
     configure_model_for_stage,
     set_model_train_mode,
 )
@@ -171,18 +171,18 @@ def test_train_config_rejects_invalid_values(
 def test_validate_class_map_accepts_synthetic_mapping(
     class_map: dict[str, Any],
 ) -> None:
-    validate_class_map(class_map, expected_num_classes=NUM_CLASSES)
+    validate_classifier_class_map(class_map, expected_num_classes=NUM_CLASSES)
 
 
 def test_validate_class_map_uses_118_classes_by_default() -> None:
-    validate_class_map(make_class_map(num_classes=118))
+    validate_classifier_class_map(make_class_map(num_classes=118))
 
 
 def test_validate_class_map_rejects_synthetic_mapping_without_override(
     class_map: dict[str, Any],
 ) -> None:
     with pytest.raises(InputValidationError, match="118"):
-        validate_class_map(class_map)
+        validate_classifier_class_map(class_map)
 
 
 @pytest.mark.parametrize("duplicate_field", ["class_index", "category_id", "item_seq"])
@@ -193,13 +193,16 @@ def test_validate_class_map_rejects_duplicates(
     class_map["classes"][1][duplicate_field] = class_map["classes"][0][duplicate_field]
 
     with pytest.raises(InputValidationError):
-        validate_class_map(class_map, expected_num_classes=NUM_CLASSES)
+        validate_classifier_class_map(
+            class_map,
+            expected_num_classes=NUM_CLASSES,
+        )
 
 
 def test_validate_data_summary_accepts_missing_validation_class(
     class_map: dict[str, Any],
 ) -> None:
-    validate_data_summary(
+    validate_classifier_data_summary(
         make_data_summary(),
         class_map,
         expected_num_classes=NUM_CLASSES,
@@ -213,7 +216,7 @@ def test_validate_data_summary_rejects_group_overlap(
     data_summary["group_overlap_count"] = 1
 
     with pytest.raises(InputValidationError, match="group_overlap_count"):
-        validate_data_summary(
+        validate_classifier_data_summary(
             data_summary,
             class_map,
             expected_num_classes=NUM_CLASSES,
@@ -228,7 +231,7 @@ def test_validate_data_summary_requires_every_training_class(
     data_summary["num_train_samples"] -= 2
 
     with pytest.raises(InputValidationError, match="must be greater than zero"):
-        validate_data_summary(
+        validate_classifier_data_summary(
             data_summary,
             class_map,
             expected_num_classes=NUM_CLASSES,
@@ -242,7 +245,7 @@ def test_validate_data_summary_rejects_validation_index_mismatch(
     data_summary["validation_class_indices"].append(NUM_CLASSES - 1)
 
     with pytest.raises(InputValidationError, match="validation_class_indices"):
-        validate_data_summary(
+        validate_classifier_data_summary(
             data_summary,
             class_map,
             expected_num_classes=NUM_CLASSES,
@@ -253,7 +256,11 @@ def test_validate_batch_accepts_synthetic_loader_batch(
     valid_batch: dict[str, Any],
     class_map: dict[str, Any],
 ) -> None:
-    validate_batch(valid_batch, class_map, expected_num_classes=NUM_CLASSES)
+    validate_classifier_training_batch(
+        valid_batch,
+        class_map,
+        expected_num_classes=NUM_CLASSES,
+    )
 
 
 def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> None:
@@ -313,12 +320,12 @@ def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> No
     assert loaded_class_map == class_map
     assert loaded_summary == data_summary
     assert isinstance(train_loader.sampler, WeightedRandomSampler)
-    validate_batch(
+    validate_classifier_training_batch(
         next(iter(train_loader)),
         loaded_class_map,
         expected_num_classes=num_classes,
     )
-    validate_batch(
+    validate_classifier_training_batch(
         next(iter(val_loader)),
         loaded_class_map,
         expected_num_classes=num_classes,
@@ -347,7 +354,7 @@ def test_validate_batch_rejects_invalid_tensors(
     invalid_batch = {**valid_batch, field_name: field_value}
 
     with pytest.raises(InputValidationError, match=error_text):
-        validate_batch(
+        validate_classifier_training_batch(
             invalid_batch,
             class_map,
             expected_num_classes=NUM_CLASSES,
@@ -362,7 +369,7 @@ def test_validate_batch_rejects_non_finite_image(
     invalid_batch["images"][0, 0, 0, 0] = torch.nan
 
     with pytest.raises(InputValidationError, match="NaN or Inf"):
-        validate_batch(
+        validate_classifier_training_batch(
             invalid_batch,
             class_map,
             expected_num_classes=NUM_CLASSES,
@@ -377,7 +384,7 @@ def test_validate_batch_rejects_meta_target_mismatch(
     invalid_batch["meta"][0]["category_id"] = 9999
 
     with pytest.raises(InputValidationError, match="does not match target"):
-        validate_batch(
+        validate_classifier_training_batch(
             invalid_batch,
             class_map,
             expected_num_classes=NUM_CLASSES,
@@ -391,7 +398,7 @@ def test_validate_batch_requires_meta_list(
     invalid_batch = {**valid_batch, "meta": {"sample_id": ["sample-0"]}}
 
     with pytest.raises(InputValidationError, match="must be a list"):
-        validate_batch(
+        validate_classifier_training_batch(
             invalid_batch,
             class_map,
             expected_num_classes=NUM_CLASSES,
@@ -401,12 +408,12 @@ def test_validate_batch_requires_meta_list(
 @pytest.mark.parametrize("num_classes", [0, -1])
 def test_build_model_rejects_non_positive_class_count(num_classes: int) -> None:
     with pytest.raises(ValueError, match="greater than zero"):
-        build_model(num_classes, pretrained=False)
+        build_classifier_model(num_classes, pretrained=False)
 
 
 def test_build_model_rejects_boolean_class_count() -> None:
     with pytest.raises(TypeError, match="integer"):
-        build_model(True, pretrained=False)
+        build_classifier_model(True, pretrained=False)
 
 
 def test_build_model_uses_imagenet_v2_weights_by_default(
@@ -421,14 +428,14 @@ def test_build_model_uses_imagenet_v2_weights_by_default(
 
     monkeypatch.setattr(model_module, "resnet50", build_without_download)
 
-    model = build_model(NUM_CLASSES)
+    model = build_classifier_model(NUM_CLASSES)
 
     assert captured_weights == [ResNet50_Weights.IMAGENET1K_V2]
     assert model.fc.out_features == NUM_CLASSES
 
 
 def test_build_model_forward_and_backward() -> None:
-    model = build_model(NUM_CLASSES, pretrained=False)
+    model = build_classifier_model(NUM_CLASSES, pretrained=False)
     configure_model_for_stage(model, TrainingStage.HEAD_ONLY)
     set_model_train_mode(model)
 
@@ -442,7 +449,7 @@ def test_build_model_forward_and_backward() -> None:
 
 
 def test_head_only_stage_trains_only_fc() -> None:
-    model = build_model(NUM_CLASSES, pretrained=False)
+    model = build_classifier_model(NUM_CLASSES, pretrained=False)
 
     configure_model_for_stage(model, TrainingStage.HEAD_ONLY)
 
@@ -453,7 +460,7 @@ def test_head_only_stage_trains_only_fc() -> None:
 
 
 def test_layer4_stage_trains_layer4_without_batch_norm_and_fc() -> None:
-    model = build_model(NUM_CLASSES, pretrained=False)
+    model = build_classifier_model(NUM_CLASSES, pretrained=False)
 
     configure_model_for_stage(model, TrainingStage.LAYER4_FINE_TUNING)
 
@@ -473,7 +480,7 @@ def test_layer4_stage_trains_layer4_without_batch_norm_and_fc() -> None:
     [TrainingStage.HEAD_ONLY, TrainingStage.LAYER4_FINE_TUNING],
 )
 def test_frozen_batch_norm_stays_in_eval_mode(stage: TrainingStage) -> None:
-    model = build_model(NUM_CLASSES, pretrained=False)
+    model = build_classifier_model(NUM_CLASSES, pretrained=False)
     configure_model_for_stage(model, stage)
 
     set_model_train_mode(model)
@@ -492,7 +499,7 @@ def test_frozen_batch_norm_stays_in_eval_mode(stage: TrainingStage) -> None:
 
 
 def test_configure_model_rejects_unknown_stage() -> None:
-    model = build_model(NUM_CLASSES, pretrained=False)
+    model = build_classifier_model(NUM_CLASSES, pretrained=False)
 
     with pytest.raises(ValueError, match="stage must be one of"):
         configure_model_for_stage(model, "unknown")

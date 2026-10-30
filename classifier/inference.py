@@ -9,14 +9,14 @@ import torch
 from torch import nn
 
 from classifier.checkpoint import hash_class_map, load_checkpoint
-from classifier.input_validation import validate_class_map
-from classifier.model import build_model
+from classifier.input_validation import validate_classifier_class_map
+from classifier.model import build_classifier_model
 from pilldata.validation import normalize_bbox_xywh, normalize_probability
 from utils.runtime import select_device
 
 
 @dataclass(frozen=True, slots=True)
-class DetectionPrediction:
+class ClassifiedDetection:
     """탐지 하나에 대응하는 분류 결과."""
 
     image_id: str
@@ -37,7 +37,7 @@ class DetectionPrediction:
 
 
 @dataclass(frozen=True, slots=True)
-class InferenceError:
+class ClassifierInferenceError:
     """예측을 제거하지 않고 함께 기록할 매핑 오류."""
 
     image_id: str
@@ -50,11 +50,11 @@ class InferenceError:
 
 
 @dataclass(frozen=True, slots=True)
-class InferenceResult:
+class ClassifierInferenceResult:
     """전체 탐지 분류 결과와 오류 목록."""
 
-    predictions: tuple[DetectionPrediction, ...]
-    errors: tuple[InferenceError, ...]
+    predictions: tuple[ClassifiedDetection, ...]
+    errors: tuple[ClassifierInferenceError, ...]
 
     def to_dict(self) -> dict[str, list[dict[str, Any]]]:
         return {
@@ -188,19 +188,19 @@ def _class_lookup(
 
 
 @torch.inference_mode()
-def predict_detections(
+def classify_detections(
     model: nn.Module,
     data_loader: Iterable[Mapping[str, Any]],
     class_map: Mapping[str, Any],
     device: torch.device,
-) -> InferenceResult:
+) -> ClassifierInferenceResult:
     """탐지 crop을 분류하고 detector와 classifier score를 결합한다."""
 
     num_classes, class_lookup = _class_lookup(class_map)
     model.eval()
     use_amp = device.type == "cuda"
-    predictions: list[DetectionPrediction] = []
-    errors: list[InferenceError] = []
+    predictions: list[ClassifiedDetection] = []
+    errors: list[ClassifierInferenceError] = []
 
     for batch in data_loader:
         normalized_meta = validate_classifier_crop_batch(batch)
@@ -230,7 +230,7 @@ def predict_detections(
             item_seq: str | None = None
             if class_entry is None:
                 errors.append(
-                    InferenceError(
+                    ClassifierInferenceError(
                         image_id=meta["image_id"],
                         detection_id=meta["detection_id"],
                         class_index=class_index,
@@ -244,7 +244,7 @@ def predict_detections(
                     raw_category_id, bool
                 ):
                     errors.append(
-                        InferenceError(
+                        ClassifierInferenceError(
                             image_id=meta["image_id"],
                             detection_id=meta["detection_id"],
                             class_index=class_index,
@@ -253,7 +253,7 @@ def predict_detections(
                     )
                 elif not isinstance(raw_item_seq, str) or not raw_item_seq:
                     errors.append(
-                        InferenceError(
+                        ClassifierInferenceError(
                             image_id=meta["image_id"],
                             detection_id=meta["detection_id"],
                             class_index=class_index,
@@ -269,7 +269,7 @@ def predict_detections(
                 classifier_score,
             )
             predictions.append(
-                DetectionPrediction(
+                ClassifiedDetection(
                     image_id=meta["image_id"],
                     detection_id=meta["detection_id"],
                     bbox_xywh=meta["bbox_xywh"],
@@ -283,10 +283,13 @@ def predict_detections(
                 )
             )
 
-    return InferenceResult(predictions=tuple(predictions), errors=tuple(errors))
+    return ClassifierInferenceResult(
+        predictions=tuple(predictions),
+        errors=tuple(errors),
+    )
 
 
-def load_inference_model(
+def load_classifier_inference_model(
     checkpoint_path: Path,
     class_map: Mapping[str, Any],
     *,
@@ -295,13 +298,19 @@ def load_inference_model(
 ) -> tuple[nn.Module, torch.device]:
     """checkpoint에서 사전학습 다운로드 없이 추론 모델을 복원한다."""
 
-    validate_class_map(class_map, expected_num_classes=expected_num_classes)
+    validate_classifier_class_map(
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
     selected_device = device if device is not None else select_device()
     checkpoint = load_checkpoint(checkpoint_path, selected_device)
     if checkpoint["class_map_hash"] != hash_class_map(class_map):
         raise ValueError("checkpoint class map hash does not match current class map")
 
-    model = build_model(expected_num_classes, pretrained=False).to(selected_device)
+    model = build_classifier_model(
+        expected_num_classes,
+        pretrained=False,
+    ).to(selected_device)
     model.load_state_dict(checkpoint["model_state"])
     model.eval()
     return model, selected_device

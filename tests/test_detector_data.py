@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import torch
 
-from detector import (
+from detector.input_validation import (
     validate_detector_data_summary,
     validate_detector_label_map,
     validate_detector_training_batch,
