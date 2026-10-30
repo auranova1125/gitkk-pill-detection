@@ -25,7 +25,7 @@ model num_classes = 2
 학습 Notebook은 다음 형식의 문자열로 데이터 구성 함수를 불러온다.
 
 ```python
-data_factory_path = "detector_data.detector_inputs:build_detector_inputs"
+data_factory_path = "pilldata.detector_dataset:build_detector_inputs"
 ```
 
 ### 2.2 함수 시그니처

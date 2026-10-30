@@ -11,8 +11,8 @@ import torch
 from PIL import Image, ImageEnhance
 from torch.utils.data import DataLoader, Dataset, get_worker_info
 
-from .data_records import read_records
-from .settings import load_settings
+from .detector_records import read_records
+from .detector_settings import load_detector_settings
 
 if TYPE_CHECKING:
     from detector import DetectorConfig
@@ -135,8 +135,11 @@ class PillDetectionDataset(Dataset):
 
 def build_detector_inputs(*, config: DetectorConfig, device):
     """팀원의 학습 코드가 호출하는 공통 함수. 데이터는 다시 나누지 않는다."""
+    settings_path = getattr(config, "data_settings_path", None)
     return _build_detector_inputs(
-        config=config, device=device, settings=load_settings()
+        config=config,
+        device=device,
+        settings=load_detector_settings(settings_path),
     )
 
 

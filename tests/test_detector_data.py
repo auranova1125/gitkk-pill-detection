@@ -4,7 +4,6 @@ import copy
 import csv
 import hashlib
 import json
-import os
 import struct
 import subprocess
 import sys
@@ -13,19 +12,22 @@ import unittest
 import zlib
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import torch
 
 from detector import (
-    validate_detector_training_batch,
     validate_detector_data_summary,
     validate_detector_label_map,
+    validate_detector_training_batch,
 )
-from detector_data.data_records import read_records
-from detector_data.detector_inputs import PillDetectionDataset, build_detector_inputs
-from detector_data.settings import DEFAULT_SETTINGS, REPOSITORY_ROOT, resolve_image_path
-from detector_data.smoke_test import verify_samples
+from pilldata.detector_dataset import PillDetectionDataset, build_detector_inputs
+from pilldata.detector_records import read_records
+from pilldata.detector_sample_validation import verify_detector_sample_package
+from pilldata.detector_settings import (
+    DEFAULT_SETTINGS,
+    REPOSITORY_ROOT,
+    resolve_image_path,
+)
 
 
 def write_png(path):
@@ -119,14 +121,11 @@ class DataTests(unittest.TestCase):
         settings_path = self.root / "factory_settings.json"
         settings_path.write_text(json.dumps(self.settings), encoding="utf-8")
         config = SimpleNamespace(seed=42, batch_size=2)
-        with patch.dict(
-            os.environ,
-            {"DETECTOR_DATA_SETTINGS": str(settings_path)},
-        ):
-            return build_detector_inputs(
-                config=config,
-                device=torch.device("cpu"),
-            )
+        config.data_settings_path = settings_path
+        return build_detector_inputs(
+            config=config,
+            device=torch.device("cpu"),
+        )
 
     def test_valid_records_keep_all_boxes(self):
         records, label_map, summary = read_records(self.settings)
@@ -331,22 +330,23 @@ class DataTests(unittest.TestCase):
         process = subprocess.run(
             [
                 sys.executable,
-                "-m",
-                "detector_data",
-                *arguments,
+                "main.py",
+                "check-detector-data",
+                "--settings",
+                str(custom),
                 "--report",
                 str(report),
+                *arguments,
             ],
             check=False,
             cwd=REPOSITORY_ROOT,
-            env=dict(os.environ, DETECTOR_DATA_SETTINGS=str(custom)),
             capture_output=True,
             text=True,
         )
         return process, json.loads(report.read_text())
 
     def test_check_command_and_report(self):
-        process, report = self.run_cli("check")
+        process, report = self.run_cli()
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertEqual(report["status"], "passed")
         self.assertFalse(report["pixel_read_all_images"])
@@ -354,7 +354,7 @@ class DataTests(unittest.TestCase):
     def test_check_failure_is_recorded(self):
         self.ann()["area"] = 199
         self.save()
-        process, report = self.run_cli("check")
+        process, report = self.run_cli()
         self.assertEqual(process.returncode, 1)
         self.assertEqual(report["status"], "failed")
 
@@ -395,7 +395,7 @@ class DataTests(unittest.TestCase):
 
     def test_existing_bundle_accepts_changed_code_and_keeps_data_checks(self):
         self.bundle()
-        _, manifest, summary = verify_samples(self.package)
+        _, manifest, summary = verify_detector_sample_package(self.package)
         self.assertEqual(manifest["code_sha256"], {"old_code.py": "old"})
         self.assertEqual(summary["num_train_images"], 2)
 
@@ -405,7 +405,7 @@ class DataTests(unittest.TestCase):
             self.rows[0]["image_path"], self.settings["image_roots"]
         ).write_bytes(b"changed")
         with self.assertRaisesRegex(ValueError, "변경"):
-            verify_samples(self.package)
+            verify_detector_sample_package(self.package)
 
     def test_modified_bundle_manifest_rejected(self):
         self.bundle()
@@ -414,13 +414,13 @@ class DataTests(unittest.TestCase):
         manifest["selected_image_ids"]["train"] = [99, 100]
         path.write_text(json.dumps(manifest))
         with self.assertRaisesRegex(ValueError, "식별값"):
-            verify_samples(self.package)
+            verify_detector_sample_package(self.package)
 
-    def test_sample_check_does_not_execute_model(self):
+    def test_sample_check_only_validates_package_integrity(self):
         self.bundle()
-        process, report = self.run_cli("smoke-check", "--package", str(self.package))
-        self.assertEqual(process.returncode, 0, process.stderr)
-        self.assertFalse(report["model_executed"])
+        _, manifest, summary = verify_detector_sample_package(self.package)
+        self.assertEqual(manifest["selected_image_ids"]["train"], [1, 2])
+        self.assertEqual(summary["num_val_images"], 2)
 
 
 if __name__ == "__main__":

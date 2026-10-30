@@ -29,6 +29,7 @@ class DetectorConfig:
     nms_threshold: float
     early_stopping_patience: int
     data_factory_path: str | None = None
+    data_settings_path: Path | None = None
     pretrained_backbone: bool = True
     device: str = "auto"
     model_name: str = "ssdlite320_mobilenet_v3_large"
@@ -45,6 +46,8 @@ class DetectorConfig:
         self.data_summary_path = Path(self.data_summary_path)
         if self.resume_from is not None:
             self.resume_from = Path(self.resume_from)
+        if self.data_settings_path is not None:
+            self.data_settings_path = Path(self.data_settings_path)
 
         if not self.run_name.strip():
             raise ValueError("run_name must not be empty")
@@ -130,6 +133,7 @@ class DetectorConfig:
             "output_dir",
             "label_map_path",
             "data_summary_path",
+            "data_settings_path",
             "resume_from",
         ):
             value = values[field_name]
@@ -147,6 +151,7 @@ def load_detector_config(path: Path) -> DetectorConfig:
             "task",
             "training",
             "data_factory_path",
+            "data_settings_path",
             "pretrained_backbone",
             "device",
         },
@@ -155,6 +160,7 @@ def load_detector_config(path: Path) -> DetectorConfig:
     )
     runtime_values = {
         "data_factory_path": raw["data_factory_path"],
+        "data_settings_path": raw.get("data_settings_path"),
         "pretrained_backbone": raw.get("pretrained_backbone", True),
         "device": raw.get("device", "auto"),
     }

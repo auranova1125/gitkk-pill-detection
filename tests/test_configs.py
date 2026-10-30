@@ -35,7 +35,9 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert classifier.run_name == "resnet50_baseline"
     assert classifier.expected_num_classes == 118
     assert detector.model_name == "ssdlite320_mobilenet_v3_large"
-    assert detector.data_factory_path is None
+    assert (
+        detector.data_factory_path == "pilldata.detector_dataset:build_detector_inputs"
+    )
     assert pill_recognition.inference_factory_path is None
 
 
@@ -177,6 +179,7 @@ def test_classifier_training_reuses_validated_data(
 
 def test_detector_training_reports_missing_factory() -> None:
     config = load_detector_config(PROJECT_ROOT / "configs" / "detector.yaml")
+    config.data_factory_path = None
 
     with pytest.raises(RuntimeError, match="data_factory_path is not configured"):
         train_detector(config)

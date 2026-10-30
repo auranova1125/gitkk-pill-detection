@@ -3,6 +3,7 @@
 import argparse
 import json
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +67,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--device",
         choices=("auto", "cpu", "mps", "cuda"),
         default="auto",
+    )
+
+    detector_data_parser = subparsers.add_parser(
+        "check-detector-data",
+        help="탐지 학습 패키지의 라벨·분할·경로를 검사한다.",
+    )
+    detector_data_parser.add_argument("--settings", type=Path)
+    detector_data_parser.add_argument(
+        "--report",
+        type=Path,
+        default=PROJECT_ROOT / "outputs/detector_data/check_report.json",
     )
     return parser
 
@@ -153,11 +165,41 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_json(run_synthetic_smoke(device_name=args.device).to_dict())
         return 0
 
+    if args.command == "check-detector-data":
+        return _check_detector_data(args.settings, args.report)
+
     raise AssertionError(f"unsupported command: {args.command}")
 
 
 def _print_json(value: Any) -> None:
     print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def _check_detector_data(settings_path: Path | None, report_path: Path) -> int:
+    """탐지 학습 패키지를 읽고 검사 결과를 JSON으로 저장한다."""
+    from pilldata.detector_records import read_records
+    from pilldata.detector_settings import load_detector_settings
+    from utils.io import write_json
+
+    result: dict[str, Any] = {
+        "command": "check-detector-data",
+        "status": "failed",
+        "executed_at_utc": datetime.now(UTC).isoformat(),
+    }
+    try:
+        _, _, summary = read_records(load_detector_settings(settings_path))
+        result.update(
+            status="passed",
+            scope="full_labels_and_paths",
+            data_summary=summary,
+            pixel_read_all_images=False,
+        )
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        result["error"] = f"{type(error).__name__}: {error}"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    write_json(report_path, result)
+    _print_json(result)
+    return 0 if result["status"] == "passed" else 1
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import json
-import os
 from pathlib import Path, PurePosixPath
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -28,12 +27,11 @@ def repository_path(value):
     return (path if path.is_absolute() else REPOSITORY_ROOT / path).resolve()
 
 
-def load_settings():
-    """기본 설정을 사용한다. 외부 경로는 환경 변수로 명시한 경우에만 읽는다."""
-    custom = os.environ.get("DETECTOR_DATA_SETTINGS")
-    if not custom:
+def load_detector_settings(path: str | Path | None = None):
+    """기본 설정 또는 명시한 JSON 설정 파일을 읽는다."""
+    if path is None:
         return copy.deepcopy(DEFAULT_SETTINGS)
-    path = repository_path(custom)
+    path = repository_path(path)
     if not path.is_file():
         raise FileNotFoundError(f"지정한 데이터 설정 파일이 없습니다: {path}")
     with path.open(encoding="utf-8") as file:

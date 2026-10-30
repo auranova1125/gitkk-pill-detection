@@ -12,7 +12,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-from .settings import resolve_data_paths, resolve_image_path
+from .detector_settings import resolve_data_paths, resolve_image_path
 
 
 def read_json(path):
