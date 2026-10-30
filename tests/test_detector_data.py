@@ -1,30 +1,51 @@
 """합성 이미지와 라벨로 데이터 연결·실패 처리·표본 무결성을 검사한다."""
+
 import copy
 import csv
 import hashlib
 import json
 import os
-from pathlib import Path
 import struct
 import subprocess
 import sys
 import tempfile
 import unittest
 import zlib
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
+import torch
+
+from detector import (
+    validate_detection_batch,
+    validate_detector_data_summary,
+    validate_detector_label_map,
+)
 from detector_data.data_records import read_records
+from detector_data.detector_inputs import PillDetectionDataset, build_detector_inputs
 from detector_data.settings import DEFAULT_SETTINGS, REPOSITORY_ROOT, resolve_image_path
 from detector_data.smoke_test import verify_samples
 
 
 def write_png(path):
     def chunk(kind, data):
-        return struct.pack("!I", len(data)) + kind + data + struct.pack("!I", zlib.crc32(kind + data))
+        return (
+            struct.pack("!I", len(data))
+            + kind
+            + data
+            + struct.pack("!I", zlib.crc32(kind + data))
+        )
+
     path.parent.mkdir(parents=True, exist_ok=True)
     header = struct.pack("!2I5B", 32, 32, 8, 2, 0, 0, 0)
     rows = b"".join(b"\0" + bytes([220, 220, 220]) * 32 for _ in range(32))
-    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
-                     + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(rows))
+        + chunk(b"IEND", b"")
+    )
 
 
 class DataTests(unittest.TestCase):
@@ -35,10 +56,13 @@ class DataTests(unittest.TestCase):
         self.package = self.root / "dataset"
         (self.package / "annotations").mkdir(parents=True)
         self.settings = copy.deepcopy(DEFAULT_SETTINGS)
-        self.settings.update(package_dir=str(self.package), image_roots={
-            "select": str(self.package / "images/select_aihub"),
-            "codeit": str(self.package / "images/select_codeit"),
-        })
+        self.settings.update(
+            package_dir=str(self.package),
+            image_roots={
+                "select": str(self.package / "images/select_aihub"),
+                "codeit": str(self.package / "images/select_codeit"),
+            },
+        )
         self.rows, self.labels = [], {}
         for split, offset in (("train", 0), ("validation", 2)):
             images, annotations = [], []
@@ -46,21 +70,42 @@ class DataTests(unittest.TestCase):
                 iid = offset + j
                 group = f"K-{iid * 2 - 1:06d}-{iid * 2:06d}"
                 name = f"{dataset}/images/{group}_0_2_0_2_70_000_200.png"
-                images.append(dict(id=iid, file_name=name, width=32, height=32))
+                images.append({"id": iid, "file_name": name, "width": 32, "height": 32})
                 write_png(resolve_image_path(name, self.settings["image_roots"]))
                 for k in range(2):
-                    annotations.append(dict(id=iid * 10 + k, image_id=iid,
-                                            category_id=iid * 2 - 1 + k,
-                                            bbox=[k * 12, 2, 10, 20], area=200, iscrowd=0))
-                self.rows.append(dict(image_id=iid, dataset=dataset, image_path=name,
-                                      original_image_id=iid, annotation_count=2,
-                                      group_id=group, split=split))
-            self.labels[split] = dict(images=images, annotations=annotations, categories=[])
+                    annotations.append(
+                        {
+                            "id": iid * 10 + k,
+                            "image_id": iid,
+                            "category_id": iid * 2 - 1 + k,
+                            "bbox": [k * 12, 2, 10, 20],
+                            "area": 200,
+                            "iscrowd": 0,
+                        }
+                    )
+                self.rows.append(
+                    {
+                        "image_id": iid,
+                        "dataset": dataset,
+                        "image_path": name,
+                        "original_image_id": iid,
+                        "annotation_count": 2,
+                        "group_id": group,
+                        "split": split,
+                    }
+                )
+            self.labels[split] = {
+                "images": images,
+                "annotations": annotations,
+                "categories": [],
+            }
         self.save()
 
     def save(self):
         for split, payload in self.labels.items():
-            (self.package / "annotations" / f"{split}.json").write_text(json.dumps(payload))
+            (self.package / "annotations" / f"{split}.json").write_text(
+                json.dumps(payload)
+            )
         with (self.package / "split_manifest.csv").open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=list(self.rows[0]))
             writer.writeheader()
@@ -69,12 +114,103 @@ class DataTests(unittest.TestCase):
     def ann(self):
         return self.labels["train"]["annotations"][0]
 
+    def build_inputs(self):
+        settings_path = self.root / "factory_settings.json"
+        settings_path.write_text(json.dumps(self.settings), encoding="utf-8")
+        config = SimpleNamespace(seed=42, batch_size=2)
+        with patch.dict(
+            os.environ,
+            {"DETECTOR_DATA_SETTINGS": str(settings_path)},
+        ):
+            return build_detector_inputs(
+                config=config,
+                device=torch.device("cpu"),
+            )
+
     def test_valid_records_keep_all_boxes(self):
         records, label_map, summary = read_records(self.settings)
         self.assertEqual(summary["num_train_instances"], 4)
         self.assertEqual(summary["num_val_images"], 2)
         self.assertEqual(label_map["num_model_classes"], 2)
-        self.assertEqual(records["train"][0]["boxes"], [[0.0, 2.0, 10.0, 22.0], [12.0, 2.0, 22.0, 22.0]])
+        self.assertEqual(
+            records["train"][0]["boxes"],
+            [[0.0, 2.0, 10.0, 22.0], [12.0, 2.0, 22.0, 22.0]],
+        )
+
+    def test_public_factory_returns_valid_detector_batches(self):
+        train_loader, val_loader, label_map, summary = self.build_inputs()
+
+        validate_detector_label_map(label_map)
+        validate_detector_data_summary(summary, label_map)
+        train_batch = next(iter(train_loader))
+        val_batch = next(iter(val_loader))
+        validate_detection_batch(train_batch, label_map)
+        validate_detection_batch(val_batch, label_map)
+
+        self.assertEqual(len(train_loader.dataset), 2)
+        self.assertEqual(len(val_loader.dataset), 2)
+        self.assertTrue(torch.all(train_batch["targets"][0]["labels"] == 1))
+        self.assertEqual(
+            train_batch["meta"][0]["source_annotation_count"],
+            len(train_batch["targets"][0]["boxes"]),
+        )
+
+    def test_dataset_flips_image_boxes_together(self):
+        records, _, _ = read_records(self.settings)
+        dataset = PillDetectionDataset(
+            records["train"][:1],
+            {
+                "horizontal_flip": 1.0,
+                "vertical_flip": 1.0,
+                "brightness": 0.0,
+                "contrast": 0.0,
+            },
+            seed=42,
+        )
+
+        sample = dataset[0]
+
+        self.assertEqual(
+            sample["target"]["boxes"].tolist(),
+            [[22.0, 10.0, 32.0, 30.0], [10.0, 10.0, 20.0, 30.0]],
+        )
+        self.assertEqual(
+            sample["meta"]["transformed_boxes_xyxy"],
+            sample["target"]["boxes"].tolist(),
+        )
+
+    def test_factory_is_reproducible_with_same_seed(self):
+        self.settings["augmentation"]["horizontal_flip"] = 0.5
+        first_train, _, _, first_summary = self.build_inputs()
+        second_train, _, _, second_summary = self.build_inputs()
+
+        def snapshot(loader):
+            return [
+                (
+                    [
+                        batch["meta"][index]["image_id"]
+                        for index in range(len(batch["meta"]))
+                    ],
+                    [target["boxes"].tolist() for target in batch["targets"]],
+                )
+                for batch in loader
+            ]
+
+        self.assertEqual(first_summary, second_summary)
+        self.assertEqual(snapshot(first_train), snapshot(second_train))
+
+    def test_dataset_rejects_actual_image_size_mismatch(self):
+        self.labels["train"]["images"][0]["width"] = 31
+        self.save()
+        records, _, _ = read_records(self.settings)
+        dataset = PillDetectionDataset(
+            records["train"][:1],
+            DEFAULT_SETTINGS["augmentation"],
+            seed=42,
+        )
+
+        with self.assertRaisesRegex(ValueError, "실제 이미지와 JSON 크기 불일치"):
+            dataset[0]
 
     def test_excluded_unreferenced_image_is_not_loaded(self):
         write_png(Path(self.settings["image_roots"]["select"]) / "excluded.png")
@@ -88,7 +224,9 @@ class DataTests(unittest.TestCase):
             read_records(self.settings)
 
     def test_duplicate_image_rejected(self):
-        self.labels["train"]["images"].append(copy.deepcopy(self.labels["train"]["images"][0]))
+        self.labels["train"]["images"].append(
+            copy.deepcopy(self.labels["train"]["images"][0])
+        )
         self.save()
         with self.assertRaisesRegex(ValueError, "ID"):
             read_records(self.settings)
@@ -112,13 +250,20 @@ class DataTests(unittest.TestCase):
             read_records(self.settings)
 
     def test_missing_image_rejected(self):
-        resolve_image_path(self.rows[0]["image_path"], self.settings["image_roots"]).unlink()
+        resolve_image_path(
+            self.rows[0]["image_path"], self.settings["image_roots"]
+        ).unlink()
         with self.assertRaises(FileNotFoundError):
             read_records(self.settings)
 
     def test_bad_boxes_rejected(self):
-        for box in ([0, 0, 33, 10], [-1, 2, 10, 20], [0, 0, 0, 10],
-                    [0, 0, float("nan"), 10], [True, 2, 10, 20]):
+        for box in (
+            [0, 0, 33, 10],
+            [-1, 2, 10, 20],
+            [0, 0, 0, 10],
+            [0, 0, float("nan"), 10],
+            [True, 2, 10, 20],
+        ):
             with self.subTest(box=box):
                 self.ann()["bbox"] = box
                 self.save()
@@ -152,7 +297,9 @@ class DataTests(unittest.TestCase):
 
     def test_path_escape_rejected(self):
         with self.assertRaises(ValueError):
-            resolve_image_path("select/images/../../private.png", self.settings["image_roots"])
+            resolve_image_path(
+                "select/images/../../private.png", self.settings["image_roots"]
+            )
 
     def test_read_does_not_modify_sources(self):
         before = {p: p.read_bytes() for p in self.package.rglob("*") if p.is_file()}
@@ -164,10 +311,21 @@ class DataTests(unittest.TestCase):
         custom = self.root / "settings.json"
         custom.write_text(json.dumps(self.settings))
         report = self.root / "result.json"
-        process = subprocess.run([sys.executable, "-m", "detector_data", *arguments,
-                                  "--report", str(report)], cwd=REPOSITORY_ROOT,
-                                 env=dict(os.environ, DETECTOR_DATA_SETTINGS=str(custom)),
-                                 capture_output=True, text=True)
+        process = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "detector_data",
+                *arguments,
+                "--report",
+                str(report),
+            ],
+            check=False,
+            cwd=REPOSITORY_ROOT,
+            env=dict(os.environ, DETECTOR_DATA_SETTINGS=str(custom)),
+            capture_output=True,
+            text=True,
+        )
         return process, json.loads(report.read_text())
 
     def test_check_command_and_report(self):
@@ -185,16 +343,37 @@ class DataTests(unittest.TestCase):
 
     def bundle(self):
         manifest = {
-            "version": "pill-smoke-package-v1", "code_sha256": {"old_code.py": "old"},
+            "version": "pill-smoke-package-v1",
+            "code_sha256": {"old_code.py": "old"},
             "selected_image_ids": {"train": [1, 2], "validation": [3, 4]},
-            "augmentation": DEFAULT_SETTINGS["augmentation"], "batch_size": 2, "seed": 42,
-            "counts": {split: {"images": 2, "boxes": 4} for split in ("train", "validation")},
-            "files_sha256": {p.relative_to(self.package).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
-                             for p in self.package.rglob("*") if p.is_file()},
+            "augmentation": DEFAULT_SETTINGS["augmentation"],
+            "batch_size": 2,
+            "seed": 42,
+            "counts": {
+                split: {"images": 2, "boxes": 4} for split in ("train", "validation")
+            },
+            "files_sha256": {
+                p.relative_to(self.package).as_posix(): hashlib.sha256(
+                    p.read_bytes()
+                ).hexdigest()
+                for p in self.package.rglob("*")
+                if p.is_file()
+            },
         }
-        keys = ("version", "files_sha256", "code_sha256", "selected_image_ids", "augmentation", "batch_size", "seed")
-        manifest["package_hash"] = hashlib.sha256(json.dumps(
-            {k: manifest[k] for k in keys}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        keys = (
+            "version",
+            "files_sha256",
+            "code_sha256",
+            "selected_image_ids",
+            "augmentation",
+            "batch_size",
+            "seed",
+        )
+        manifest["package_hash"] = hashlib.sha256(
+            json.dumps(
+                {k: manifest[k] for k in keys}, sort_keys=True, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
         (self.package / "smoke_package_manifest.json").write_text(json.dumps(manifest))
 
     def test_existing_bundle_accepts_changed_code_and_keeps_data_checks(self):
@@ -205,7 +384,9 @@ class DataTests(unittest.TestCase):
 
     def test_modified_bundle_image_rejected(self):
         self.bundle()
-        resolve_image_path(self.rows[0]["image_path"], self.settings["image_roots"]).write_bytes(b"changed")
+        resolve_image_path(
+            self.rows[0]["image_path"], self.settings["image_roots"]
+        ).write_bytes(b"changed")
         with self.assertRaisesRegex(ValueError, "변경"):
             verify_samples(self.package)
 
