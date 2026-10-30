@@ -1,8 +1,8 @@
 """라벨 2차 검수 ③: 위치 검수와 클래스 검수의 판정을 합쳐 데이터 v2에 적용할 목록을 만든다.
 
 입력 (사람 검수가 끝난 CSV)
-    data/classifier/meta/label_audit/position_suspects.csv   audit_bbox_position.py 결과 + 판정
-    data/classifier/meta/label_audit/class_suspects.csv      audit_class_label.py 결과 + 판정
+    classifier_data_build/label_audit/position_suspects.csv   audit_bbox_position.py 결과 + 판정
+    classifier_data_build/label_audit/class_suspects.csv      audit_class_label.py 결과 + 판정
 
 조치 (판정이 "오류"인 줄의 조치 칸)
     이미지 제외      그 사진의 crop을 모두 뺀다 (AI Hub 조합 사진. 대신 쓸 사진이 많다)
@@ -11,7 +11,7 @@
     한 crop에 조치가 여러 개면 이미지 제외 > bbox 제외 > 라벨 교환 순으로 하나만 남긴다
 
 결과
-    data/classifier/meta/label_audit/label_actions.csv   crop마다 한 줄 (sample_id, image_id, code, new_code, action, 출처, 메모)
+    classifier_data_build/label_audit/label_actions.csv   crop마다 한 줄 (sample_id, image_id, code, new_code, action, 출처, 메모)
     classifier_data_build/reports/label_audit_summary.md  건수 요약 (자동 생성)
 
 사용:
@@ -19,9 +19,9 @@
 """
 import pandas as pd
 
-from config import EXPORT, META, REPORTS, save_table
+from config import AUDIT, EXPORT, REPORTS, save_table
 
-OUT = META / "label_audit"
+OUT = AUDIT
 RANK = {"이미지 제외": 0, "bbox 제외": 1, "라벨 교환 (수정)": 2}
 
 

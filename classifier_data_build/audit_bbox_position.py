@@ -23,7 +23,7 @@
 
 결과
     data/classifier/meta/label_audit/position_scores.csv    bbox마다 점수 (전체)
-    data/classifier/meta/label_audit/position_suspects.csv  의심 bbox와 검수 칸(판정, 조치, 메모, 검수)
+    classifier_data_build/label_audit/position_suspects.csv  의심 bbox와 검수 칸(판정, 조치, 메모, 검수). git에 올린다
         이미 사람이 채운 파일이 있으면 sample_id로 판정을 이어받는다 (config.keep_review)
     data/classifier/meta/label_audit/review/p<등급>_review_<번호>.jpg  검수용 그림 (12장씩, 그림번호 = 사진 왼쪽 위 숫자)
         빨강 = 이 등급 의심 bbox, 주황 = 다른 등급 의심 bbox, 초록 = 의심 아님, 분홍 = 찾은 알약 영역
@@ -44,7 +44,7 @@ import pandas as pd
 from PIL import Image
 from scipy.optimize import linear_sum_assignment
 
-from config import COMBO_ZIPS, EXPORT, KAGGLE, META, keep_review, save_table, ts_zip
+from config import AUDIT, COMBO_ZIPS, EXPORT, KAGGLE, META, keep_review, save_table, ts_zip
 
 S = 4                 # 축소 배율
 FG = 12               # 배경과 다른 정도 기준
@@ -218,6 +218,7 @@ if __name__ == "__main__":
     scores["priority"] = [priority(r) for r in scores.itertuples()]
 
     OUT.mkdir(parents=True, exist_ok=True)
+    AUDIT.mkdir(exist_ok=True)
     save_table(scores, OUT / "position_scores.csv")
     sus = scores[scores.priority > 0].sort_values(["priority", "match_iou", "fg_in"]).copy()
     # 그림 번호: 등급마다 사진 순서대로 (한 사진에 의심 bbox가 여러 개면 같은 번호)
@@ -227,8 +228,8 @@ if __name__ == "__main__":
             num[(p, img)] = n
     sus.insert(0, "그림번호", [num[(p, i)] for p, i in zip(sus.priority, sus.image_id)])
     sus.insert(1, "그림파일", [f"review/p{p}_review_{n // 12 + 1}.jpg" for p, n in zip(sus.priority, sus.그림번호)])
-    sus = keep_review(sus, OUT / "position_suspects.csv")
-    save_table(sus, OUT / "position_suspects.csv")
+    sus = keep_review(sus, AUDIT / "position_suspects.csv")
+    save_table(sus, AUDIT / "position_suspects.csv")
 
     print(f"bbox {len(scores)}개 / 사진 {scores.image_id.nunique()}장")
     for p in (1, 2, 3):

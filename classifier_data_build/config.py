@@ -18,6 +18,7 @@ CROPS = DATA / "classifier" / "crops"               # crops/<약 코드>/*.jpg
 EXPORT = DATA / "classifier" / "export"             # 분류기 팀에 넘기는 입력 패키지
 DETECTOR_PACKAGE = DATA / "detector" / "training_package_detector.zip"  # 탐지기 학습 패키지 (split_manifest.csv)
 REPORTS = ROOT / "classifier_data_build" / "reports"                  # 실행 결과 문서 (자동 생성, git에 올림)
+AUDIT = ROOT / "classifier_data_build" / "label_audit"               # 라벨 2차 검수의 사람 판정 CSV (다시 만들 수 없으므로 git에 올림)
 
 COMBO_ZIPS = [1, 3, 4, 5, 6, 7, 8]              # 2번 세트(TS_2 이미지·TL_2 라벨)는 test와 겹칠 수 있어 쓰지 않는다
 

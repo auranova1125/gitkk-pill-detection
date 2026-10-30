@@ -21,7 +21,7 @@ audit_bbox_position.py는 사진 픽셀만 보므로, 두 알약의 이름표가
 결과
     data/classifier/meta/label_audit/class_embeddings.npz   embedding, best.pt 확률 (다시 계산하지 않도록 저장)
     data/classifier/meta/label_audit/class_scores.csv       crop마다 점수 (전체)
-    data/classifier/meta/label_audit/class_suspects.csv     의심 crop과 검수 칸(판정, 조치, 메모, 검수)
+    classifier_data_build/label_audit/class_suspects.csv    의심 crop과 검수 칸(판정, 조치, 메모, 검수). git에 올린다
         이미 사람이 채운 파일이 있으면 sample_id로 판정을 이어받는다 (config.keep_review)
     data/classifier/meta/label_audit/review/c<등급>_review_<번호>.jpg  검수용 그림
         한 줄 = 의심 crop | 같은 그룹 다른 사진의 라벨 클래스 crop | 같은 그룹의 의심 클래스 crop
@@ -43,7 +43,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GroupKFold
 from torch.utils.data import DataLoader
 
-from config import DATA, EXPORT, META, keep_review, save_table
+from config import AUDIT, DATA, EXPORT, META, keep_review, save_table
 from classifier.checkpoint import hash_class_map
 from classifier.model import build_model
 from classifier_data.classifier_inputs import PillCropDataset, read_samples, val_transform
@@ -156,7 +156,7 @@ def known_errors():
     """사람 검수에서 오류로 판정된 crop의 (sample_id 집합, 이미지 제외 사진 집합). 위치 검수와 클래스 검수를 함께 본다"""
     ids, imgs = set(), set()
     for name in ("position_suspects.csv", "class_suspects.csv"):
-        path = OUT / name
+        path = AUDIT / name
         if path.exists():
             d = pd.read_csv(path, dtype=str, keep_default_na=False)
             bad = d[d.판정 == "오류"]
@@ -235,13 +235,14 @@ if __name__ == "__main__":
     sus = s[s.priority > 0].sort_values(["priority", "oof_label_prob"]).copy()
     sus["그림번호"] = sus.groupby("priority").cumcount()
     sus["그림파일"] = [f"review/c{p}_review_{n // 20 + 1}.jpg" for p, n in zip(sus.priority, sus.그림번호)]
-    pos = pd.read_csv(OUT / "position_suspects.csv", dtype=str, keep_default_na=False) if (OUT / "position_suspects.csv").exists() else None
+    pos = pd.read_csv(AUDIT / "position_suspects.csv", dtype=str, keep_default_na=False) if (AUDIT / "position_suspects.csv").exists() else None
     pos_bad = pos[pos.판정 == "오류"] if pos is not None else pd.DataFrame(columns=["sample_id", "image_id", "조치"])
     bad_ids, bad_imgs = set(pos_bad.sample_id), set(pos_bad[pos_bad.조치 == "이미지 제외"].image_id)
     sus["위치검수와중복"] = sus.sample_id.isin(bad_ids) | sus.image_id.isin(bad_imgs)
-    sus = keep_review(sus, OUT / "class_suspects.csv")
+    AUDIT.mkdir(exist_ok=True)
+    sus = keep_review(sus, AUDIT / "class_suspects.csv")
     cols = ["그림번호", "그림파일"] + [c for c in sus.columns if c not in ("그림번호", "그림파일")]
-    save_table(sus[cols], OUT / "class_suspects.csv")
+    save_table(sus[cols], AUDIT / "class_suspects.csv")
 
     print(f"crop {len(s)}개 / best.pt가 라벨과 다르게 예측 {(s.model_pred != y).sum()}개 / 교차 검증이 다르게 예측 {oof_flag.sum()}개")
     for p in (1, 2):

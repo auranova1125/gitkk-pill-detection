@@ -3,7 +3,9 @@
 - 실행일: 2026-10-30 / 이슈 #18
 - 대상: `training_package_classifier.zip`의 crop 14,988개 (사진 4,048장, `split_hash` `49d2afee…`)
 - 스크립트: `classifier_data_build/audit_bbox_position.py`, `audit_class_label.py`, `merge_label_audit.py`
-- 결과 파일: `data/classifier/meta/label_audit/` (git 제외). 건수 요약은 [`label_audit_summary.md`](label_audit_summary.md) (자동 생성)
+- 사람 판정과 조치 목록: [`classifier_data_build/label_audit/`](../label_audit/) (`position_suspects.csv`, `class_suspects.csv`, `label_actions.csv`). 다시 만들 수 없으므로 git에 올린다
+- 점수, embedding, 검수 그림: `data/classifier/meta/label_audit/` (git 제외, 스크립트로 다시 만들 수 있음)
+- 건수 요약: [`label_audit_summary.md`](label_audit_summary.md) (자동 생성)
 
 ## 1. 왜 다시 검수했나
 
@@ -65,7 +67,7 @@
 | 오류 | bbox 안에 알약이 없음 / 다른 알약 위에 있음 / 알약 일부가 bbox 밖으로 잘림 / bbox가 알약보다 지나치게 큼 / 다른 품목 |
 | 정상 | 알약이 bbox에 맞게 들어 있음. 아주 조금 벗어난 정도는 정상 |
 
-검수 그림은 `label_audit/review/`에 있다. 위치 검수는 `p<등급>_review_<번호>.jpg`, 클래스 검수는 `c<등급>_review_<번호>.jpg`이고, CSV의 `그림번호`가 그림의 번호다.
+검수 그림은 `data/classifier/meta/label_audit/review/`에 있다. 위치 검수는 `p<등급>_review_<번호>.jpg`, 클래스 검수는 `c<등급>_review_<번호>.jpg`이고, CSV의 `그림번호`가 그림의 번호다.
 
 ### 2-4. 조치 규칙
 
