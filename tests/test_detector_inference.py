@@ -208,7 +208,7 @@ def test_plot_detection_comparison_draws_ground_truth_and_prediction() -> None:
     plt.close(figure)
 
 
-def test_load_inference_model_restores_without_pretrained_download(
+def test_load_inference_model_restores_matching_backbone_structure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     detector_label_map: dict[str, Any],
@@ -257,7 +257,7 @@ def test_load_inference_model_restores_without_pretrained_download(
     assert not loaded_model.training
     assert captured == {
         "num_classes": 2,
-        "pretrained_backbone": False,
+        "pretrained_backbone": True,
         "nms_threshold": 0.45,
     }
 

@@ -25,7 +25,7 @@ model num_classes = 2
 학습 Notebook은 다음 형식의 문자열로 데이터 구성 함수를 불러온다.
 
 ```python
-data_factory_path = "your_package.detector_data:build_detector_inputs"
+data_factory_path = "detector_data.detector_inputs:build_detector_inputs"
 ```
 
 ### 2.2 함수 시그니처
@@ -84,9 +84,12 @@ Dataset에서 반환하는 tensor는 CPU에 두고 학습 loop에서 선택된 �
 | bbox | `annotations.bbox` |
 | annotation ID | `annotations.id` |
 | source category | `annotations.category_id` |
+| 원본 약품 코드 | `annotations.drug_code` |
 | foreground 의미 | `categories.supercategory == "pill"` |
 
 원본 bbox는 `[x, y, width, height]`다. Dataset은 이를 torchvision target에 필요한 `[x1, y1, x2, y2]`로 변환한다.
+
+`drug_code`는 `K-`와 6자리 숫자로 구성된 실제 원본 값을 사용한다. 값이 없을 때 `category_id`로 임의 생성하지 않으며, 누락되거나 형식이 잘못되면 데이터 오류로 처리한다.
 
 ```python
 x1 = x
@@ -248,6 +251,8 @@ sample_meta = {
     "source_annotation_count": 1,
     "annotation_ids": [133],
     "bbox_xywh": [[644.0, 845.0, 189.0, 190.0]],
+    "source_category_ids": [1900],
+    "drug_codes": ["K-001900"],
 }
 ```
 
@@ -262,6 +267,8 @@ sample_meta = {
 | `source_annotation_count` | `int` | source JSON의 해당 이미지 annotation 수, 1 이상 |
 | `annotation_ids` | `list[int]` | 이미지에 포함된 annotation ID 목록, 길이 `K` |
 | `bbox_xywh` | 숫자 4개 list의 list | 원본 추적용 bbox 목록, 길이 `K` |
+
+구현은 추적과 시각화를 위해 `source_category_ids`와 실제 annotation의 `drug_codes`를 추가로 제공한다. 두 필드는 탐지 target label로 사용하지 않는다.
 
 augmentation 이후 box 분석이 필요하면 `transformed_boxes_xyxy` 같은 추가 필드를 넣을 수 있다.
 
