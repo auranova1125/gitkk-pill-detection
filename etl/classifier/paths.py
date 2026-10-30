@@ -15,9 +15,7 @@ AIHUB = Path(
 KAGGLE = Path(
     os.environ.get("KAGGLE_DIR", DATA / "kaggle")
 ).expanduser()  # train_images/, train_annotations/
-CLASSES = (
-    ROOT / "scripts" / "classifier_data" / "classes.csv"
-)  # class_id, code, category_id, name (118종)
+CLASSES = Path(__file__).with_name("classes.csv")
 META = DATA / "classifier" / "meta"  # 선정 목록, bbox
 CROPS = DATA / "classifier" / "crops"  # crops/<약 코드>/*.jpg
 EXPORT = DATA / "classifier" / "export"  # 분류기 팀에 넘기는 입력 패키지
@@ -51,12 +49,14 @@ def _nfc(s):
 def ts_zip(n):
     """TS_{n}_조합 이미지 zip 경로. AIHUB 아래 어디에 있어도 찾는다."""
     hits = [p for p in AIHUB.rglob("*.zip") if re.match(rf"TS_{n}_조합", _nfc(p.name))]
-    assert len(hits) == 1, f"TS_{n}_조합 zip을 찾지 못함 ({hits})"
+    if len(hits) != 1:
+        raise FileNotFoundError(f"TS_{n}_조합 zip을 하나만 찾아야 합니다: {hits}")
     return hits[0]
 
 
 def tl_zip(n):
     """TL_{n}_조합 라벨 zip을 연다."""
     hits = [p for p in AIHUB.rglob("*.zip") if re.match(rf"TL_{n}_조합", _nfc(p.name))]
-    assert len(hits) == 1, f"TL_{n}_조합 zip을 찾지 못함 ({hits})"
+    if len(hits) != 1:
+        raise FileNotFoundError(f"TL_{n}_조합 zip을 하나만 찾아야 합니다: {hits}")
     return zipfile.ZipFile(hits[0])

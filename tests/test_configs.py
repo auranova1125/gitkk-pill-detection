@@ -18,9 +18,9 @@ from configs import (
     load_pill_recognition_config,
 )
 from detector.train import train_detector
+from etl.classifier.paths import CLASSES, REPORTS, ROOT
 from pilldata.classifier_dataset import build_classifier_inputs
 from pilldata.factory import load_data_factory
-from scripts.classifier_data.paths import CLASSES, REPORTS, ROOT
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -95,9 +95,9 @@ def test_classifier_yaml_uses_canonical_runtime_factory() -> None:
     assert factory is build_classifier_inputs
 
 
-def test_classifier_etl_paths_use_scripts_and_reports_directories() -> None:
+def test_classifier_etl_paths_use_etl_and_reports_directories() -> None:
     assert ROOT == PROJECT_ROOT
-    assert CLASSES == PROJECT_ROOT / "scripts" / "classifier_data" / "classes.csv"
+    assert CLASSES == PROJECT_ROOT / "etl" / "classifier" / "classes.csv"
     assert REPORTS == PROJECT_ROOT / "reports" / "data" / "classifier"
     assert not (PROJECT_ROOT / "classifier_data_build").exists()
 
