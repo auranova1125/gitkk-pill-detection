@@ -48,8 +48,7 @@ def load_settings():
 
 def resolve_data_paths(settings):
     return repository_path(settings["package_dir"]), {
-        name: repository_path(value)
-        for name, value in settings["image_roots"].items()
+        name: repository_path(value) for name, value in settings["image_roots"].items()
     }
 
 
@@ -62,7 +61,9 @@ def resolve_image_path(portable_name, roots):
         or len(portable.parts) < 3
         or portable.parts[1] != "images"
     ):
-        raise ValueError(f"이미지 경로는 출처/images/파일명 형식이어야 합니다: {portable}")
+        raise ValueError(
+            f"이미지 경로는 출처/images/파일명 형식이어야 합니다: {portable}"
+        )
     dataset = portable.parts[0]
     if dataset not in roots:
         raise ValueError(f"이미지 출처 설정이 없습니다: {dataset}")

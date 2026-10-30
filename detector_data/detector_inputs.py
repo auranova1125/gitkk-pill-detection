@@ -1,4 +1,5 @@
 """이미지와 박스를 모델 입력으로 바꾸고 배치를 구성한다."""
+
 from __future__ import annotations
 
 import math
@@ -10,11 +11,12 @@ import torch
 from PIL import Image, ImageEnhance
 from torch.utils.data import DataLoader, Dataset, get_worker_info
 
-from .settings import load_settings
 from .data_records import read_records
+from .settings import load_settings
 
 if TYPE_CHECKING:
     from detector import DetectorConfig
+
 
 def collate_detector_samples(samples):
     return {
@@ -52,9 +54,7 @@ class PillDetectionDataset(Dataset):
                 f"실제 이미지와 JSON 크기 불일치: {record['original_file_name']}"
             )
 
-        boxes = torch.tensor(
-            record["boxes"], dtype=torch.float32
-        ).reshape(-1, 4)
+        boxes = torch.tensor(record["boxes"], dtype=torch.float32).reshape(-1, 4)
 
         horizontal = self.augmentation["horizontal_flip"]
         vertical = self.augmentation["vertical_flip"]
@@ -86,17 +86,19 @@ class PillDetectionDataset(Dataset):
                 self.rng.uniform(1 - contrast, 1 + contrast)
             )
 
-        image_tensor = torch.from_numpy(
-            np.array(image, dtype=np.uint8, copy=True)
-        ).permute(2, 0, 1).contiguous().to(torch.float32).div_(255)
+        image_tensor = (
+            torch.from_numpy(np.array(image, dtype=np.uint8, copy=True))
+            .permute(2, 0, 1)
+            .contiguous()
+            .to(torch.float32)
+            .div_(255)
+        )
 
         boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, width)
         boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, height)
 
         if not torch.all(boxes[:, 2:] > boxes[:, :2]):
-            raise ValueError(
-                f"변환 후 박스 면적 오류: 이미지 {record['image_id']}"
-            )
+            raise ValueError(f"변환 후 박스 면적 오류: 이미지 {record['image_id']}")
 
         count = len(boxes)
 
@@ -104,10 +106,7 @@ class PillDetectionDataset(Dataset):
             "boxes": boxes,
             "labels": torch.ones(count, dtype=torch.int64),
             "image_id": record["image_id"],
-            "area": (
-                (boxes[:, 2] - boxes[:, 0])
-                * (boxes[:, 3] - boxes[:, 1])
-            ),
+            "area": ((boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])),
             "iscrowd": torch.zeros(count, dtype=torch.int64),
         }
 
@@ -136,15 +135,15 @@ class PillDetectionDataset(Dataset):
 
 def build_detector_inputs(*, config: DetectorConfig, device):
     """팀원의 학습 코드가 호출하는 공통 함수. 데이터는 다시 나누지 않는다."""
-    return _build_detector_inputs(config=config, device=device, settings=load_settings())
+    return _build_detector_inputs(
+        config=config, device=device, settings=load_settings()
+    )
 
 
 def _build_detector_inputs(*, config, device, settings):
     records_by_split, label_map, summary = read_records(settings)
     augmentation = settings["augmentation"]
-    required_options = {
-        "horizontal_flip", "vertical_flip", "brightness", "contrast"
-    }
+    required_options = {"horizontal_flip", "vertical_flip", "brightness", "contrast"}
 
     if set(augmentation) != required_options:
         raise ValueError("증강 설정 항목이 올바르지 않습니다.")
@@ -162,7 +161,9 @@ def _build_detector_inputs(*, config, device, settings):
         if not 0 <= value <= upper:
             raise ValueError(f"증강 설정 범위 오류: {name}")
 
-    summary = dict(summary, train_augmentation=dict(augmentation), validation_augmentation="none")
+    summary = dict(
+        summary, train_augmentation=dict(augmentation), validation_augmentation="none"
+    )
 
     workers = 2 if device.type == "cuda" else 0
     pin_memory = device.type == "cuda"
@@ -170,8 +171,7 @@ def _build_detector_inputs(*, config, device, settings):
 
     for split, offset in [("train", 0), ("validation", 1)]:
         transforms = (
-            augmentation if split == "train"
-            else {name: 0.0 for name in augmentation}
+            augmentation if split == "train" else {name: 0.0 for name in augmentation}
         )
 
         dataset = PillDetectionDataset(
@@ -183,16 +183,18 @@ def _build_detector_inputs(*, config, device, settings):
         generator = torch.Generator()
         generator.manual_seed(config.seed + offset)
 
-        loaders.append(DataLoader(
-            dataset,
-            batch_size=config.batch_size,
-            shuffle=split == "train",
-            num_workers=workers,
-            pin_memory=pin_memory,
-            drop_last=False,
-            collate_fn=collate_detector_samples,
-            worker_init_fn=seed_detector_worker,
-            generator=generator,
-        ))
+        loaders.append(
+            DataLoader(
+                dataset,
+                batch_size=config.batch_size,
+                shuffle=split == "train",
+                num_workers=workers,
+                pin_memory=pin_memory,
+                drop_last=False,
+                collate_fn=collate_detector_samples,
+                worker_init_fn=seed_detector_worker,
+                generator=generator,
+            )
+        )
 
     return loaders[0], loaders[1], label_map, summary
