@@ -73,3 +73,8 @@ dist/
 # ==========================================
 /detector_data/detector_data_settings.json
 /detector_data/**/*.previous
+
+# ==========================================
+# Temporary files
+# ==========================================
+/temp/
