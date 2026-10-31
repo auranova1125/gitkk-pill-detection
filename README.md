@@ -270,7 +270,7 @@ uv run ruff format --check classifier detector pipeline data_loading configs uti
 루트 `README.md`를 유일한 README로 사용합니다.
 
 - 구조: [프로젝트 구조](docs/architecture/project_structure.md)
+- 기준 모델: [모델 선택과 교체 기준](docs/architecture/baseline_models.md)
 - 데이터: [분류 데이터](docs/data/classifier_data_guide.md), [분류 ETL](docs/data/classifier_etl.md), [탐지 데이터](docs/data/detector_data_guide.md)
 - 입력 명세: [분류기](docs/specs/classifier_input_spec.md), [탐지기](docs/specs/detector_input_spec.md)
-- 초기 계획·결정: [분류기](docs/plans/classifier_implementation_plan.md), [탐지기](docs/plans/detector_implementation_plan.md)
 - 결과: [분류기](reports/classifier_report.md), [탐지기](reports/detector_report.md)

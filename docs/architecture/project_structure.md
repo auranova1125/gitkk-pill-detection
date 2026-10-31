@@ -114,6 +114,7 @@ gitkk-pill-detection/
 
 ## 8. 관련 문서
 
+- [기준 모델과 교체 기준](baseline_models.md)
 - [분류 데이터 사용](../data/classifier_data_guide.md)
 - [분류 ETL](../data/classifier_etl.md)
 - [탐지 데이터 사용](../data/detector_data_guide.md)

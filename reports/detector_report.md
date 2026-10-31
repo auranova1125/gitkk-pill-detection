@@ -91,7 +91,7 @@ final_score = detector_score × classifier_score
 
 ## 7. 합성 데이터 smoke test
 
-2026-10-27 기준 저장소의 합성 데이터 테스트 결과다.
+저장소의 합성 데이터 테스트는 모델 성능이 아니라 학습·평가 연결을 확인한다.
 
 | 항목 | 결과 |
 | --- | --- |
@@ -101,10 +101,8 @@ final_score = detector_score × classifier_score
 | 실행 장치 | CPU |
 | SSDLite train forward/backward | 통과 |
 | SSDLite eval forward/NMS | 통과 |
-| SSDLite 모델 smoke test | `15 passed` |
-| 전체 단위 테스트 | `86 passed` |
 
-현재 자동화 실행 환경에서는 PyTorch가 MPS 지원 빌드임을 확인했지만 `torch.backends.mps.is_available()`은 `False`를 반환했다. 장치 선택의 CUDA, MPS, CPU 경로는 각각 모의 테스트로 검증했다. 실제 로컬 MPS 한 epoch는 DataLoader 연결 후 다시 확인한다.
+테스트 개수는 구현과 함께 변하므로 보고서에 고정하지 않는다. 현재 결과는 프로젝트 루트에서 `uv run pytest -q`와 `uv run pytest -q -m smoke`로 확인한다. 실제 MPS와 CUDA 실행 결과는 사용한 장치와 함께 별도 실험 기록에 남긴다.
 
 ## 8. 한계와 후속 작업
 
