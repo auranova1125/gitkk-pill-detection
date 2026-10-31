@@ -6,11 +6,12 @@
 
 | 파일 | 책임 |
 | --- | --- |
-| `pilldata/detector_settings.py` | 데이터 패키지와 출처별 이미지 경로 해석 |
-| `pilldata/detector_records.py` | JSON·split manifest를 읽고 이미지별 전체 bbox 연결 |
-| `pilldata/detector_dataset.py` | Dataset, DataLoader와 factory 제공 |
+| `data_loading/detector_package.py` | 데이터 경로 해석, JSON·split manifest 검증과 이미지별 bbox 연결 |
+| `data_loading/detector.py` | Dataset, DataLoader와 factory 제공 |
 
 DataLoader는 이미지 한 장과 그 이미지의 모든 알약 bbox를 함께 반환한다. 모든 target label은 `pill=1`이며 background는 모델 내부에서 `0`으로 처리한다. 원본 약품 코드는 추적용 metadata로만 보존한다. 자세한 형식은 [탐지기 입력 명세](../specs/detector_input_spec.md)를 따른다.
+
+원천 데이터에서 이 학습 패키지를 만드는 책임과 현재 구현 범위는 [탐지 ETL](detector_etl.md)에 분리해 기록한다.
 
 ## 기본 데이터 배치
 
@@ -76,4 +77,4 @@ uv run pytest -q -m smoke
 uv run python main.py train-detector --config configs/detector.yaml
 ```
 
-기본 factory는 `pilldata.detector_dataset:build_detector_inputs`다. Notebook에서는 `DetectorConfig`를 직접 만들어 `run_name`, batch size, epoch, device와 `data_settings_path`를 셀에서 바꿀 수 있다.
+기본 factory는 `data_loading.detector:build_detector_inputs`다. Notebook에서는 `DetectorConfig`를 직접 만들어 `run_name`, batch size, epoch, device와 `data_settings_path`를 셀에서 바꿀 수 있다.

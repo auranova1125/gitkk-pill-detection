@@ -23,10 +23,10 @@ train_loader, val_loader, class_map, data_summary
 학습 노트북의 `data_factory_path`에는 다음 형식으로 함수 위치를 지정한다.
 
 ```python
-data_factory_path = "pilldata.classifier_dataset:build_classifier_inputs"
+data_factory_path = "data_loading.classifier:build_classifier_inputs"
 ```
 
-- `pilldata.classifier_dataset`: 저장소가 제공하는 runtime Dataset 모듈 경로
+- `data_loading.classifier`: 저장소가 제공하는 runtime Dataset 모듈 경로
 - `build_classifier_inputs`: 해당 모듈 안의 함수 이름
 
 ### 2.2 함수 시그니처

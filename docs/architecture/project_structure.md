@@ -29,11 +29,11 @@ gitkk-pill-detection/
 │   └── checkpoint.py
 ├── detector/
 │   └── classifier와 같은 역할별 파일
-├── pilldata/
-│   ├── classifier_dataset.py
-│   ├── detector_dataset.py / detector_records.py / detector_settings.py
-│   ├── pill_recognition_dataset.py
-│   ├── transforms.py / validation.py
+├── data_loading/
+│   ├── classifier.py
+│   ├── detector.py / detector_package.py
+│   ├── recognition.py
+│   ├── image_transforms.py / validation.py / factory.py
 │   └── synthetic.py
 ├── etl/classifier/
 │   ├── validate_source_labels.py
@@ -43,6 +43,11 @@ gitkk-pill-detection/
 │   ├── summarize_crops.py
 │   ├── export_training_package.py
 │   └── build_classifier_dataset.py
+├── etl/detector/
+│   ├── codeit_source.py
+│   ├── select_source.py
+│   ├── training_package.py
+│   └── build_detector_dataset.py
 ├── pipeline/pill_recognition.py
 ├── utils/runtime.py / io.py
 ├── notebooks/
@@ -50,7 +55,7 @@ gitkk-pill-detection/
 │   ├── experiments/
 │   └── eda/
 └── tests/
-    ├── classifier/ / detector/ / pilldata/
+    ├── classifier/ / detector/ / data_loading/
     ├── etl/ / pipeline/ / configs/ / utils/ / notebooks/ / documentation/
     └── smoke/
 ```
@@ -61,12 +66,14 @@ gitkk-pill-detection/
 원천 데이터
   → etl/                         오프라인 검증·변환·패키징
   → data/ 학습 패키지
-  → pilldata/                    Dataset·DataLoader·transform
+  → data_loading/                Dataset·DataLoader·tensor 변환
   → classifier/ 또는 detector/ 학습·평가·추론
   → pipeline/                    탐지 bbox를 품목 분류로 연결
 ```
 
-`etl/`은 학습 실행 중 import하지 않는다. `pilldata/`는 준비된 학습 패키지를 읽을 뿐 원천 데이터를 재생성하지 않는다.
+`etl/`은 학습 실행 중 import하지 않는다. `data_loading/`는 준비된 학습 패키지를 읽을 뿐 원천 데이터를 재생성하지 않는다.
+
+탐지 ETL은 확정된 Codeit 원천 adapter와 최종 패키지 검증만 구현한다. 형식이 확정되지 않은 SELECT adapter와 전체 조립 함수는 조용히 임의 처리하지 않고 `NotImplementedError`를 발생시키는 플레이스홀더다.
 
 ## 4. 분류기·탐지기 대칭성
 
@@ -110,5 +117,6 @@ gitkk-pill-detection/
 - [분류 데이터 사용](../data/classifier_data_guide.md)
 - [분류 ETL](../data/classifier_etl.md)
 - [탐지 데이터 사용](../data/detector_data_guide.md)
+- [탐지 ETL](../data/detector_etl.md)
 - [분류기 입력 명세](../specs/classifier_input_spec.md)
 - [탐지기 입력 명세](../specs/detector_input_spec.md)

@@ -309,7 +309,7 @@ project/
 │   ├── classifier.py
 │   ├── classifier.yaml
 │   └── yaml_loading.py
-├── pilldata/
+├── data_loading/
 │   ├── classifier_dataset.py
 │   ├── transforms.py
 │   └── validation.py

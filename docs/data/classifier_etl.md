@@ -15,7 +15,7 @@
 | 5 | `summarize_crops.py` | 클래스별 crop 수와 분할 결과 집계 |
 | 6 | `export_training_package.py` | runtime Dataset이 읽을 학습 패키지 생성 |
 
-`build_classifier_dataset.py`는 위 단계를 연결하는 실행 진입점이다. 단계 구현은 공통 crop 함수가 있는 `pilldata.transforms`를 재사용하지만, runtime 학습 코드에서는 ETL 모듈을 import하지 않는다.
+`build_classifier_dataset.py`는 위 단계를 연결하는 실행 진입점이다. 단계 구현은 공통 crop 함수가 있는 `data_loading.image_transforms`를 재사용하지만, runtime 학습 코드에서는 ETL 모듈을 import하지 않는다.
 
 ## 원천 데이터 배치
 

@@ -82,7 +82,7 @@
 새 함수 경로를 사용하여 같은 검증을 실행하였다.
 
 ```text
-pilldata.detector_dataset:build_detector_inputs
+data_loading.detector:build_detector_inputs
 ```
 
 공유 패키지와 데이터 집계·클래스 매핑이 일치하고, Train·Validation 첫 배치 검증이 통과하였다.
