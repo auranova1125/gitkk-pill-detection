@@ -1,98 +1,28 @@
-"""단일 클래스 알약 탐지기 공용 인터페이스."""
+"""단일 클래스 알약 탐지기의 주요 실행 API."""
 
-from detector.checkpoint import (
-    CHECKPOINT_VERSION,
-    capture_rng_state,
-    hash_label_map,
-    load_checkpoint,
-    restore_checkpoint_state,
-    restore_rng_state,
-    save_checkpoint,
-    validate_checkpoint_compatibility,
-)
-from detector.classifier_bridge import build_classifier_batch, combine_scores
-from detector.config import DetectorConfig
-from detector.evaluate import (
-    EvaluationResult,
-    evaluate_model,
-    filter_predictions_by_score,
-)
+from configs.detector import DetectorConfig
+from detector.evaluate import evaluate_detector_checkpoint
 from detector.inference import (
     DetectorInferenceError,
     DetectorInferenceResult,
     DetectorPrediction,
-    load_inference_model,
-    plot_detection_comparison,
+    load_detector_inference_model,
     predict_detector,
-    save_inference_artifacts,
-    validate_inference_batch,
 )
-from detector.input_validation import (
-    InputValidationError,
-    validate_detection_batch,
-    validate_detector_data_summary,
-    validate_detector_label_map,
-)
-from detector.model import (
-    MODEL_BUILDERS,
-    available_detector_models,
-    build_detector_model,
-    build_ssdlite320,
-    select_device,
-)
-from detector.train import (
-    EarlyStopping,
-    TrainingEpochResult,
-    TrainingResult,
-    build_grad_scaler,
-    build_optimizer,
-    build_scheduler,
-    move_detection_batch_to_device,
-    run_training,
-    set_seed,
-    train_one_epoch,
-)
+from detector.model import build_detector_model
+from detector.train import train_detector
+from detector.training_data import DetectorTrainingData, prepare_detector_data
 
 __all__ = [
-    "CHECKPOINT_VERSION",
-    "MODEL_BUILDERS",
     "DetectorConfig",
     "DetectorInferenceError",
     "DetectorInferenceResult",
     "DetectorPrediction",
-    "EarlyStopping",
-    "EvaluationResult",
-    "InputValidationError",
-    "TrainingEpochResult",
-    "TrainingResult",
-    "available_detector_models",
-    "build_classifier_batch",
+    "DetectorTrainingData",
     "build_detector_model",
-    "build_grad_scaler",
-    "build_optimizer",
-    "build_scheduler",
-    "build_ssdlite320",
-    "capture_rng_state",
-    "combine_scores",
-    "evaluate_model",
-    "filter_predictions_by_score",
-    "hash_label_map",
-    "load_checkpoint",
-    "load_inference_model",
-    "move_detection_batch_to_device",
-    "plot_detection_comparison",
+    "evaluate_detector_checkpoint",
+    "load_detector_inference_model",
     "predict_detector",
-    "restore_checkpoint_state",
-    "restore_rng_state",
-    "run_training",
-    "save_checkpoint",
-    "save_inference_artifacts",
-    "select_device",
-    "set_seed",
-    "train_one_epoch",
-    "validate_checkpoint_compatibility",
-    "validate_detection_batch",
-    "validate_detector_data_summary",
-    "validate_detector_label_map",
-    "validate_inference_batch",
+    "prepare_detector_data",
+    "train_detector",
 ]

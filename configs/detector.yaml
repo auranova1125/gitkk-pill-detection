@@ -1,0 +1,22 @@
+task: detector
+device: auto
+# 기본 runtime DataLoader factory. 다른 구현을 실험할 때 module:function을 바꾼다.
+data_factory_path: data_loading.detector:build_detector_inputs
+data_settings_path: null
+pretrained_backbone: true
+
+training:
+  run_name: ssdlite320_baseline
+  output_dir: outputs
+  model_name: ssdlite320_mobilenet_v3_large
+  seed: 42
+  batch_size: 8
+  max_epochs: 50
+  learning_rate: 0.005
+  momentum: 0.9
+  weight_decay: 0.0005
+  score_threshold: 0.25
+  nms_threshold: 0.45
+  early_stopping_patience: 7
+  resume_from: null
+  show_progress: true

@@ -1,7 +1,5 @@
 """분류기 optimizer 구성과 전체 학습 실행."""
 
-import csv
-import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,16 +19,21 @@ from classifier.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
-from classifier.config import TrainConfig
 from classifier.evaluate import EvaluationResult, evaluate_model
-from classifier.input_validation import validate_class_map, validate_data_summary
+from classifier.input_validation import (
+    validate_classifier_class_map,
+    validate_classifier_data_summary,
+)
 from classifier.model import (
     TrainingStage,
-    build_model,
+    build_classifier_model,
     configure_model_for_stage,
     set_model_train_mode,
 )
-from common.reproducibility import set_seed
+from classifier.training_data import ClassifierTrainingData, prepare_classifier_data
+from configs.classifier import ClassifierConfig
+from utils.io import append_csv_row, prepare_training_run_directory
+from utils.runtime import build_grad_scaler, select_device, set_seed
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,16 +102,6 @@ class TrainingResult:
     metrics: tuple[dict[str, Any], ...]
 
 
-def select_device() -> torch.device:
-    """CUDA, MPS, CPU 순서로 사용 가능한 장치를 선택한다."""
-
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
-
-
 def resolve_training_stage(epoch: int, head_only_epochs: int) -> TrainingStage:
     """현재 epoch가 head-only 단계인지 layer4 fine-tuning 단계인지 결정합니다."""
 
@@ -127,7 +120,7 @@ def resolve_training_stage(epoch: int, head_only_epochs: int) -> TrainingStage:
 
 def build_optimizer(
     model: ResNet,
-    config: TrainConfig,
+    config: ClassifierConfig,
     stage: TrainingStage | str,
 ) -> AdamW:
     """
@@ -172,7 +165,7 @@ def build_optimizer(
 
 def build_scheduler(
     optimizer: Optimizer,
-    config: TrainConfig,
+    config: ClassifierConfig,
     stage: TrainingStage | str,
 ) -> LRScheduler | None:
     """fine-tuning 단계에서만 cosine scheduler를 생성한다."""
@@ -185,12 +178,6 @@ def build_scheduler(
     if fine_tuning_epochs <= 0:
         raise ValueError("fine-tuning stage requires at least one epoch")
     return CosineAnnealingLR(optimizer, T_max=fine_tuning_epochs)
-
-
-def build_grad_scaler(device: torch.device) -> torch.amp.GradScaler:
-    """CUDA에서만 활성화되는 GradScaler를 생성한다."""
-
-    return torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
 
 
 def train_one_epoch(
@@ -269,55 +256,6 @@ def train_one_epoch(
     )
 
 
-def _write_json(path: Path, value: Mapping[str, Any]) -> None:
-    path.write_text(
-        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-
-
-def _prepare_run_directory(
-    config: TrainConfig,
-    *,
-    device: torch.device,
-    class_map: Mapping[str, Any],
-    data_summary: Mapping[str, Any],
-) -> Path:
-    run_dir = config.output_dir / config.run_name
-    run_dir.mkdir(parents=True, exist_ok=True)
-    if config.resume_from is None:
-        existing_artifacts = [
-            path
-            for path in (
-                run_dir / "last.pt",
-                run_dir / "best.pt",
-                run_dir / "metrics.csv",
-            )
-            if path.exists()
-        ]
-        if existing_artifacts:
-            names = ", ".join(path.name for path in existing_artifacts)
-            raise FileExistsError(
-                f"run directory already contains training artifacts: {names}"
-            )
-
-    resolved_config = config.to_dict()
-    resolved_config["device"] = str(device)
-    _write_json(run_dir / "resolved_config.json", resolved_config)
-    _write_json(run_dir / "class_map.json", class_map)
-    _write_json(run_dir / "data_summary.json", data_summary)
-    return run_dir
-
-
-def _append_metrics(path: Path, metrics: Mapping[str, Any]) -> None:
-    write_header = not path.exists() or path.stat().st_size == 0
-    with path.open("a", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=list(metrics.keys()))
-        if write_header:
-            writer.writeheader()
-        writer.writerow(metrics)
-
-
 def _learning_rates(optimizer: Optimizer) -> dict[str, float | None]:
     rates = {group.get("name"): float(group["lr"]) for group in optimizer.param_groups}
     return {
@@ -354,8 +292,28 @@ def _checkpoint_kwargs(
     }
 
 
+def train_classifier(
+    config: ClassifierConfig,
+    *,
+    data: ClassifierTrainingData | None = None,
+) -> TrainingResult:
+    """설정 하나로 분류기 데이터를 준비하고 학습을 실행한다."""
+
+    training_data = data or prepare_classifier_data(config)
+    return run_training(
+        config,
+        training_data.train_loader,
+        training_data.val_loader,
+        training_data.class_map,
+        training_data.data_summary,
+        expected_num_classes=config.expected_num_classes,
+        pretrained=config.pretrained,
+        device=training_data.device,
+    )
+
+
 def run_training(
-    config: TrainConfig,
+    config: ClassifierConfig,
     train_loader: Iterable[Mapping[str, Any]],
     val_loader: Iterable[Mapping[str, Any]],
     class_map: Mapping[str, Any],
@@ -368,8 +326,11 @@ def run_training(
     """새 학습 또는 checkpoint 재개를 실행하고 best/last artifact를 저장한다."""
 
     # 입력 검증
-    validate_class_map(class_map, expected_num_classes=expected_num_classes)
-    validate_data_summary(
+    validate_classifier_class_map(
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
+    validate_classifier_data_summary(
         data_summary,
         class_map,
         expected_num_classes=expected_num_classes,
@@ -380,11 +341,17 @@ def run_training(
 
     # 실행 디렉터리와 설정파일 생성
     set_seed(config.seed)
-    run_dir = _prepare_run_directory(
-        config,
-        device=selected_device,
-        class_map=class_map,
-        data_summary=data_summary,
+    resolved_config = config.to_dict()
+    resolved_config["device"] = str(selected_device)
+    run_dir = prepare_training_run_directory(
+        output_dir=config.output_dir,
+        run_name=config.run_name,
+        resume_from=config.resume_from,
+        resolved_config=resolved_config,
+        metadata_files={
+            "class_map.json": class_map,
+            "data_summary.json": data_summary,
+        },
     )
     last_checkpoint_path = run_dir / "last.pt"
     best_checkpoint_path = run_dir / "best.pt"
@@ -393,7 +360,10 @@ def run_training(
     split_hash = data_summary["split_hash"]
 
     # 모델 생성
-    model = build_model(expected_num_classes, pretrained=pretrained).to(selected_device)
+    model = build_classifier_model(
+        expected_num_classes,
+        pretrained=pretrained,
+    ).to(selected_device)
     criterion = nn.CrossEntropyLoss()
     scaler = build_grad_scaler(selected_device)
     early_stopping = EarlyStopping(config.early_stopping_patience)
@@ -484,7 +454,7 @@ def run_training(
             count_for_stopping=stage is TrainingStage.LAYER4_FINE_TUNING,
         )
 
-        # metrics.csv 기록 (_append_metrics 함수)
+        # metrics.csv 기록
         metrics = {
             "epoch": epoch,
             "training_stage": stage.value,
@@ -499,7 +469,7 @@ def run_training(
             **learning_rates,
         }
         metrics_records.append(metrics)
-        _append_metrics(metrics_path, metrics)
+        append_csv_row(metrics_path, metrics)
 
         checkpoint_kwargs = _checkpoint_kwargs(
             epoch=epoch,

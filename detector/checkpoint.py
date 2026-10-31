@@ -2,17 +2,17 @@
 
 import hashlib
 import json
-import random
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import torch
 import torchvision
 from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+
+from utils.runtime import capture_rng_state, restore_rng_state
 
 CHECKPOINT_VERSION = 1
 _REQUIRED_CHECKPOINT_FIELDS = {
@@ -33,7 +33,6 @@ _REQUIRED_CHECKPOINT_FIELDS = {
     "split_hash",
     "torchvision_version",
 }
-_REQUIRED_RNG_FIELDS = {"python", "numpy", "torch", "cuda", "mps"}
 
 
 def hash_label_map(label_map: Mapping[str, Any]) -> str:
@@ -46,36 +45,6 @@ def hash_label_map(label_map: Mapping[str, Any]) -> str:
         separators=(",", ":"),
     )
     return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
-
-
-def capture_rng_state() -> dict[str, Any]:
-    """현재 Python, NumPy와 PyTorch RNG 상태를 수집한다."""
-
-    return {
-        "python": random.getstate(),
-        "numpy": np.random.get_state(),
-        "torch": torch.get_rng_state(),
-        "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
-        "mps": torch.mps.get_rng_state() if torch.backends.mps.is_available() else None,
-    }
-
-
-def restore_rng_state(state: Mapping[str, Any]) -> None:
-    """checkpoint에서 읽은 RNG 상태를 현재 실행에 복원한다."""
-
-    missing_fields = sorted(_REQUIRED_RNG_FIELDS - state.keys())
-    if missing_fields:
-        raise ValueError(f"rng state is missing fields: {missing_fields}")
-
-    random.setstate(state["python"])
-    np.random.set_state(state["numpy"])
-    torch.set_rng_state(state["torch"].cpu())
-    if state["cuda"] is not None and torch.cuda.is_available():
-        torch.cuda.set_rng_state_all(
-            [device_state.cpu() for device_state in state["cuda"]]
-        )
-    if state["mps"] is not None and torch.backends.mps.is_available():
-        torch.mps.set_rng_state(state["mps"].cpu())
 
 
 def save_checkpoint(
