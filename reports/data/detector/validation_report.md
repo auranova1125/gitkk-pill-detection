@@ -1,4 +1,4 @@
-# 탐지 데이터 구성 및 입력 검증 보고서
+# 탐지 데이터 구성·입력 검증 보고서
 
 ## 1. 목적
 
@@ -130,4 +130,4 @@ data_loading.detector:build_detector_inputs
 - 다른 탐지 모델과의 입력·학습 코드 호환성은 별도로 확인해야 한다.
 - 합성데이터 학습은 실행 연결 검증이며 모델 성능을 의미하지 않는다.
 - 첫 배치 검증과 표본 시각 검토가 전체 annotation의 정확성을 보장하지 않는다.
-- 실제 전체 데이터의 장기 학습 성능은 `reports/detector_report.md`에 기록한다.
+- 실제 전체 데이터의 장기 학습 성능은 `reports/baseline/detector_report.md`에 기록한다.

@@ -1,6 +1,6 @@
 # 분류기 실험 기록
 
-실험마다 **바꾸는 것 하나만** 바꾸고 나머지는 아래 고정 조건을 따른다. 기준 모델 상세는 [`classifier_report.md`](classifier_report.md)에 있다.
+실험마다 **바꾸는 것 하나만** 바꾸고 나머지는 아래 고정 조건을 따른다. 기준 모델 상세는 [분류기 기준 결과](../baseline/classifier_report.md)에 있다.
 
 ## 고정 조건
 

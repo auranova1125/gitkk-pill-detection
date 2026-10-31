@@ -273,4 +273,6 @@ uv run ruff format --check classifier detector pipeline data_loading configs uti
 - 기준 모델: [모델 선택과 교체 기준](docs/architecture/baseline_models.md)
 - 데이터: [분류 데이터](docs/data/classifier_data_guide.md), [분류 ETL](docs/data/classifier_etl.md), [탐지 데이터](docs/data/detector_data_guide.md)
 - 입력 명세: [분류기](docs/specs/classifier_input_spec.md), [탐지기](docs/specs/detector_input_spec.md)
-- 결과: [분류기](reports/classifier_report.md), [탐지기](reports/detector_report.md)
+- 기준 결과: [분류기](reports/baseline/classifier_report.md), [탐지기](reports/baseline/detector_report.md)
+- 실험 기록: [분류기](reports/experiments/classifier_experiments.md)
+- 데이터 보고서: [분류 데이터](reports/data/classifier/validation_report.md), [탐지 데이터](reports/data/detector/validation_report.md)

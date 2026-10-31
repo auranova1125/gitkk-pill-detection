@@ -36,7 +36,7 @@ ResNet-50은 torchvision에서 안정적으로 제공되고, ImageNet 사전학�
 - optimizer와 학습 단계: `classifier/train.py`
 - 지표: `classifier/evaluate.py`
 - 기본 실행값: `configs/classifier.yaml`
-- 실제 기준 결과: `reports/classifier_report.md`
+- 실제 기준 결과: `reports/baseline/classifier_report.md`
 
 현재 분류기는 모델 선택 registry를 제공하지 않는다. 다른 backbone 지원은 별도 모델 선택 작업에서 추가한다.
 
@@ -62,7 +62,7 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 - optimizer와 scheduler: `detector/train.py`
 - 지표와 threshold 평가: `detector/evaluate.py`
 - 기본 실행값: `configs/detector.yaml`
-- 결과 기록 양식: `reports/detector_report.md`
+- 결과 기록 양식: `reports/baseline/detector_report.md`
 
 현재 registry에는 SSDLite 하나만 등록돼 있다. registry가 존재한다는 사실과 여러 모델의 호환이 검증됐다는 사실을 혼동하지 않는다.
 

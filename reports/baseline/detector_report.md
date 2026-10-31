@@ -114,7 +114,7 @@ final_score = detector_score × classifier_score
 
 ## 9. 재현 방법
 
-1. [탐지 데이터 사용 안내](../docs/data/detector_data_guide.md)에 맞춰 이미지와 annotation을 배치한다.
+1. [탐지 데이터 사용 안내](../../docs/data/detector_data_guide.md)에 맞춰 이미지와 annotation을 배치한다.
 2. `notebooks/baseline/train_detector.ipynb`에서 경로와 실행 설정을 확인한다.
 3. 입력 검증 셀과 bbox 시각화 셀로 annotation을 확인한다.
 4. 신규 학습 또는 `last.pt` 재개 셀을 실행한다.

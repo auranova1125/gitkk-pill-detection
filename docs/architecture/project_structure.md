@@ -54,6 +54,12 @@ gitkk-pill-detection/
 │   ├── baseline/
 │   ├── experiments/
 │   └── eda/
+├── reports/
+│   ├── baseline/
+│   ├── experiments/
+│   └── data/
+│       ├── classifier/
+│       └── detector/
 └── tests/
     ├── classifier/ / detector/ / data_loading/
     ├── etl/ / pipeline/ / configs/ / utils/ / notebooks/ / documentation/
@@ -95,6 +101,9 @@ gitkk-pill-detection/
 - `main.py`: 자동화, 재현, CLI smoke
 - `configs/*.yaml`: Notebook과 CLI가 공유할 수 있는 기본값
 - Python 모듈: 실제 학습·평가·추론 로직
+- `reports/baseline/`: 고정된 기준 모델의 결과
+- `reports/experiments/`: 같은 조건에서 변경점과 결과를 누적하는 비교 기록
+- `reports/data/`: ETL 산출물과 데이터 검증 기록
 
 ## 6. 안전 규칙
 

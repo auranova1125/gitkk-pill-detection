@@ -111,4 +111,4 @@ final_score = detector_score × classifier_score
 2. `notebooks/baseline/train_classifier.ipynb`를 Colab GPU에서 열고 설정 셀의 `run_name`을 정한 뒤 `max_epochs`, `head_only_epochs` 줄을 지워 기본값(30, 3)으로 실행한다.
 3. 끊기면 같은 `run_name`으로 `config.resume_from`에 `last.pt`를 지정해 재개한다.
 4. `notebooks/experiments/classifier_baseline_analysis.ipynb`에 같은 `run_name`을 넣어 분석 그림과 표를 만든다.
-5. 결과를 `reports/classifier_experiments.md`에 한 줄로 기록한다.
+5. 결과를 `reports/experiments/classifier_experiments.md`에 한 줄로 기록한다.
