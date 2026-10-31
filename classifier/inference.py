@@ -11,7 +11,7 @@ from torch import nn
 from classifier.checkpoint import hash_class_map, load_checkpoint
 from classifier.input_validation import validate_classifier_class_map
 from classifier.model import build_classifier_model
-from pilldata.validation import normalize_bbox_xywh, normalize_probability
+from data_loading.validation import normalize_bbox_xywh, normalize_probability
 from utils.runtime import select_device
 
 

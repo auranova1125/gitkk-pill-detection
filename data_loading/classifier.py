@@ -1,7 +1,7 @@
 """경구약제 분류기 Dataset과 DataLoader factory.
 
 학습 노트북:
-    data_factory_path = "pilldata.classifier_dataset:build_classifier_inputs"
+    data_factory_path = "data_loading.classifier:build_classifier_inputs"
     config.class_map_path    = "<training_package_classifier.zip을 푼 폴더>/class_map.json"
     config.data_summary_path = "<training_package_classifier.zip을 푼 폴더>/data_summary.json"
 
@@ -10,11 +10,11 @@ crops/의 PNG는 원본 사진에서 bbox 사방 5% 여백을 더해 이미지 �
 이후 처리(학습: 회전 → 중앙 정사각형 padding, 공통: 224 resize → normalize)는 이 파일에서 한다.
 
 탐지 결과를 분류할 때 (명세서 8절):
-    from pilldata.classifier_dataset import detection_transform
-    from pilldata.transforms import crop_pill
+    from data_loading.classifier import detection_transform
+    from data_loading.image_transforms import crop_pill
     image = detection_transform()(crop_pill(original_image, bbox_xywh))   # float32 [3, 224, 224]
 
-입력 검증:  python -m pilldata.classifier_dataset <class_map.json 경로>
+입력 검증:  python -m data_loading.classifier <class_map.json 경로>
 """
 
 import hashlib
@@ -32,7 +32,7 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
-from pilldata.transforms import (
+from data_loading.image_transforms import (
     CLASSIFIER_IMAGE_SIZE,
     IMAGENET_MEAN,
     IMAGENET_STD,
@@ -247,7 +247,7 @@ if __name__ == "__main__":
     from classifier.training_data import validate_classifier_training_data
 
     if len(sys.argv) != 2:
-        sys.exit("사용: python -m pilldata.classifier_dataset <class_map.json 경로>")
+        sys.exit("사용: python -m data_loading.classifier <class_map.json 경로>")
     path = Path(sys.argv[1])
     cfg = SimpleNamespace(
         batch_size=32,

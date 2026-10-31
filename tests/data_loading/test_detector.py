@@ -14,17 +14,17 @@ from types import SimpleNamespace
 
 import torch
 
+from data_loading.detector import PillDetectionDataset, build_detector_inputs
+from data_loading.detector_package import (
+    DEFAULT_SETTINGS,
+    REPOSITORY_ROOT,
+    read_records,
+    resolve_image_path,
+)
 from detector.input_validation import (
     validate_detector_data_summary,
     validate_detector_label_map,
     validate_detector_training_batch,
-)
-from pilldata.detector_dataset import PillDetectionDataset, build_detector_inputs
-from pilldata.detector_records import read_records
-from pilldata.detector_settings import (
-    DEFAULT_SETTINGS,
-    REPOSITORY_ROOT,
-    resolve_image_path,
 )
 
 

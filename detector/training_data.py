@@ -7,15 +7,15 @@ from typing import Any
 import torch
 
 from configs.detector import DetectorConfig
+from data_loading.factory import (
+    TrainingFactoryResult,
+    call_training_data_factory,
+    first_batch,
+)
 from detector.input_validation import (
     validate_detector_data_summary,
     validate_detector_label_map,
     validate_detector_training_batch,
-)
-from pilldata.factory import (
-    TrainingFactoryResult,
-    call_training_data_factory,
-    first_batch,
 )
 from utils.runtime import resolve_device
 

@@ -1,6 +1,6 @@
 task: pill_recognition
 device: auto
-inference_factory_path: pilldata.pill_recognition_dataset:build_pill_recognition_inputs
+inference_factory_path: data_loading.recognition:build_pill_recognition_inputs
 input_dir: data/inference
 batch_size: 4
 score_threshold: 0.25

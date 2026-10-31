@@ -12,12 +12,12 @@ from torchvision.ops import box_iou
 from tqdm.auto import tqdm
 
 from configs.detector import DetectorConfig
+from data_loading.validation import normalize_probability
 from detector.inference import load_detector_inference_model
 from detector.training_data import (
     move_detection_batch_to_device,
     prepare_detector_data,
 )
-from pilldata.validation import normalize_probability
 from utils.io import write_json
 
 HIGH_IOU_THRESHOLDS = [0.75, 0.80, 0.85, 0.90, 0.95]

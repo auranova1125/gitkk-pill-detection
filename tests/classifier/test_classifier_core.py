@@ -27,11 +27,11 @@ from classifier.model import (
     set_model_train_mode,
 )
 from configs.classifier import ClassifierConfig
-from pilldata.classifier_dataset import (
+from data_loading.classifier import (
     build_classifier_inputs,
     read_samples,
 )
-from pilldata.classifier_dataset import (
+from data_loading.classifier import (
     make_data_summary as make_runtime_data_summary,
 )
 

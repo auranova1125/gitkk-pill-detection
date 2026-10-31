@@ -10,6 +10,11 @@ from torch import nn
 
 import detector.inference as inference_module
 from classifier.inference import combine_prediction_scores
+from data_loading.image_transforms import (
+    IMAGENET_MEAN,
+    IMAGENET_STD,
+    PADDING_COLOR_RGB,
+)
 from detector.checkpoint import hash_label_map, save_checkpoint
 from detector.inference import (
     DetectorPrediction,
@@ -18,11 +23,6 @@ from detector.inference import (
     predict_detector,
     save_inference_artifacts,
     validate_inference_batch,
-)
-from pilldata.transforms import (
-    IMAGENET_MEAN,
-    IMAGENET_STD,
-    PADDING_COLOR_RGB,
 )
 from pipeline.pill_recognition import build_classifier_batch
 

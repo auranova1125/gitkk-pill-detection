@@ -5,7 +5,7 @@ from typing import Any
 
 import torch
 
-from pilldata.validation import (
+from data_loading.validation import (
     normalize_bbox_xywh,
     require_fields,
     require_mapping,

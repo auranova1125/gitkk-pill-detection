@@ -7,8 +7,8 @@ import torch
 from torch import nn
 
 from classifier.train import train_one_epoch as train_classifier_epoch
+from data_loading.image_transforms import crop_tensor_xyxy, preprocess_classifier_crop
 from detector.train import train_one_epoch as train_detector_epoch
-from pilldata.transforms import crop_tensor_xyxy, preprocess_classifier_crop
 from utils.runtime import build_grad_scaler, resolve_device, set_seed
 
 

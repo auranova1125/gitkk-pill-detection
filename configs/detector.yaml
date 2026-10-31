@@ -1,7 +1,7 @@
 task: detector
 device: auto
 # 기본 runtime DataLoader factory. 다른 구현을 실험할 때 module:function을 바꾼다.
-data_factory_path: pilldata.detector_dataset:build_detector_inputs
+data_factory_path: data_loading.detector:build_detector_inputs
 data_settings_path: null
 pretrained_backbone: true
 

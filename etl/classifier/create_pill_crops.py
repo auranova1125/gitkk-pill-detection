@@ -5,7 +5,7 @@
     data/classifier/crops/<약 코드>/<이미지>_<번호>.jpg
     data/classifier/crops/crops.csv     crop, image, code, source, group, x, y, w, h (원본 이미지 기준 bbox)
 
-자르는 방법은 pilldata.transforms.crop_pill을 사용한다. bbox 사방 5% 여백을 더하고 이미지 경계에서 clip한 뒤 고정색 padding으로 정사각형을 만든다.
+자르는 방법은 data_loading.image_transforms.crop_pill을 사용한다. bbox 사방 5% 여백을 더하고 이미지 경계에서 clip한 뒤 고정색 padding으로 정사각형을 만든다.
 라벨 오류 bbox는 validate_source_labels.py → select_source_images.py에서 이미 빠졌으므로 여기서는 거르지 않는다.
 jpg는 개수 세기·노트북 확인용이다. 학습에 쓰는 PNG crop(padding 전)은 export_training_package.py가 원본에서 다시 자른다.
 
@@ -21,6 +21,7 @@ import zipfile
 import pandas as pd
 from PIL import Image
 
+from data_loading.image_transforms import crop_pill
 from etl.classifier.paths import (
     COMBO_ZIPS,
     CROPS,
@@ -29,7 +30,6 @@ from etl.classifier.paths import (
     save_table,
     ts_zip,
 )
-from pilldata.transforms import crop_pill
 
 
 def create_pill_crops(*, overwrite: bool = False) -> None:

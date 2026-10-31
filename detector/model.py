@@ -7,7 +7,7 @@ from torchvision.models import MobileNet_V3_Large_Weights
 from torchvision.models.detection import ssdlite320_mobilenet_v3_large
 from torchvision.models.detection.ssd import SSD
 
-from pilldata.validation import normalize_probability
+from data_loading.validation import normalize_probability
 
 DetectorBuilder = Callable[..., nn.Module]
 

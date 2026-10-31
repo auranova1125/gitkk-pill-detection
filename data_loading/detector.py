@@ -11,8 +11,7 @@ import torch
 from PIL import Image, ImageEnhance
 from torch.utils.data import DataLoader, Dataset, get_worker_info
 
-from .detector_records import read_records
-from .detector_settings import load_detector_settings
+from .detector_package import load_detector_settings, read_records
 
 if TYPE_CHECKING:
     from detector import DetectorConfig

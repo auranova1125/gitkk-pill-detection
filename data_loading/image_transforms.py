@@ -11,7 +11,7 @@ from torch.nn import functional
 from torchvision import transforms as T
 from torchvision.transforms import InterpolationMode
 
-from pilldata.validation import validate_rgb_image_tensor
+from data_loading.validation import validate_rgb_image_tensor
 
 CLASSIFIER_IMAGE_SIZE = 224
 CROP_MARGIN = 0.05

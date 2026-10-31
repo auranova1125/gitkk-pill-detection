@@ -160,7 +160,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "smoke":
-        from pilldata.synthetic import run_synthetic_smoke
+        from data_loading.synthetic import run_synthetic_smoke
 
         _print_json(run_synthetic_smoke(device_name=args.device).to_dict())
         return 0
@@ -177,8 +177,7 @@ def _print_json(value: Any) -> None:
 
 def _check_detector_data(settings_path: Path | None, report_path: Path) -> int:
     """탐지 학습 패키지를 읽고 검사 결과를 JSON으로 저장한다."""
-    from pilldata.detector_records import read_records
-    from pilldata.detector_settings import load_detector_settings
+    from data_loading.detector_package import load_detector_settings, read_records
     from utils.io import write_json
 
     result: dict[str, Any] = {

@@ -8,11 +8,11 @@ from typing import Any
 import torch
 from torch import nn
 
+from data_loading.image_transforms import clip_xyxy_to_image
+from data_loading.validation import normalize_probability, validate_rgb_image_tensor
 from detector.checkpoint import hash_label_map, load_checkpoint
 from detector.input_validation import validate_detector_label_map
 from detector.model import build_detector_model
-from pilldata.transforms import clip_xyxy_to_image
-from pilldata.validation import normalize_probability, validate_rgb_image_tensor
 from utils.io import write_json
 from utils.runtime import select_device
 

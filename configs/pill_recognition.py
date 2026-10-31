@@ -11,7 +11,7 @@ from configs.yaml_loading import (
     validate_keys,
     validate_positive_integer,
 )
-from pilldata.validation import normalize_probability
+from data_loading.validation import normalize_probability
 
 
 @dataclass(frozen=True, slots=True)

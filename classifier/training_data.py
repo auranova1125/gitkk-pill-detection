@@ -12,7 +12,7 @@ from classifier.input_validation import (
     validate_classifier_training_batch,
 )
 from configs.classifier import ClassifierConfig
-from pilldata.factory import (
+from data_loading.factory import (
     TrainingFactoryResult,
     call_training_data_factory,
     first_batch,

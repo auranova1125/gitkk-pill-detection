@@ -5,7 +5,7 @@ import pytest
 import torch
 from PIL import Image
 
-from pilldata.transforms import (
+from data_loading.image_transforms import (
     CLASSIFIER_IMAGE_SIZE,
     CROP_MARGIN,
     build_classifier_inference_transform,

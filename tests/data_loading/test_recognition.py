@@ -6,8 +6,8 @@ import pytest
 import torch
 from PIL import Image
 
+from data_loading.recognition import build_pill_recognition_inputs
 from detector.inference import validate_inference_batch
-from pilldata.pill_recognition_dataset import build_pill_recognition_inputs
 
 
 def test_pill_recognition_loader_reads_sorted_variable_size_images(tmp_path) -> None:

@@ -1,6 +1,6 @@
 task: classifier
 device: auto
-data_factory_path: pilldata.classifier_dataset:build_classifier_inputs
+data_factory_path: data_loading.classifier:build_classifier_inputs
 expected_num_classes: 118
 pretrained: true
 

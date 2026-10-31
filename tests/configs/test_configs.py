@@ -7,7 +7,7 @@ import pytest
 import torch
 
 import classifier.train as classifier_train_module
-import pilldata.factory as pilldata_factory_module
+import data_loading.factory as data_loading_factory_module
 from classifier.train import train_classifier
 from classifier.training_data import prepare_classifier_data
 from configs import (
@@ -17,10 +17,10 @@ from configs import (
     load_detector_config,
     load_pill_recognition_config,
 )
+from data_loading.classifier import build_classifier_inputs
+from data_loading.factory import load_data_factory
 from detector.train import train_detector
 from etl.classifier.paths import CLASSES, REPORTS, ROOT
-from pilldata.classifier_dataset import build_classifier_inputs
-from pilldata.factory import load_data_factory
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -35,12 +35,10 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert classifier.run_name == "resnet50_baseline"
     assert classifier.expected_num_classes == 118
     assert detector.model_name == "ssdlite320_mobilenet_v3_large"
-    assert (
-        detector.data_factory_path == "pilldata.detector_dataset:build_detector_inputs"
-    )
+    assert detector.data_factory_path == "data_loading.detector:build_detector_inputs"
     assert (
         pill_recognition.inference_factory_path
-        == "pilldata.pill_recognition_dataset:build_pill_recognition_inputs"
+        == "data_loading.recognition:build_pill_recognition_inputs"
     )
     assert pill_recognition.input_dir == Path("data/inference")
 
@@ -163,7 +161,7 @@ def test_classifier_training_reuses_validated_data(
         device="cpu",
     )
     monkeypatch.setattr(
-        pilldata_factory_module,
+        data_loading_factory_module,
         "load_data_factory",
         lambda _: factory,
     )

@@ -12,7 +12,7 @@
         crops/<약 코드>/<sample_id>.png
     training_package_classifier.zip   위 폴더의 내용 (zip 맨 위에 바로). 드라이브: gitkk_archive/training_package_classifier.zip
 
-로더와 crop 코드는 패키지에 넣지 않고 레포의 pilldata 모듈을 사용한다.
+로더와 crop 코드는 패키지에 넣지 않고 레포의 data_loading 모듈을 사용한다.
 
 앞 단계: validate_source_labels → select_source_images → create_pill_crops → assign_data_splits
 사용:
@@ -30,8 +30,10 @@ import pandas as pd
 import torch
 from PIL import Image
 
-import pilldata.classifier_dataset as ci
+import data_loading.classifier as ci
 from classifier.training_data import validate_classifier_training_data
+from data_loading.image_transforms import CROP_MARGIN as MARGIN
+from data_loading.image_transforms import cut_pill
 from etl.classifier.paths import (
     CLASSES,
     COMBO_ZIPS,
@@ -42,8 +44,6 @@ from etl.classifier.paths import (
     tl_zip,
     ts_zip,
 )
-from pilldata.transforms import CROP_MARGIN as MARGIN
-from pilldata.transforms import cut_pill
 
 
 def export_training_package(*, overwrite: bool = False) -> None:

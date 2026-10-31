@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from pilldata.validation import (
+from data_loading.validation import (
     normalize_bbox_xywh,
     normalize_probability,
     require_fields,

@@ -16,6 +16,14 @@ from classifier.inference import (
 )
 from classifier.input_validation import validate_classifier_class_map
 from configs.pill_recognition import PillRecognitionConfig
+from data_loading.factory import load_data_factory
+from data_loading.image_transforms import (
+    CLASSIFIER_IMAGE_SIZE,
+    clip_xyxy_to_image,
+    crop_tensor_xyxy,
+    preprocess_classifier_crop,
+)
+from data_loading.validation import normalize_probability, validate_rgb_image_tensor
 from detector.inference import (
     DetectorInferenceError,
     DetectorPrediction,
@@ -24,14 +32,6 @@ from detector.inference import (
     validate_inference_batch,
 )
 from detector.input_validation import validate_detector_label_map
-from pilldata.factory import load_data_factory
-from pilldata.transforms import (
-    CLASSIFIER_IMAGE_SIZE,
-    clip_xyxy_to_image,
-    crop_tensor_xyxy,
-    preprocess_classifier_crop,
-)
-from pilldata.validation import normalize_probability, validate_rgb_image_tensor
 from utils.io import read_json, write_json
 from utils.runtime import resolve_device
 
