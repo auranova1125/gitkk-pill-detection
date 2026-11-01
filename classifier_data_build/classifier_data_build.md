@@ -54,7 +54,18 @@ uv run python classifier_data_build/merge_label_audit.py     # 조치 목록    
 uv run python classifier_data_build/export_detector_audit.py # 탐지기 공유 목록   → classifier_data_build/label_audit/detector_actions.csv
 ```
 - 다시 실행해도 사람이 채운 판정은 `sample_id`로 이어받는다. 후보에서 빠진 줄도 판정이 있으면 지우지 않고 남긴다 (`config.keep_review`)
-- 조치 목록은 만들기만 한다. 데이터에 적용하는 것은 데이터 v2 작업에서 한다
+- 조치 목록은 만들기만 한다. 적용은 아래 '데이터 v2'에서 한다
+
+## 데이터 v2
+2차 검수 조치를 v1 입력 패키지에 적용한다. 결과와 기준 모델 재평가는 [`data_v2_report.md`](reports/data_v2_report.md)에 있다.
+
+```bash
+uv run python classifier_data_build/export_classifier_v2.py  # → data/classifier/export/training_package_classifier_v2(.zip), classifier_data_build/reports/data_v2_report.md
+```
+- 파이프라인을 처음부터 다시 돌리지 않고 **v1 패키지에서 바로 고친다.** 다시 고르면(`select_images.py`) 빈자리를 2차 검수를 안 거친 사진으로 채우고, bbox 번호가 당겨져 sample_id가 바뀐다
+- 이미지·bbox 제외는 crop을 빼고, 라벨 교환은 `code`·`class_index`·`category_id`·`item_seq`·`name`·`crop_path`를 바꾼다. 나머지 열과 `class_map.json`은 v1과 같다
+- v1 패키지의 `split_hash`가 2차 검수를 한 v1(`49d2afee…`)과 다르면 멈춘다
+- `data/best.pt`가 있으면 기준 모델을 v1·v2 val로 다시 평가해 보고서에 적는다 (`--no-eval`로 끔)
 
 ## 결과 문서
 이 문서에는 **방법**만 적는다. 숫자는 데이터를 다시 만들 때마다 바뀌므로 스크립트가 `reports/`에 자동으로 쓴다 (직접 고치지 않는다).
@@ -66,6 +77,7 @@ uv run python classifier_data_build/export_detector_audit.py # 탐지기 공유 
 | [`split_report.md`](reports/split_report.md) | train/val 분할 기준, 클래스별 train·val crop 수, 유사 사진 확인 | `split_dataset.py` |
 | [`label_audit_report.md`](reports/label_audit_report.md) | 라벨 2차 검수 방법, 사람 판정 결과, 데이터 v2 조치 | 직접 작성 |
 | [`label_audit_summary.md`](reports/label_audit_summary.md) | 2차 검수 조치별 건수, 클래스별 감소, 제외 사진 목록 | `merge_label_audit.py` |
+| [`data_v2_report.md`](reports/data_v2_report.md) | 데이터 v2 개수·split_hash, 바뀐 클래스, 기준 모델의 v2 val 점수 | `export_classifier_v2.py` |
 | [`classifier_data_check.ipynb`](classifier_data_check.ipynb) | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 | 직접 실행 |
 
 ## 규칙

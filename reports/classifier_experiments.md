@@ -14,6 +14,13 @@
 
 데이터를 바꾸는 실험(라벨 오류 제거, crop 여백 변경 등)은 `split_hash`가 달라져 같은 val로 비교하는 것이 아니다. 아래 표의 `split_hash` 열에 데이터 버전을 꼭 적는다.
 
+| 데이터 | zip | split_hash | 기준 모델 val Top-1 |
+| --- | --- | --- | ---: |
+| v1 | `training_package_classifier.zip` | `49d2afee…` | 0.9983 (오분류 5) |
+| v2 (라벨 2차 검수 적용) | `training_package_classifier_v2.zip` | `a2eb581a…` | 1.0000 (오분류 0) |
+
+v2 val에서는 기준 모델이 이미 모두 맞힌다. v2로 학습한 모델과는 Top-1·macro F1로 차이를 볼 수 없으므로 val loss, 확신도, 탐지 bbox 연결 평가를 함께 본다 ([`data_v2_report.md`](../classifier_data_build/reports/data_v2_report.md)).
+
 ## 실험 순서
 
 1. 바꿀 것 하나를 정한다.

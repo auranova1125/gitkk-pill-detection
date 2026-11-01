@@ -30,6 +30,18 @@ crops/<약 코드>/<sample_id>.png   원본에서 bbox 사방 5% 여백 + 경계
 | 그룹(파일명의 알약 조합) | train 1,786 / val 429, 겹침 0 |
 | split_hash | `49d2afee86a4ec8f48c25488eac9b1f9081b36066e5533eba40670087f60430c` |
 
+### 데이터 v2 (라벨 2차 검수 적용)
+구글 드라이브 `gitkk_archive/training_package_classifier_v2.zip`. 구조와 `class_map.json`은 v1과 같다.
+
+| 항목 | 값 |
+|---|---|
+| 샘플 | train 11,990 / val 2,808 (v1에서 오류 crop 190개 제외, 라벨 2개 교환) |
+| 그룹 | train 1,774 / val 424, 겹침 0 |
+| split_hash | `a2eb581a04604ff1e0b156980965a49650ecb4dec919e3def500c35acf8241e0` |
+
+v2로 학습하려면 아래 경로의 `training_package_classifier`를 `training_package_classifier_v2`로 바꾼다.
+만든 방법과 v1과의 차이는 [`data_v2_report.md`](../classifier_data_build/reports/data_v2_report.md).
+
 ## 사용법
 `notebooks/train_classifier.ipynb` 설정 셀에서 다음을 바꾼다. 로더는 `class_map_path`와 같은 폴더에서 `samples.csv`와 `crops/`를 읽는다.
 ```python
