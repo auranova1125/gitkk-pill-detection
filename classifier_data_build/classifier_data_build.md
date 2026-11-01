@@ -8,6 +8,8 @@
 |---|---|
 | `config.py`, `label_checklist.py`, `classes.csv` | 경로 설정·원본 zip 찾기, 「알약 데이터 검증 체크리스트」 항목 목록, 118종 클래스 표 (`class_id` = 모델 출력 번호 `class_index`) |
 | `validate_labels.py` … `export_classifier_inputs.py` | 데이터 생성 스크립트 (아래 '실행') |
+| `audit_bbox_position.py` … `export_detector_audit.py` | 라벨 2차 검수 스크립트 (아래 '라벨 2차 검수') |
+| `label_audit/` | 라벨 2차 검수의 사람 판정 CSV와 조치 목록 (다시 만들 수 없으므로 git에 올림) |
 | `reports/` | 라벨 검수, 클래스별 개수, train/val 분할 결과 (스크립트가 자동 생성) |
 | `classifier_data_check.ipynb` | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 |
 
@@ -40,6 +42,20 @@ uv run python classifier_data_build/export_classifier_inputs.py      # 분류기
 ```
 `split_dataset.py`는 `data/detector/training_package_detector.zip`(탐지기 학습 패키지)의 `split_manifest.csv`로 train/val을 나눈다.
 
+## 라벨 2차 검수
+1차 검수(`validate_labels.py`)는 bbox 값만 본다. 2차 검수는 사진 픽셀과 기준 모델 `best.pt`로 **위치가 틀린 bbox**와 **이름표가 틀린 crop**을 찾는다.
+코드는 의심 후보만 고르고, 판정은 사람이 검수 그림을 보고 CSV에 적는다. 방법과 결과는 [`label_audit_report.md`](reports/label_audit_report.md)에 있다.
+
+```bash
+uv run python classifier_data_build/audit_bbox_position.py   # 위치 오류 후보     → classifier_data_build/label_audit/position_suspects.csv, data/classifier/meta/label_audit/review/p*.jpg
+uv run python classifier_data_build/audit_class_label.py     # 클래스 오류 후보   → classifier_data_build/label_audit/class_suspects.csv, data/classifier/meta/label_audit/review/c*.jpg (data/best.pt 필요)
+# 검수 그림을 보고 두 CSV의 판정·조치·메모·검수 칸을 채운다
+uv run python classifier_data_build/merge_label_audit.py     # 조치 목록          → classifier_data_build/label_audit/label_actions.csv, classifier_data_build/reports/label_audit_summary.md
+uv run python classifier_data_build/export_detector_audit.py # 탐지기 공유 목록   → classifier_data_build/label_audit/detector_actions.csv
+```
+- 다시 실행해도 사람이 채운 판정은 `sample_id`로 이어받는다. 후보에서 빠진 줄도 판정이 있으면 지우지 않고 남긴다 (`config.keep_review`)
+- 조치 목록은 만들기만 한다. 데이터에 적용하는 것은 데이터 v2 작업에서 한다
+
 ## 결과 문서
 이 문서에는 **방법**만 적는다. 숫자는 데이터를 다시 만들 때마다 바뀌므로 스크립트가 `reports/`에 자동으로 쓴다 (직접 고치지 않는다).
 
@@ -48,6 +64,8 @@ uv run python classifier_data_build/export_classifier_inputs.py      # 분류기
 | [`validation_report.md`](reports/validation_report.md) | 체크리스트 항목별 검수 결과, 제외한 이미지·bbox 수 | `validate_labels.py` |
 | [`crop_counts.md`](reports/crop_counts.md) | **crop 총 개수**(맨 위 요약), 클래스별 crop 개수 (Kaggle/조합) | `count_crops.py` |
 | [`split_report.md`](reports/split_report.md) | train/val 분할 기준, 클래스별 train·val crop 수, 유사 사진 확인 | `split_dataset.py` |
+| [`label_audit_report.md`](reports/label_audit_report.md) | 라벨 2차 검수 방법, 사람 판정 결과, 데이터 v2 조치 | 직접 작성 |
+| [`label_audit_summary.md`](reports/label_audit_summary.md) | 2차 검수 조치별 건수, 클래스별 감소, 제외 사진 목록 | `merge_label_audit.py` |
 | [`classifier_data_check.ipynb`](classifier_data_check.ipynb) | 개수 그래프, 각도 분포, 제외 현황, crop 샘플, 분류기 입력 형식 확인 | 직접 실행 |
 
 ## 규칙
