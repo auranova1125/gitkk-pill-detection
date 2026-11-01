@@ -18,6 +18,7 @@ CROPS = DATA / "classifier" / "crops"               # crops/<약 코드>/*.jpg
 EXPORT = DATA / "classifier" / "export"             # 분류기 팀에 넘기는 입력 패키지
 DETECTOR_PACKAGE = DATA / "detector" / "training_package_detector.zip"  # 탐지기 학습 패키지 (split_manifest.csv)
 REPORTS = ROOT / "classifier_data_build" / "reports"                  # 실행 결과 문서 (자동 생성, git에 올림)
+AUDIT = ROOT / "classifier_data_build" / "label_audit"               # 라벨 2차 검수의 사람 판정 CSV (다시 만들 수 없으므로 git에 올림)
 
 COMBO_ZIPS = [1, 3, 4, 5, 6, 7, 8]              # 2번 세트(TS_2 이미지·TL_2 라벨)는 test와 겹칠 수 있어 쓰지 않는다
 
@@ -25,6 +26,35 @@ COMBO_ZIPS = [1, 3, 4, 5, 6, 7, 8]              # 2번 세트(TS_2 이미지·TL
 def save_table(df, path, index=False):
     """CSV로 저장한다. utf-8-sig(BOM)라 엑셀에서 열어도 한글이 덜 깨진다."""
     df.to_csv(path, index=index, encoding="utf-8-sig")
+
+
+REVIEW_COLS = ["판정", "조치", "메모", "검수"]
+
+
+def keep_review(df, path):
+    """검수 칸(판정·조치·메모·검수)을 붙인다. 이미 사람이 채운 CSV가 있으면 sample_id로 이어받는다 (다시 실행해도 판정이 지워지지 않게).
+    이번 실행에서 후보가 아니게 된 줄도 판정이 있으면 지우지 않고 맨 뒤에 남긴다 (그 줄의 그림은 없으므로 그림번호·그림파일은 비운다)."""
+    import pandas as pd
+
+    df = df.copy()
+    for c in REVIEW_COLS:
+        df[c] = ""
+    if path.exists():
+        old = pd.read_csv(path, dtype=str, keep_default_na=False).set_index("sample_id")
+        hit = df.sample_id.isin(old.index)
+        for c in REVIEW_COLS:
+            if c in old.columns:
+                df.loc[hit, c] = df.loc[hit, "sample_id"].map(old[c])
+        gone = old[~old.index.isin(df.sample_id) & (old.get("판정", "") != "")].reset_index()
+        for c in ("그림번호", "그림파일"):
+            if c in gone.columns:
+                gone[c] = ""
+        if len(gone):                                  # 빈 표와 합치면 숫자 열이 object가 되어 CSV 표기가 바뀐다
+            for c in df.select_dtypes("float32").columns:  # float32를 그대로 합치면 0.001이 0.0010000000474974513로 적힌다
+                df[c] = df[c].astype("float64").round(6)
+            df = pd.concat([df, gone[[c for c in df.columns if c in gone.columns]]], ignore_index=True)
+        print(f"  기존 검수 {hit.sum()}줄 이어받음, 새 의심 {(~hit).sum()}줄, 후보에서 빠졌지만 판정이 있어 남긴 줄 {len(gone)}줄")
+    return df
 
 
 def _nfc(s):
