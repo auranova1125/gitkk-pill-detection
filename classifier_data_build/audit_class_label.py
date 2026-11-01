@@ -112,11 +112,11 @@ def group_compare(df, emb):
     return own, other, other_cls
 
 
-def oof_predict(df, emb):
-    """그룹 단위 5-fold 교차 검증 예측 확률 [N, 118]"""
+def oof_predict(df, emb, num_classes):
+    """그룹 단위 5-fold 교차 검증 예측 확률 [N, num_classes]"""
     z = emb / np.linalg.norm(emb, axis=1, keepdims=True)
     y = df.class_index.values
-    prob = np.zeros((len(df), 118), np.float32)
+    prob = np.zeros((len(df), num_classes), np.float32)
     for k, (tr, te) in enumerate(GroupKFold(FOLDS).split(z, y, df.group_id.values)):
         clf = LogisticRegression(C=10, max_iter=2000)
         clf.fit(z[tr], y[tr])
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     print("같은 그룹 비교")
     own, other, other_cls = group_compare(df, emb)
     print("교차 검증 예측")
-    oof = oof_predict(df, emb)
+    oof = oof_predict(df, emb, prob.shape[1])               # best.pt 출력 수 = class_map의 클래스 수
 
     y = df.class_index.values
     idx = np.arange(len(df))

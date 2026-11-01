@@ -32,7 +32,8 @@ REVIEW_COLS = ["판정", "조치", "메모", "검수"]
 
 
 def keep_review(df, path):
-    """검수 칸(판정·조치·메모·검수)을 붙인다. 이미 사람이 채운 CSV가 있으면 sample_id로 이어받는다 (다시 실행해도 판정이 지워지지 않게)."""
+    """검수 칸(판정·조치·메모·검수)을 붙인다. 이미 사람이 채운 CSV가 있으면 sample_id로 이어받는다 (다시 실행해도 판정이 지워지지 않게).
+    이번 실행에서 후보가 아니게 된 줄도 판정이 있으면 지우지 않고 맨 뒤에 남긴다 (그 줄의 그림은 없으므로 그림번호·그림파일은 비운다)."""
     import pandas as pd
 
     df = df.copy()
@@ -44,7 +45,15 @@ def keep_review(df, path):
         for c in REVIEW_COLS:
             if c in old.columns:
                 df.loc[hit, c] = df.loc[hit, "sample_id"].map(old[c])
-        print(f"  기존 검수 {hit.sum()}줄 이어받음, 새 의심 {(~hit).sum()}줄")
+        gone = old[~old.index.isin(df.sample_id) & (old.get("판정", "") != "")].reset_index()
+        for c in ("그림번호", "그림파일"):
+            if c in gone.columns:
+                gone[c] = ""
+        if len(gone):                                  # 빈 표와 합치면 숫자 열이 object가 되어 CSV 표기가 바뀐다
+            for c in df.select_dtypes("float32").columns:  # float32를 그대로 합치면 0.001이 0.0010000000474974513로 적힌다
+                df[c] = df[c].astype("float64").round(6)
+            df = pd.concat([df, gone[[c for c in df.columns if c in gone.columns]]], ignore_index=True)
+        print(f"  기존 검수 {hit.sum()}줄 이어받음, 새 의심 {(~hit).sum()}줄, 후보에서 빠졌지만 판정이 있어 남긴 줄 {len(gone)}줄")
     return df
 
 
