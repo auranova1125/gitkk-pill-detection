@@ -21,6 +21,15 @@
 
 v2 validation에서는 v1 기준 모델이 모든 샘플을 맞혔다. 이후 모델은 Top-1·macro F1만으로 차이를 구분하기 어려우므로 validation loss, 확신도와 탐지 bbox 연결 평가를 함께 본다. 수치의 의미와 주의점은 [분류 데이터 v2 보고서](../data/classifier/data_v2_report.md)에 기록한다.
 
+### 외부 평가셋: AI Hub val
+
+v2 val이 포화되어, 학습에 쓰지 않는 **AI Hub val(조합) 평가셋**으로 실험끼리 비교한다. best epoch는 v2 val로 고르고, 학습이 끝난 `best.pt`를 이 평가셋으로 평가한다 (`python -m classifier.evaluate_external`).
+평가셋에는 118종 중 54종만 있으므로 **macro F1(54종 평균)**을 주 지표로 본다. 구성은 [AI Hub val 평가셋 보고서](../data/classifier/aihub_val_eval_package_report.md).
+
+| 평가셋 | eval_hash | crop | 클래스 |
+| --- | --- | ---: | ---: |
+| AI Hub val (1·2차 라벨 검수 반영) | `6f8d9b09…` | 5,428 | 54 |
+
 ## 실험 순서
 
 1. 바꿀 것 하나를 정한다.
@@ -33,3 +42,9 @@ v2 validation에서는 v1 기준 모델이 모든 샘플을 맞혔다. 이후 �
 | run_name | 바꾼 것 | split_hash | best epoch | val Top-1 | val macro F1 | 유사 사진 제외 macro F1 | 메모 |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 | resnet50_baseline_v1 | 기준 | 49d2afee… | 9 / 16 | 0.9983 | 0.9983 | 0.9973 | 오분류 5건 모두 라벨·bbox 오류 |
+
+AI Hub val 평가 (eval_hash `6f8d9b09…`)
+
+| run_name | AI Hub val Top-1 | AI Hub val macro F1 | 유사 사진 제외 macro F1 | 오분류 | 메모 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| resnet50_baseline_v1 | 0.9963 | 0.9951 | 0.9939 | 20 / 5,428 | 20건 모두 라벨은 맞음. 브린텔릭스 "20" 면→제미메트 8, 흐린 크레스토→자트랄 5, 베시케어 각인 없는 면→리피로우 3, 졸로푸트 3, 글리아티린→콜리네이트 1 |
