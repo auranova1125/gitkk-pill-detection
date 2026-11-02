@@ -5,6 +5,7 @@ import io
 import json
 import os
 import zipfile
+from collections.abc import Sequence
 from multiprocessing import Pool
 from pathlib import Path
 from typing import Any
@@ -229,12 +230,21 @@ def position_priority(score: Any) -> int:
     return 0
 
 
-def build_source_image_index() -> dict[str, tuple[str, str]]:
-    """AI Hub 원본 파일명을 zip 경로와 내부 경로에 연결한다."""
+def build_source_image_index(
+    image_zips: Sequence[Path] | None = None,
+) -> dict[str, tuple[str, str]]:
+    """AI Hub 원본 파일명을 zip 경로와 내부 경로에 연결한다.
+
+    image_zips를 주지 않으면 학습용 조합 TS zip(1·3~8번)을 쓴다.
+    """
 
     index: dict[str, tuple[str, str]] = {}
-    for number in COMBO_ZIPS:
-        zip_path = ts_zip(number)
+    zip_paths = (
+        list(image_zips)
+        if image_zips is not None
+        else [ts_zip(number) for number in COMBO_ZIPS]
+    )
+    for zip_path in zip_paths:
         with zipfile.ZipFile(zip_path) as archive:
             for member in archive.namelist():
                 if member.endswith(".png"):
@@ -383,13 +393,17 @@ def detect_bbox_errors(
     output_dir: Path = LABEL_AUDIT_OUTPUT,
     processes: int = 8,
     write_sheets: bool = True,
+    image_zips: Sequence[Path] | None = None,
 ) -> pd.DataFrame:
-    """전체 v1 crop의 위치 점수를 계산하고 사람 검수 후보를 갱신한다."""
+    """패키지의 모든 crop 위치 점수를 계산하고 사람 검수 후보를 갱신한다.
+
+    AI Hub 원본 사진은 image_zips(기본: 학습용 조합 TS zip)에서 찾는다.
+    """
 
     if processes <= 0:
         raise ValueError("processes must be greater than zero")
     samples = pd.read_csv(package_dir / "samples.csv")
-    image_index = build_source_image_index()
+    image_index = build_source_image_index(image_zips)
     image_groups = list(samples.groupby("image_id"))
     chunks = [image_groups[index::processes] for index in range(processes)]
     arguments = [(chunk, image_index) for chunk in chunks if chunk]
@@ -482,6 +496,13 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--output-dir", type=Path, default=LABEL_AUDIT_OUTPUT)
     parser.add_argument("--processes", type=int, default=8)
     parser.add_argument("--no-sheets", action="store_true")
+    parser.add_argument(
+        "--image-zip",
+        type=Path,
+        action="append",
+        dest="image_zips",
+        help="AI Hub 원본 사진 zip. 여러 번 줄 수 있다 (기본: 학습용 조합 TS zip)",
+    )
     args = parser.parse_args(argv)
     suspects = detect_bbox_errors(
         package_dir=args.package_dir,
@@ -489,6 +510,7 @@ def main(argv: list[str] | None = None) -> None:
         output_dir=args.output_dir,
         processes=args.processes,
         write_sheets=not args.no_sheets,
+        image_zips=args.image_zips,
     )
     print(f"위치 오류 후보 bbox {len(suspects)}개")
 
