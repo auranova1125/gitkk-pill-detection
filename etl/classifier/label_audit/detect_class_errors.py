@@ -16,7 +16,9 @@ from torch.utils.data import DataLoader
 
 from classifier.checkpoint import hash_class_map, load_checkpoint
 from classifier.model import build_classifier_model
-from data_loading.classifier import PillCropDataset, read_samples, val_transform
+from data_loading.classifier import PillCropDataset
+from data_loading.classifier_package import read_classifier_samples
+from data_loading.image_transforms import build_classifier_validation_transform
 from etl.classifier.label_audit.review_records import preserve_human_reviews
 from etl.classifier.paths import (
     DATA,
@@ -61,7 +63,11 @@ def extract_embeddings(
 
     hook = model.avgpool.register_forward_hook(capture_embedding)
     loader = DataLoader(
-        PillCropDataset(samples, package_dir, val_transform()),
+        PillCropDataset(
+            samples,
+            package_dir,
+            build_classifier_validation_transform(),
+        ),
         batch_size=batch_size,
         num_workers=2 if device.type == "cuda" else 0,
         collate_fn=_stack_images,
@@ -362,7 +368,7 @@ def detect_class_errors(
     """embedding과 OOF 예측으로 클래스 오류 후보를 만들고 검수표를 갱신한다."""
 
     selected_device = device or select_device()
-    samples = read_samples(package_dir).reset_index(drop=True)
+    samples = read_classifier_samples(package_dir).reset_index(drop=True)
     output_dir.mkdir(parents=True, exist_ok=True)
     records_dir.mkdir(parents=True, exist_ok=True)
     cache_path = output_dir / "class_embeddings.npz"

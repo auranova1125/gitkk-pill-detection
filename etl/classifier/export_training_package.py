@@ -30,8 +30,12 @@ import pandas as pd
 import torch
 from PIL import Image
 
-import data_loading.classifier as ci
 from classifier.training_data import validate_classifier_training_data
+from data_loading.classifier import build_classifier_inputs
+from data_loading.classifier_package import (
+    read_classifier_samples,
+    summarize_classifier_samples,
+)
 from data_loading.image_transforms import CROP_MARGIN as MARGIN
 from data_loading.image_transforms import cut_pill
 from etl.classifier.paths import (
@@ -165,7 +169,10 @@ def export_training_package(*, overwrite: bool = False) -> None:
     (PKG / "class_map.json").write_text(
         json.dumps(class_map, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    summary = ci.make_data_summary(ci.read_samples(PKG), len(classes))
+    summary = summarize_classifier_samples(
+        read_classifier_samples(PKG),
+        len(classes),
+    )
     (PKG / "data_summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
@@ -177,9 +184,9 @@ def export_training_package(*, overwrite: bool = False) -> None:
         class_map_path=PKG / "class_map.json",
         data_summary_path=PKG / "data_summary.json",
     )
-    loaders = ci.build_classifier_inputs(config=cfg, device=torch.device("cpu"))
+    training_data = build_classifier_inputs(config=cfg, device=torch.device("cpu"))
     validate_classifier_training_data(
-        loaders,
+        training_data,
         expected_num_classes=len(classes),
     )
     print(

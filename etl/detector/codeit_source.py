@@ -9,7 +9,6 @@ from typing import Any
 
 from PIL import Image
 
-from data_loading.detector_package import canonical_group
 from utils.io import read_json
 
 
@@ -183,7 +182,7 @@ def _validate_codeit_annotation(
         if annotation.get("iscrowd", 0) != 0:
             raise ValueError(f"annotation {annotation_id} iscrowd must be zero")
 
-    group_id = canonical_group(file_name)
+    group_id = _canonical_group(file_name)
     expected_codes = set(group_id.removeprefix("K-").split("-"))
     actual_codes = {code.removeprefix("K-") for code in drug_codes}
     if len(drug_codes) != len(actual_codes):
@@ -200,6 +199,19 @@ def _validate_codeit_annotation(
         group_id=group_id,
         document=value,
     )
+
+
+def _canonical_group(file_name: str) -> str:
+    """Codeit 파일명에서 정렬된 알약 조합 그룹을 만든다."""
+
+    match = re.search(r"(K-\d{6}.*)$", Path(file_name).name)
+    if match is None:
+        raise ValueError(f"source pill file name is invalid: {file_name}")
+    prefix = match.group(1).split("_", 1)[0]
+    codes = prefix.removeprefix("K-").split("-")
+    if not codes or not all(re.fullmatch(r"\d{6}", code) for code in codes):
+        raise ValueError(f"source pill group is invalid: {file_name}")
+    return "K-" + "-".join(sorted(codes))
 
 
 def _require_non_negative_integer(value: Any, *, name: str) -> int:

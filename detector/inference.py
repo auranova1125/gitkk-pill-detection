@@ -14,6 +14,7 @@ from detector.checkpoint import hash_label_map, load_checkpoint
 from detector.input_validation import validate_detector_label_map
 from detector.model import build_detector_model
 from utils.io import write_json
+from utils.plotting import resolve_korean_font
 from utils.runtime import select_device
 
 
@@ -224,8 +225,9 @@ def plot_detection_comparison(
 
     figure, axis = plt.subplots(figsize=(8, 6))
     axis.imshow(image.permute(1, 2, 0).numpy())
+    font_properties = resolve_korean_font()
     if title:
-        axis.set_title(title)
+        axis.set_title(title, fontproperties=font_properties)
 
     if target is not None:
         boxes = target.get("boxes") if isinstance(target, Mapping) else None
@@ -271,6 +273,7 @@ def plot_detection_comparison(
             f"{prediction.detector_score:.3f}",
             color="white",
             fontsize=9,
+            fontproperties=font_properties,
             bbox={"facecolor": "red", "alpha": 0.7, "pad": 2},
         )
     axis.set_axis_off()

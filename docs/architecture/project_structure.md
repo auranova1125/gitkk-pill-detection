@@ -30,8 +30,9 @@ gitkk-pill-detection/
 ├── detector/
 │   └── classifier와 같은 역할별 파일
 ├── data_loading/
-│   ├── classifier.py
+│   ├── classifier.py / classifier_package.py
 │   ├── detector.py / detector_package.py
+│   ├── detector_data_paths.py / detector_transforms.py
 │   ├── recognition.py
 │   ├── image_transforms.py / validation.py / factory.py
 │   └── synthetic.py
@@ -93,6 +94,10 @@ gitkk-pill-detection/
 | 추론 모델 로드 | `load_classifier_inference_model` | `load_detector_inference_model` |
 | 학습 batch 검증 | `validate_classifier_training_batch` | `validate_detector_training_batch` |
 
+두 runtime 로더는 `load_*_package → transform/augmentation → Dataset → DataLoader`
+순서를 공유한다. 탐지기는 원본 이미지가 여러 외부 폴더에 있을 수 있고 이미지와 bbox를
+동시에 변환해야 하므로 데이터 경로 해석과 bbox-aware 증강만 별도 모듈로 둔다.
+
 분류기의 단계별 fine-tuning과 탐지기의 bbox metric처럼 도메인이 다른 기능은 각 패키지에 남긴다.
 
 ## 5. 실행 진입점
@@ -124,6 +129,7 @@ gitkk-pill-detection/
 ## 8. 관련 문서
 
 - [기준 모델과 교체 기준](baseline_models.md)
+- [실행 이름·태그·결과 저장 규칙](../experiments/run_conventions.md)
 - [분류 데이터 사용](../data/classifier_data_guide.md)
 - [분류 ETL](../data/classifier_etl.md)
 - [탐지 데이터 사용](../data/detector_data_guide.md)
