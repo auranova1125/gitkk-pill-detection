@@ -69,7 +69,7 @@ class DataTests(unittest.TestCase):
             for j, dataset in enumerate(("sprint", "archive"), 1):
                 iid = offset + j
                 group = f"K-{iid * 2 - 1:06d}-{iid * 2:06d}"
-                name = f"{group}_0_2_0_2_70_000_200.png"
+                name = f"sample-{iid}.png"
                 images.append({"id": iid, "file_name": name, "width": 32, "height": 32})
                 write_png(
                     resolve_image_path(
@@ -140,7 +140,7 @@ class DataTests(unittest.TestCase):
             records["train"][0]["boxes"],
             [[0.0, 2.0, 10.0, 22.0], [12.0, 2.0, 22.0, 22.0]],
         )
-        self.assertTrue(records["train"][0]["relative_path"].startswith("K-"))
+        self.assertEqual(records["train"][0]["relative_path"], "sample-1.png")
 
     def test_public_factory_returns_valid_detector_batches(self):
         train_loader, val_loader, label_map, summary = self.build_inputs()
@@ -310,7 +310,7 @@ class DataTests(unittest.TestCase):
 
     def test_group_overlap_rejected(self):
         old = self.rows[0]["group_id"]
-        name = f"{old}_0_2_0_2_90_000_200.png"
+        name = "validation-overlap.png"
         self.rows[2].update(group_id=old, image_path=name)
         self.labels["validation"]["images"][0]["file_name"] = name
         write_png(

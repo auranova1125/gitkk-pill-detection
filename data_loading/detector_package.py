@@ -102,26 +102,6 @@ def resolve_image_path(relative_name, *, dataset, roots):
     return result
 
 
-def original_file_name(file_name):
-    name = Path(file_name).name
-    match = re.search(r"(K-\d{6}.*)$", name)
-
-    if match is None:
-        raise ValueError(f"원본 파일명을 확인할 수 없습니다: {name}")
-
-    return match.group(1)
-
-
-def canonical_group(file_name):
-    prefix = original_file_name(file_name).split("_", 1)[0]
-    codes = prefix.removeprefix("K-").split("-")
-
-    if not codes or not all(re.fullmatch(r"\d{6}", code) for code in codes):
-        raise ValueError(f"알약 조합 형식 오류: {file_name}")
-
-    return "K-" + "-".join(sorted(codes))
-
-
 def read_records(settings):
     """고정 분할을 읽는다. 재분할하거나 잘못된 박스를 보정하지 않는다."""
     package, roots = resolve_data_paths(settings)
@@ -202,10 +182,9 @@ def read_records(settings):
             if relative_path != row["image_path"]:
                 raise ValueError(f"이미지 경로 기록 불일치: {image_id}")
 
-            group = canonical_group(relative_path)
-
-            if group != row["group_id"]:
-                raise ValueError(f"조합 그룹 기록 불일치: {image_id}")
+            group = row["group_id"]
+            if not isinstance(group, str) or not group.strip():
+                raise ValueError(f"비어 있는 조합 그룹: {image_id}")
 
             actual_path = resolve_image_path(
                 relative_path,
@@ -287,7 +266,7 @@ def read_records(settings):
                 {
                     "image_id": image_id,
                     "source_image_id": str(row["original_image_id"]),
-                    "original_file_name": original_file_name(relative_path),
+                    "original_file_name": PurePosixPath(relative_path).name,
                     "relative_path": relative_path,
                     "image_path": str(actual_path.resolve()),
                     "dataset": dataset,

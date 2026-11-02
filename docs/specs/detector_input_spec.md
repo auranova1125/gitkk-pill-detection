@@ -140,7 +140,7 @@ y2 = y + height
 
 ### 3.2 그룹 분할
 
-촬영 그룹은 파일명의 첫 번째 `_` 앞부분으로 만든다.
+현재 원천 데이터의 촬영 그룹은 파일명의 첫 번째 `_` 앞부분으로 만든다.
 
 ```text
 file_name: K-001900-016548-019607-029451_0_2_0_2_70_000_200.png
@@ -148,6 +148,8 @@ group_id:  K-001900-016548-019607-029451
 ```
 
 같은 `group_id`의 이미지는 모두 train 또는 모두 validation에 들어가야 한다. 두 split의 그룹 중복은 0이어야 한다.
+
+파일명 해석과 `group_id` 생성은 원천 ETL adapter가 담당한다. 완성 패키지를 읽는 runtime DataLoader는 특정 파일명 형식을 요구하지 않으며, `split_manifest.csv`의 확정된 `group_id`로 split 중복만 검사한다.
 
 ## 4. DataLoader batch 형식
 
