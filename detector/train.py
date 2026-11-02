@@ -1,21 +1,19 @@
 """탐지기 optimizer, epoch 학습과 전체 학습 실행."""
 
-import csv
 import json
-import random
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from math import isfinite
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import torch
 from torch import nn
 from torch.optim import SGD, Optimizer
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm.auto import tqdm
 
+from configs.detector import DetectorConfig
 from detector.checkpoint import (
     hash_label_map,
     load_checkpoint,
@@ -23,12 +21,19 @@ from detector.checkpoint import (
     save_checkpoint,
     validate_checkpoint_compatibility,
 )
-from detector.config import DetectorConfig
+from detector.evaluate import evaluate_model
 from detector.input_validation import (
     validate_detector_data_summary,
     validate_detector_label_map,
 )
-from detector.model import build_detector_model, select_device
+from detector.model import build_detector_model
+from detector.training_data import (
+    DetectorTrainingData,
+    move_detection_batch_to_device,
+    prepare_detector_data,
+)
+from utils.io import append_csv_row, prepare_training_run_directory
+from utils.runtime import build_grad_scaler, select_device, set_seed
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,70 +133,6 @@ def build_scheduler(
     return CosineAnnealingLR(optimizer, T_max=config.max_epochs)
 
 
-def build_grad_scaler(device: torch.device) -> torch.amp.GradScaler:
-    """CUDA에서만 활성화되는 AMP GradScaler를 생성한다."""
-
-    return torch.amp.GradScaler(device.type, enabled=device.type == "cuda")
-
-
-def set_seed(seed: int) -> None:
-    """Python, NumPy와 PyTorch random seed를 설정한다."""
-
-    if not isinstance(seed, int) or isinstance(seed, bool):
-        raise TypeError("seed must be an integer")
-    if seed < 0:
-        raise ValueError("seed must be non-negative")
-
-    random.seed(seed)
-    np.random.seed(seed % (2**32))
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    if torch.backends.mps.is_available():
-        torch.mps.manual_seed(seed)
-
-
-def move_detection_batch_to_device(
-    batch: Mapping[str, Any],
-    device: torch.device,
-) -> tuple[list[torch.Tensor], list[dict[str, Any]]]:
-    """이미지와 target tensor를 선택한 장치로 이동한다."""
-
-    if not isinstance(batch, Mapping):
-        raise TypeError("batch must be a mapping")
-    missing_fields = {"images", "targets"} - batch.keys()
-    if missing_fields:
-        raise ValueError(f"batch is missing required fields: {sorted(missing_fields)}")
-
-    images = batch["images"]
-    targets = batch["targets"]
-    if not isinstance(images, list) or not isinstance(targets, list):
-        raise TypeError("batch images and targets must be lists")
-    if not images or len(images) != len(targets):
-        raise ValueError("batch images and targets must have equal non-zero lengths")
-
-    non_blocking = device.type == "cuda"
-    moved_images: list[torch.Tensor] = []
-    moved_targets: list[dict[str, Any]] = []
-    for index, image in enumerate(images):
-        if not isinstance(image, torch.Tensor):
-            raise TypeError(f"batch.images[{index}] must be a torch.Tensor")
-        moved_images.append(image.to(device, non_blocking=non_blocking))
-
-    for index, target in enumerate(targets):
-        if not isinstance(target, Mapping):
-            raise TypeError(f"batch.targets[{index}] must be a mapping")
-        moved_targets.append(
-            {
-                key: value.to(device, non_blocking=non_blocking)
-                if isinstance(value, torch.Tensor)
-                else value
-                for key, value in target.items()
-            }
-        )
-    return moved_images, moved_targets
-
-
 def train_one_epoch(
     model: nn.Module,
     data_loader: Iterable[Mapping[str, Any]],
@@ -270,6 +211,25 @@ def train_one_epoch(
     )
 
 
+def train_detector(
+    config: DetectorConfig,
+    *,
+    data: DetectorTrainingData | None = None,
+) -> TrainingResult:
+    """설정 하나로 탐지기 데이터를 준비하고 학습을 실행한다."""
+
+    training_data = data or prepare_detector_data(config)
+    return run_training(
+        config,
+        training_data.train_loader,
+        training_data.val_loader,
+        training_data.label_map,
+        training_data.data_summary,
+        pretrained_backbone=config.pretrained_backbone,
+        device=training_data.device,
+    )
+
+
 def run_training(
     config: DetectorConfig,
     train_loader: Iterable[Mapping[str, Any]],
@@ -282,8 +242,6 @@ def run_training(
 ) -> TrainingResult:
     """설정 검증부터 checkpoint 저장까지 detector 학습을 실행한다."""
 
-    from detector.evaluate import evaluate_model
-
     validate_detector_label_map(label_map)
     validate_detector_data_summary(data_summary, label_map)
     if not isinstance(pretrained_backbone, bool):
@@ -291,6 +249,22 @@ def run_training(
 
     selected_device = device if device is not None else select_device()
     set_seed(config.seed)
+    resolved_config = config.to_dict()
+    resolved_config["device"] = str(selected_device)
+    run_dir = prepare_training_run_directory(
+        output_dir=config.output_dir,
+        run_name=config.run_name,
+        resume_from=config.resume_from,
+        resolved_config=resolved_config,
+        metadata_files={
+            "label_map.json": label_map,
+            "data_summary.json": data_summary,
+        },
+    )
+    last_checkpoint_path = run_dir / "last.pt"
+    best_checkpoint_path = run_dir / "best.pt"
+    metrics_path = run_dir / "metrics.csv"
+
     model_config = {
         "num_classes": label_map["num_model_classes"],
         "pretrained_backbone": pretrained_backbone,
@@ -306,17 +280,6 @@ def run_training(
     scheduler = build_scheduler(optimizer, config)
     scaler = build_grad_scaler(selected_device)
     early_stopping = EarlyStopping(config.early_stopping_patience)
-
-    run_dir = config.output_dir / config.run_name
-    run_dir.mkdir(parents=True, exist_ok=True)
-    last_checkpoint_path = run_dir / "last.pt"
-    best_checkpoint_path = run_dir / "best.pt"
-    metrics_path = run_dir / "metrics.csv"
-    _write_json(run_dir / "resolved_config.json", config.to_dict())
-    _write_json(run_dir / "label_map.json", label_map)
-    _write_json(run_dir / "data_summary.json", data_summary)
-    if config.resume_from is None:
-        metrics_path.write_text("", encoding="utf-8")
 
     label_map_hash = hash_label_map(label_map)
     split_hash = data_summary["split_hash"]
@@ -383,7 +346,7 @@ def run_training(
             evaluation_result=evaluation_result,
         )
         metric_rows.append(metric_row)
-        _append_metric_row(metrics_path, metric_row)
+        append_csv_row(metrics_path, metric_row)
 
         checkpoint_arguments = {
             "completed_epoch": epoch,
@@ -439,22 +402,6 @@ def _build_metric_row(
         "train_num_images": training_result.num_images,
         **evaluation_result.to_dict(),
     }
-
-
-def _append_metric_row(path: Path, row: Mapping[str, Any]) -> None:
-    write_header = not path.exists() or path.stat().st_size == 0
-    with path.open("a", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=list(row))
-        if write_header:
-            writer.writeheader()
-        writer.writerow(row)
-
-
-def _write_json(path: Path, value: Mapping[str, Any]) -> None:
-    path.write_text(
-        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
 
 
 def _validate_losses(value: Any) -> Mapping[str, torch.Tensor]:

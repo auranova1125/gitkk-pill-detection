@@ -12,7 +12,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 
 from classifier.model import TrainingStage
-from common.reproducibility import capture_rng_state, restore_rng_state
+from utils.runtime import capture_rng_state, restore_rng_state
 
 CHECKPOINT_VERSION = 1
 _REQUIRED_CHECKPOINT_FIELDS = {

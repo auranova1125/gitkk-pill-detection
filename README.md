@@ -81,6 +81,39 @@ Colab에서는 다음 셀로 CUDA 연결을 확인합니다.
 
 정상적인 GPU 런타임에서는 `cuda=True`가 출력됩니다.
 
+## 실행 진입점
+
+Notebook은 데이터와 예측을 직접 확인하는 주 실행 환경으로 유지합니다. 반복 실행이나 자동화가 필요할 때는 같은 Python 학습·평가 함수를 호출하는 `main.py`를 사용합니다.
+
+```bash
+# 설치와 장치, 공통 전처리, 분류기·탐지기 학습 1 step 확인
+uv run python main.py smoke
+
+# YAML 설정을 사용한 학습
+uv run python main.py train-classifier --config configs/classifier.yaml
+uv run python main.py train-detector --config configs/detector.yaml
+
+# checkpoint 평가와 통합 추론
+uv run python main.py evaluate classifier \
+  --config configs/classifier.yaml \
+  --checkpoint outputs/resnet50_baseline/best.pt
+uv run python main.py recognize-pills --config configs/pill_recognition.yaml
+```
+
+`configs/*.yaml`은 `configs/classifier.py`, `configs/detector.py`, `configs/pill_recognition.py`의 설정 객체로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 같은 설정 객체를 직접 생성해 셀에서 실험값을 바꿀 수 있습니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
+
+기본 YAML은 저장소가 제공하는 `data_loading` factory를 사용합니다. 데이터가 저장소 밖에 있으면 탐지기는 `data_settings_path`, 분류기는 `class_map_path`와 `data_summary_path`, 통합 추론은 `input_dir`을 실제 경로에 맞게 바꿉니다.
+
+## 전체 품질 검사
+
+프로젝트 루트에서 전체 테스트와 정적 검사를 실행합니다.
+
+```bash
+uv run python -m pytest -q
+uv run ruff check main.py classifier configs detector etl data_loading pipeline utils tests
+uv run ruff format --check main.py classifier configs detector etl data_loading pipeline utils tests
+```
+
 ## Jupyter Notebook Git 설정
 
 `nbdime`은 Notebook diff/merge를 읽기 쉽게 만들고, `nbstripout`은 커밋되는 Notebook에서 출력값을 제거합니다. 저장소를 복제한 뒤 팀원마다 한 번씩 설정합니다.
@@ -166,63 +199,80 @@ git merge origin/main
 
 상세 협업 규칙은 프로젝트 Notion을 참고합니다.
 
-## 분류기 구현
+## 프로젝트 구조
 
-`classifier/`에는 현재 118종을 대상으로 하는 분류기의 입력 검증, ResNet-50, 학습·평가, checkpoint 재개, 탐지 결과 연동 코드가 있습니다. 클래스 수는 실행 시 `expected_num_classes`로 변경할 수 있습니다. 실제 데이터 구성 함수가 준비되면 `notebooks/train_classifier.ipynb`의 `data_factory_path`를 설정해 학습을 실행합니다.
+| 경로 | 책임 |
+| --- | --- |
+| `classifier/` | 품목 분류 모델, 학습·평가·추론, checkpoint |
+| `detector/` | 단일 `pill` 클래스 탐지 모델, 학습·평가·추론, checkpoint |
+| `data_loading/` | 준비된 학습 패키지를 Dataset, DataLoader와 tensor로 변환 |
+| `etl/` | 원천 데이터에서 학습 패키지를 만드는 오프라인 ETL |
+| `pipeline/` | 탐지 bbox를 분류기에 연결하는 알약 인식 |
+| `configs/` | 검증된 실행 설정과 기본 YAML |
+| `utils/` | 장치, RNG, artifact 저장 등 저수준 공통 기능 |
 
-데이터 구성 함수와 DataLoader가 제공해야 하는 정확한 형식은 [`docs/classifier_input_spec.md`](docs/classifier_input_spec.md)를 참고합니다.
+설계 기준과 전체 tree는 [프로젝트 구조](docs/architecture/project_structure.md)에서 확인합니다.
 
-전체 단위 테스트와 코드 검사는 다음 명령으로 실행합니다.
+## 데이터 흐름
+
+```text
+원천 데이터 → etl/ → data/ 학습 패키지 → data_loading/ → classifier/ 또는 detector/
+                                                     └→ pipeline/ 알약 인식
+```
+
+분류 학습 패키지 ETL은 다음 명령으로 실행합니다. 기존 출력을 교체하려면 `--overwrite`를 명시해야 합니다.
 
 ```bash
+uv run python -m etl.classifier.build_classifier_dataset
+```
+
+탐지 ETL은 현재 Codeit 원천 adapter와 완성 패키지 검증까지 구현되어 있습니다. SELECT 원천 형식과 최초 분할 규칙이 확정되기 전까지 전체 생성 진입점은 명시적 플레이스홀더로 유지합니다. 현재 범위는 [탐지 ETL](docs/data/detector_etl.md)에서 확인합니다.
+
+탐지 학습 패키지는 다음 명령으로 라벨·분할·경로를 검사합니다.
+
+```bash
+uv run python main.py check-detector-data
+```
+
+## Notebook
+
+### Baseline
+
+- [분류기 학습](notebooks/baseline/train_classifier.ipynb)
+- [탐지기 학습](notebooks/baseline/train_detector.ipynb)
+- [탐·분 통합 알약 인식](notebooks/baseline/run_pill_recognition.ipynb)
+
+### 실험·EDA
+
+- [분류기 baseline 분석](notebooks/experiments/classifier_baseline_analysis.ipynb)
+- [분류 데이터 품질 확인](notebooks/eda/classifier_data_quality.ipynb)
+
+Notebook은 설정과 시각화를 담당하며, 학습·평가 핵심 로직은 Python 모듈을 호출합니다. 자동화나 재현이 필요한 경우 `main.py`의 `train-classifier`, `train-detector`, `evaluate`, `recognize-pills`, `smoke` 명령을 사용합니다.
+
+## 검증
+
+```bash
+# 전체 테스트
 uv run pytest -q
-uv run ruff check classifier common tests
-uv run ruff format --check classifier common tests
+
+# 합성 데이터 소형 smoke
+uv run pytest -q -m smoke
+
+# 코드 스타일
+uv run ruff check classifier detector pipeline data_loading configs utils etl tests main.py
+uv run ruff format --check classifier detector pipeline data_loading configs utils etl tests main.py
 ```
 
-학습 결과와 checkpoint는 `outputs/{run_name}/` 아래에 저장되며 Git에는 포함되지 않습니다. 실험 결과 요약은 `reports/classifier_report.md`에 기록합니다.
-## 구현 문서
+학습 결과와 checkpoint는 `outputs/<run_name>/`에 저장하며 Git에 포함하지 않습니다. 분류 클래스 수의 기본값은 118이지만 `expected_num_classes`로 변경할 수 있으며, 검증 로직이 118을 절대값으로 강제하지 않습니다.
 
-- [분류기 구현 계획서](docs/classifier_implementation_plan.md)
-- [단일 클래스 탐지기 구현 계획서](docs/detector_implementation_plan.md)
-- [단일 클래스 탐지기 입력 명세서](docs/detector_input_spec.md)
+## 문서
 
-## 단일 클래스 알약 탐지기
+루트 `README.md`를 유일한 README로 사용합니다.
 
-`detector/`에는 이미지 속 모든 알약을 `pill` 하나의 foreground 클래스로 찾는 SSDLite320 MobileNetV3-Large baseline이 있습니다. 모델 출력 클래스는 background `0`과 pill `1`을 포함한 2개이며, 세부 약품명은 탐지 bbox crop을 별도 분류기에 전달해 결정합니다.
-
-`detector_data/`는 `data/`에 배치한 고정 분할과 annotation을 읽어 탐지기 학습 입력을 구성합니다. DataLoader, label map과 data summary 형식은 [탐지기 입력 명세서](docs/detector_input_spec.md)를 따릅니다. 전체 설계와 단계별 결정은 [탐지기 구현 계획서](docs/detector_implementation_plan.md)에서 확인할 수 있습니다.
-
-탐지기 학습은 [학습 Notebook](notebooks/train_detector.ipynb)에서 다음 데이터 구성 함수를 불러와 실행합니다.
-
-```python
-data_factory_path = "detector_data.detector_inputs:build_detector_inputs"
-```
-
-Notebook은 입력 검증, 신규 학습 또는 `last.pt` 재개, 학습 곡선, `best.pt` 평가, bbox 시각화와 분류기 연결 batch 확인을 순서대로 실행합니다. 결과는 `outputs/{run_name}/` 아래에 저장하며 Git에는 포함하지 않습니다. 실험 결과는 [탐지기 결과 보고서](reports/detector_report.md)의 `TBD` 항목에 기록합니다.
-
-전체 단위 테스트와 코드 검사는 다음 명령으로 실행합니다.
-
-```bash
-uv run python -m pytest -q
-uv run ruff check detector tests
-uv run ruff format --check detector tests
-```
-
-실제 SSDLite의 합성 이미지 forward/backward와 NMS smoke test만 다시 실행하려면 다음 명령을 사용합니다.
-
-```bash
-uv run python -m pytest -q tests/test_detector_model.py
-```
-
-## 탐지·분류 통합 추론
-
-[통합 추론 Notebook](notebooks/run_end_to_end_inference.ipynb)은 학습된 탐지기와 분류기의 `best.pt`를 불러와 원본 이미지에서 알약 bbox와 세부 품목을 순서대로 예측합니다. 각 모델의 학습은 기존 개별 Notebook에서 수행합니다.
-
-통합 Notebook의 `inference_factory_path`에는 `factory(batch_size=...)` 호출로 추론 DataLoader를 반환하는 함수 경로를 지정합니다. DataLoader batch는 [탐지기 입력 명세서의 추론 형식](docs/detector_input_spec.md#12-추론-dataloader)을 따라야 합니다.
-
-결과는 `outputs/end_to_end_inference/` 아래에 저장됩니다.
-
-- `end_to_end_predictions.json`: bbox, 품목 정보, 탐지·분류·결합 점수
-- `end_to_end_errors.json`: 탐지 및 분류 단계별 오류
-- `visualizations/`: 품목명과 최종 점수를 표시한 이미지
+- 구조: [프로젝트 구조](docs/architecture/project_structure.md)
+- 기준 모델: [모델 선택과 교체 기준](docs/architecture/baseline_models.md)
+- 데이터: [분류 데이터](docs/data/classifier_data_guide.md), [분류 ETL](docs/data/classifier_etl.md), [탐지 데이터](docs/data/detector_data_guide.md)
+- 입력 명세: [분류기](docs/specs/classifier_input_spec.md), [탐지기](docs/specs/detector_input_spec.md)
+- 기준 결과: [분류기](reports/baseline/classifier_report.md), [탐지기](reports/baseline/detector_report.md)
+- 실험 기록: [분류기](reports/experiments/classifier_experiments.md)
+- 데이터 보고서: [분류 데이터](reports/data/classifier/validation_report.md), [탐지 데이터](reports/data/detector/validation_report.md)

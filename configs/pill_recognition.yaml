@@ -1,0 +1,14 @@
+task: pill_recognition
+device: auto
+inference_factory_path: data_loading.recognition:build_pill_recognition_inputs
+input_dir: data/inference
+batch_size: 4
+score_threshold: 0.25
+show_progress: true
+
+detector_checkpoint_path: outputs/ssdlite320_baseline/best.pt
+classifier_checkpoint_path: outputs/resnet50_baseline/best.pt
+detector_label_map_path: outputs/ssdlite320_baseline/label_map.json
+classifier_class_map_path: outputs/resnet50_baseline/class_map.json
+detector_name: ssdlite320_baseline
+output_dir: outputs/pill_recognition

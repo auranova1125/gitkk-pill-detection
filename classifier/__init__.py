@@ -1,95 +1,28 @@
-"""경구약제 분류기 패키지."""
+"""경구약제 품목 분류기의 주요 실행 API."""
 
-from classifier.checkpoint import (
-    hash_class_map,
-    load_checkpoint,
-    restore_checkpoint_state,
-    save_checkpoint,
-    validate_checkpoint_compatibility,
-)
-from classifier.config import TrainConfig
-from classifier.evaluate import (
-    ClassMetrics,
-    ConfusionPair,
-    EvaluationResult,
-    ValidationArtifacts,
-    ValidationPrediction,
-    compute_classification_metrics,
-    evaluate_model,
-    evaluate_with_predictions,
-    save_validation_artifacts,
-)
+from classifier.evaluate import evaluate_classifier_checkpoint
 from classifier.inference import (
-    DetectionPrediction,
-    InferenceError,
-    InferenceResult,
-    load_inference_model,
-    predict_detections,
-    validate_detection_batch,
+    ClassifiedDetection,
+    ClassifierInferenceError,
+    ClassifierInferenceResult,
+    classify_detections,
+    load_classifier_inference_model,
 )
-from classifier.input_validation import (
-    InputValidationError,
-    validate_batch,
-    validate_class_map,
-    validate_data_summary,
-)
-from classifier.model import (
-    TrainingStage,
-    build_model,
-    configure_model_for_stage,
-    set_model_train_mode,
-)
-from classifier.train import (
-    EarlyStopping,
-    TrainingEpochResult,
-    TrainingResult,
-    build_grad_scaler,
-    build_optimizer,
-    build_scheduler,
-    resolve_training_stage,
-    run_training,
-    select_device,
-    train_one_epoch,
-)
+from classifier.model import build_classifier_model
+from classifier.train import train_classifier
+from classifier.training_data import ClassifierTrainingData, prepare_classifier_data
+from configs.classifier import ClassifierConfig
 
 __all__ = [
-    "ClassMetrics",
-    "ConfusionPair",
-    "DetectionPrediction",
-    "EarlyStopping",
-    "EvaluationResult",
-    "InferenceError",
-    "InferenceResult",
-    "InputValidationError",
-    "TrainConfig",
-    "TrainingEpochResult",
-    "TrainingResult",
-    "TrainingStage",
-    "ValidationArtifacts",
-    "ValidationPrediction",
-    "build_grad_scaler",
-    "build_model",
-    "build_optimizer",
-    "build_scheduler",
-    "compute_classification_metrics",
-    "configure_model_for_stage",
-    "evaluate_model",
-    "evaluate_with_predictions",
-    "hash_class_map",
-    "load_checkpoint",
-    "load_inference_model",
-    "predict_detections",
-    "resolve_training_stage",
-    "restore_checkpoint_state",
-    "run_training",
-    "save_checkpoint",
-    "save_validation_artifacts",
-    "select_device",
-    "set_model_train_mode",
-    "train_one_epoch",
-    "validate_batch",
-    "validate_checkpoint_compatibility",
-    "validate_class_map",
-    "validate_data_summary",
-    "validate_detection_batch",
+    "ClassifiedDetection",
+    "ClassifierConfig",
+    "ClassifierInferenceError",
+    "ClassifierInferenceResult",
+    "ClassifierTrainingData",
+    "build_classifier_model",
+    "classify_detections",
+    "evaluate_classifier_checkpoint",
+    "load_classifier_inference_model",
+    "prepare_classifier_data",
+    "train_classifier",
 ]

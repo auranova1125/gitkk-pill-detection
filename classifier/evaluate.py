@@ -1,6 +1,5 @@
 """분류기 validation 평가와 지표 계산."""
 
-import json
 from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass
 from math import isfinite
@@ -11,7 +10,14 @@ import torch
 from torch import nn
 from tqdm.auto import tqdm
 
-from classifier.input_validation import validate_batch, validate_class_map
+from classifier.inference import load_classifier_inference_model
+from classifier.input_validation import (
+    validate_classifier_class_map,
+    validate_classifier_training_batch,
+)
+from classifier.training_data import prepare_classifier_data
+from configs.classifier import ClassifierConfig
+from utils.io import write_json
 
 
 @dataclass(frozen=True, slots=True)
@@ -321,7 +327,10 @@ def evaluate_with_predictions(
     - 정답 여부
     """
 
-    validate_class_map(class_map, expected_num_classes=expected_num_classes)
+    validate_classifier_class_map(
+        class_map,
+        expected_num_classes=expected_num_classes,
+    )
     class_lookup = {entry["class_index"]: entry for entry in class_map["classes"]}
     model.eval()
     use_amp = device.type == "cuda"
@@ -342,7 +351,7 @@ def evaluate_with_predictions(
         dynamic_ncols=True,
     )
     for batch in progress:
-        validate_batch(
+        validate_classifier_training_batch(
             batch,
             class_map,
             expected_num_classes=expected_num_classes,
@@ -430,22 +439,44 @@ def save_validation_artifacts(
     output_dir.mkdir(parents=True, exist_ok=True)
     predictions_path = output_dir / "val_predictions.json"
     errors_path = output_dir / "error_samples.json"
-    predictions_path.write_text(
-        json.dumps(
-            [prediction.to_dict() for prediction in artifacts.predictions],
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    write_json(
+        predictions_path,
+        [prediction.to_dict() for prediction in artifacts.predictions],
     )
-    errors_path.write_text(
-        json.dumps(
-            [sample.to_dict() for sample in artifacts.error_samples],
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    write_json(
+        errors_path,
+        [sample.to_dict() for sample in artifacts.error_samples],
     )
     return predictions_path, errors_path
+
+
+def evaluate_classifier_checkpoint(
+    config: ClassifierConfig,
+    checkpoint_path: Path,
+    *,
+    output_dir: Path | None = None,
+) -> ValidationArtifacts:
+    """설정의 validation 데이터로 분류기 checkpoint를 평가하고 저장한다."""
+
+    data = prepare_classifier_data(config)
+    model, device = load_classifier_inference_model(
+        checkpoint_path,
+        data.class_map,
+        expected_num_classes=config.expected_num_classes,
+        device=data.device,
+    )
+    artifacts = evaluate_with_predictions(
+        model,
+        data.val_loader,
+        data.class_map,
+        nn.CrossEntropyLoss(),
+        device,
+        show_progress=config.show_progress,
+        progress_description="Classifier evaluation",
+    )
+    destination = (
+        Path(output_dir) if output_dir is not None else Path(checkpoint_path).parent
+    )
+    save_validation_artifacts(artifacts, destination)
+    write_json(destination / "evaluation_metrics.json", artifacts.metrics.to_dict())
+    return artifacts

@@ -35,6 +35,17 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "smoke: 합성 데이터로 학습·추론 최소 경로를 검사하는 테스트",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["SIM300"]
 
 [tool.uv]
 required-version = "==0.13.4"

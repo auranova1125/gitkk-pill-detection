@@ -1,12 +1,13 @@
-"""torchvision 기반 탐지 모델 생성과 장치 선택."""
+"""torchvision 기반 탐지 모델 생성."""
 
 from collections.abc import Callable
 
-import torch
 from torch import nn
 from torchvision.models import MobileNet_V3_Large_Weights
 from torchvision.models.detection import ssdlite320_mobilenet_v3_large
 from torchvision.models.detection.ssd import SSD
+
+from data_loading.validation import normalize_probability
 
 DetectorBuilder = Callable[..., nn.Module]
 
@@ -22,7 +23,7 @@ def build_ssdlite320(
     _validate_num_classes(num_classes)
     if not isinstance(pretrained_backbone, bool):
         raise TypeError("pretrained_backbone must be a boolean")
-    _validate_probability(nms_threshold, name="nms_threshold")
+    nms_threshold = normalize_probability(nms_threshold, name="nms_threshold")
 
     backbone_weights = (
         MobileNet_V3_Large_Weights.IMAGENET1K_V1 if pretrained_backbone else None
@@ -62,7 +63,7 @@ def build_detector_model(
     _validate_num_classes(num_classes)
     if not isinstance(pretrained_backbone, bool):
         raise TypeError("pretrained_backbone must be a boolean")
-    _validate_probability(nms_threshold, name="nms_threshold")
+    nms_threshold = normalize_probability(nms_threshold, name="nms_threshold")
 
     try:
         builder = MODEL_BUILDERS[model_name]
@@ -78,16 +79,6 @@ def build_detector_model(
     )
 
 
-def select_device() -> torch.device:
-    """CUDA, MPS, CPU 순서로 사용 가능한 장치를 선택한다."""
-
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
-
-
 def _validate_num_classes(num_classes: int) -> None:
     if not isinstance(num_classes, int) or isinstance(num_classes, bool):
         raise TypeError("num_classes must be an integer")
@@ -95,10 +86,3 @@ def _validate_num_classes(num_classes: int) -> None:
         raise ValueError(
             "num_classes must include background and at least one foreground class"
         )
-
-
-def _validate_probability(value: float, *, name: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        raise TypeError(f"{name} must be a number")
-    if not 0.0 <= value <= 1.0:
-        raise ValueError(f"{name} must be between 0.0 and 1.0")
