@@ -22,7 +22,7 @@ def load_detector_data_paths(path: str | Path | None = None) -> dict[str, Any]:
     if path is None:
         settings = copy.deepcopy(DEFAULT_DETECTOR_DATA_PATHS)
     else:
-        settings_path = resolve_repository_path(path)
+        settings_path = _resolve_repository_path(path)
         if not settings_path.is_file():
             raise FileNotFoundError(
                 f"지정한 데이터 설정 파일이 없습니다: {settings_path}"
@@ -64,8 +64,8 @@ def resolve_detector_data_paths(
     """설정의 상대 경로를 저장소 루트 기준 절대 경로로 바꾼다."""
 
     validate_detector_data_paths(settings)
-    return resolve_repository_path(settings["package_dir"]), {
-        name: resolve_repository_path(value)
+    return _resolve_repository_path(settings["package_dir"]), {
+        name: _resolve_repository_path(value)
         for name, value in settings["image_roots"].items()
     }
 
@@ -97,7 +97,7 @@ def resolve_detector_image_path(
     return result
 
 
-def resolve_repository_path(value: str | Path) -> Path:
+def _resolve_repository_path(value: str | Path) -> Path:
     """상대 경로를 저장소 루트 기준 절대 경로로 바꾼다."""
 
     path = Path(value).expanduser()

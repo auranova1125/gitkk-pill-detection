@@ -3,6 +3,7 @@
 import math
 import random
 from collections.abc import Mapping
+from typing import Protocol
 
 import torch
 from PIL import Image, ImageEnhance
@@ -16,21 +17,26 @@ DETECTOR_AUGMENTATION_KEYS = (
 DEFAULT_DETECTOR_AUGMENTATION = {name: 0.0 for name in DETECTOR_AUGMENTATION_KEYS}
 
 
-def build_detector_train_augmentation(config: object) -> dict[str, float]:
+class DetectorAugmentationConfig(Protocol):
+    horizontal_flip: float
+    vertical_flip: float
+    brightness: float
+    contrast: float
+
+
+def build_detector_train_augmentation(
+    config: DetectorAugmentationConfig,
+) -> dict[str, float]:
     """실행 설정에서 검증된 탐지 증강 값만 추출한다."""
 
     augmentation = {
-        name: getattr(config, name, default)
-        for name, default in DEFAULT_DETECTOR_AUGMENTATION.items()
+        "horizontal_flip": config.horizontal_flip,
+        "vertical_flip": config.vertical_flip,
+        "brightness": config.brightness,
+        "contrast": config.contrast,
     }
     validate_detector_augmentation(augmentation)
     return augmentation
-
-
-def build_detector_validation_augmentation() -> dict[str, float]:
-    """무작위 변환이 없는 validation 증강 설정을 만든다."""
-
-    return dict(DEFAULT_DETECTOR_AUGMENTATION)
 
 
 def validate_detector_augmentation(augmentation: Mapping[str, float]) -> None:

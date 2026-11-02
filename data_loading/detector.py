@@ -15,9 +15,9 @@ from torch.utils.data import DataLoader, Dataset, get_worker_info
 from .detector_data_paths import load_detector_data_paths
 from .detector_package import load_detector_package
 from .detector_transforms import (
+    DEFAULT_DETECTOR_AUGMENTATION,
     apply_detector_augmentation,
     build_detector_train_augmentation,
-    build_detector_validation_augmentation,
     validate_detector_augmentation,
 )
 
@@ -141,48 +141,44 @@ def build_detector_inputs(
 ) -> tuple[DataLoader, DataLoader, dict[str, Any], dict[str, Any]]:
     """고정 분할 패키지에서 탐지 학습·검증 DataLoader를 만든다."""
 
-    settings_path = getattr(config, "data_settings_path", None)
     records_by_split, label_map, summary = load_detector_package(
-        load_detector_data_paths(settings_path)
+        load_detector_data_paths(config.data_settings_path)
     )
     train_augmentation = build_detector_train_augmentation(config)
-    validation_augmentation = build_detector_validation_augmentation()
+    validation_augmentation = dict(DEFAULT_DETECTOR_AUGMENTATION)
     summary = dict(
         summary,
-        train_augmentation=dict(train_augmentation),
+        train_augmentation=train_augmentation,
         validation_augmentation="none",
     )
 
-    workers = 2 if device.type == "cuda" else 0
-    pin_memory = device.type == "cuda"
-    loaders: list[DataLoader] = []
-
-    for split, offset in [("train", 0), ("validation", 1)]:
-        augmentation = (
-            train_augmentation if split == "train" else validation_augmentation
-        )
-
-        dataset = PillDetectionDataset(
-            records_by_split[split],
-            augmentation,
-            config.seed + offset,
-        )
-
-        generator = torch.Generator()
-        generator.manual_seed(config.seed + offset)
-
-        loaders.append(
-            DataLoader(
-                dataset,
-                batch_size=config.batch_size,
-                shuffle=split == "train",
-                num_workers=workers,
-                pin_memory=pin_memory,
-                drop_last=False,
-                collate_fn=collate_detector_samples,
-                worker_init_fn=seed_detector_worker,
-                generator=generator,
-            )
-        )
-
-    return loaders[0], loaders[1], label_map, summary
+    train_dataset = PillDetectionDataset(
+        records_by_split["train"],
+        train_augmentation,
+        config.seed,
+    )
+    validation_dataset = PillDetectionDataset(
+        records_by_split["validation"],
+        validation_augmentation,
+        config.seed + 1,
+    )
+    uses_cuda = device.type == "cuda"
+    loader_options = {
+        "batch_size": config.batch_size,
+        "num_workers": 2 if uses_cuda else 0,
+        "pin_memory": uses_cuda,
+        "collate_fn": collate_detector_samples,
+        "worker_init_fn": seed_detector_worker,
+    }
+    train_loader = DataLoader(
+        train_dataset,
+        shuffle=True,
+        generator=torch.Generator().manual_seed(config.seed),
+        **loader_options,
+    )
+    validation_loader = DataLoader(
+        validation_dataset,
+        shuffle=False,
+        **loader_options,
+    )
+    return train_loader, validation_loader, label_map, summary

@@ -30,7 +30,7 @@ def load_detector_package(
     """탐지 패키지를 읽고 라벨·경로·고정 분할의 일관성을 확인한다."""
 
     package_dir, image_roots = resolve_detector_data_paths(settings)
-    manifest = read_detector_manifest(package_dir / "split_manifest.csv")
+    manifest = _read_detector_manifest(package_dir / "split_manifest.csv")
     all_image_ids: set[int] = set()
     all_annotation_ids: set[int] = set()
     records_by_split: DetectorRecordsBySplit = {}
@@ -58,11 +58,11 @@ def load_detector_package(
     return (
         records_by_split,
         label_map,
-        summarize_detector_records(records_by_split),
+        _summarize_detector_records(records_by_split),
     )
 
 
-def read_detector_manifest(path: Path) -> dict[int, dict[str, str]]:
+def _read_detector_manifest(path: Path) -> dict[int, dict[str, str]]:
     """분할 manifest를 이미지 ID로 조회 가능한 mapping으로 읽는다."""
 
     with Path(path).open("r", encoding="utf-8-sig", newline="") as file:
@@ -76,7 +76,7 @@ def read_detector_manifest(path: Path) -> dict[int, dict[str, str]]:
     return manifest
 
 
-def calculate_detector_split_hash(records_by_split: DetectorRecordsBySplit) -> str:
+def _calculate_detector_split_hash(records_by_split: DetectorRecordsBySplit) -> str:
     """검증된 split과 annotation 구성을 재현 가능한 해시로 만든다."""
 
     hash_records = [
@@ -101,14 +101,14 @@ def calculate_detector_split_hash(records_by_split: DetectorRecordsBySplit) -> s
     ).hexdigest()
 
 
-def summarize_detector_records(
+def _summarize_detector_records(
     records_by_split: DetectorRecordsBySplit,
 ) -> dict[str, Any]:
     """검증된 이미지별 기록에서 탐지 ``data_summary``를 계산한다."""
 
     summary: dict[str, Any] = {
         "group_overlap_count": 0,
-        "split_hash": calculate_detector_split_hash(records_by_split),
+        "split_hash": _calculate_detector_split_hash(records_by_split),
         "clipped_box_count": 0,
         "clipped_annotation_ids": [],
     }

@@ -35,15 +35,10 @@ from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 from data_loading.classifier_package import load_classifier_package
 from data_loading.image_transforms import (
-    CLASSIFIER_IMAGE_SIZE,
-    IMAGENET_MEAN,
-    IMAGENET_STD,
     build_classifier_train_transform,
     build_classifier_validation_transform,
 )
 
-SIZE = CLASSIFIER_IMAGE_SIZE
-MEAN, STD = list(IMAGENET_MEAN), list(IMAGENET_STD)
 ClassifierTransform = Callable[[Image.Image], torch.Tensor]
 
 
@@ -186,11 +181,22 @@ if __name__ == "__main__":
         class_map_path=path,
         data_summary_path=path.with_name("data_summary.json"),
     )
-    loaders = build_classifier_inputs(config=cfg, device=torch.device("cpu"))
+    train_loader, validation_loader, class_map, data_summary = build_classifier_inputs(
+        config=cfg,
+        device=torch.device("cpu"),
+    )
+    training_data = (
+        train_loader,
+        validation_loader,
+        class_map,
+        data_summary,
+    )
     validate_classifier_training_data(
-        loaders,
-        expected_num_classes=loaders[2]["num_classes"],
+        training_data,
+        expected_num_classes=class_map["num_classes"],
     )
     print(
-        "입력 검증 완료", loaders[3]["num_train_samples"], loaders[3]["num_val_samples"]
+        "입력 검증 완료",
+        data_summary["num_train_samples"],
+        data_summary["num_val_samples"],
     )

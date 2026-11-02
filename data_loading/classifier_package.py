@@ -9,7 +9,7 @@ import pandas as pd
 
 from utils.io import read_json
 
-SPLIT_VERSION = "detector-split-manifest-v1"
+CLASSIFIER_SPLIT_VERSION = "detector-split-manifest-v1"
 
 
 def read_classifier_samples(package_dir: str | Path) -> pd.DataFrame:
@@ -36,7 +36,7 @@ def calculate_classifier_split_hash(samples: pd.DataFrame) -> str:
     """고정 train/validation 배정을 재현 가능한 해시로 만든다."""
 
     key = {
-        "version": SPLIT_VERSION,
+        "version": CLASSIFIER_SPLIT_VERSION,
         "train": sorted(samples[samples.split == "train"].sample_id),
         "validation": sorted(samples[samples.split == "val"].sample_id),
     }
@@ -105,9 +105,3 @@ def load_classifier_package(
             "같은 패키지의 파일인지 확인하세요."
         )
     return samples, class_map, data_summary
-
-
-# 기존 ETL 및 외부 호출의 점진적 이전을 위한 이름이다.
-read_samples = read_classifier_samples
-split_hash = calculate_classifier_split_hash
-make_data_summary = summarize_classifier_samples
