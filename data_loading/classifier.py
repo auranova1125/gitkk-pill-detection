@@ -181,6 +181,84 @@ def make_data_summary(
     }
 
 
+# ── 외부 평가셋 (학습에 쓰지 않는 평가 전용 패키지) ──────────────────────
+EVAL_SPLIT = "eval"
+EVAL_VERSION = "external-eval-v1"
+
+
+def eval_hash(samples: pd.DataFrame) -> str:
+    """평가셋을 구별하는 값. 샘플 구성이나 정답 라벨이 바뀌면 달라진다."""
+    key = {
+        "version": EVAL_VERSION,
+        "samples": sorted(
+            f"{sample_id}:{class_index}"
+            for sample_id, class_index in zip(
+                samples.sample_id, samples.class_index, strict=True
+            )
+        ),
+    }
+    return hashlib.sha256(json.dumps(key, ensure_ascii=False).encode()).hexdigest()
+
+
+def make_eval_summary(samples: pd.DataFrame, num_classes: int) -> dict[str, Any]:
+    """평가 패키지의 eval_summary.json 내용. 로더가 samples.csv와 맞는지 확인할 때도 쓴다."""
+    counts = samples.class_index.value_counts()
+    class_counts = {
+        str(class_index): int(counts.get(class_index, 0))
+        for class_index in range(num_classes)
+    }
+    return {
+        "num_classes": num_classes,
+        "num_eval_samples": len(samples),
+        "num_eval_images": samples.image_id.nunique(),
+        "eval_group_count": samples.group_id.nunique(),
+        "eval_class_counts": class_counts,
+        "eval_class_indices": [
+            class_index
+            for class_index in range(num_classes)
+            if class_counts[str(class_index)] > 0
+        ],
+        "eval_hash": eval_hash(samples),
+    }
+
+
+def build_classifier_eval_loader(
+    package_dir: str | Path,
+    *,
+    batch_size: int = 64,
+    device: torch.device,
+) -> tuple[DataLoader[dict[str, Any]], dict[str, Any], dict[str, Any]]:
+    """평가 전용 패키지(train 없음)를 읽어 (loader, class_map, eval_summary)를 반환한다.
+
+    전처리는 validation과 같다 (무작위 처리 없음). 모든 샘플의 split이 "eval"이어야 한다.
+    """
+    root = Path(package_dir)
+    class_map = json.loads((root / "class_map.json").read_text(encoding="utf-8"))
+    eval_summary = json.loads((root / "eval_summary.json").read_text(encoding="utf-8"))
+    samples = read_samples(root)
+    if samples.empty:
+        raise ValueError("평가 패키지에 샘플이 없습니다")
+    other_splits = set(samples.split) - {EVAL_SPLIT}
+    if other_splits:
+        raise ValueError(
+            f"평가 패키지의 split은 모두 {EVAL_SPLIT!r}이어야 합니다: {sorted(other_splits)}"
+        )
+    if make_eval_summary(samples, class_map["num_classes"]) != eval_summary:
+        raise ValueError(
+            "eval_summary.json이 samples.csv와 맞지 않습니다. 같은 패키지의 파일인지 확인하세요."
+        )
+    uses_cuda = torch.device(device).type == "cuda"
+    loader = DataLoader(
+        PillCropDataset(samples, root, val_transform()),
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=2 if uses_cuda else 0,
+        pin_memory=uses_cuda,
+        collate_fn=collate_classifier_samples,
+    )
+    return loader, class_map, eval_summary
+
+
 # ── 데이터 구성 함수 (명세서 2.2) ─────────────────────────────────────────
 def build_classifier_inputs(
     *,
