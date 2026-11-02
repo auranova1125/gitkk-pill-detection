@@ -46,7 +46,7 @@ codeit_train_validated/
 
 ## 최종 학습 패키지
 
-완성 출력은 [탐지 데이터 사용 안내](detector_data_guide.md)의 구조와 [탐지기 입력 명세](../specs/detector_input_spec.md)를 따라야 한다. `validate_training_package`는 별도 규칙을 다시 구현하지 않고 runtime의 `data_loading.detector_package.load_detector_package`를 호출한다. 이로써 ETL 완료 판정과 실제 학습 입력의 검증 기준을 하나로 유지한다.
+완성 출력은 [탐지 데이터 사용 안내](detector_data_guide.md)의 구조와 [탐지기 입력 명세](../specs/detector_input_spec.md)를 따라야 한다. `validate_training_package`는 runtime parser와 같은 내부 검사 경로로 annotation·manifest·이미지 연결을 검증하고 metadata를 계산한다. 완성된 패키지를 읽는 runtime DataLoader는 전달된 metadata와 같은 계산 결과를 비교한다. 이로써 ETL 생성과 실제 학습 입력의 검증 기준을 하나로 유지한다.
 
 ## 구현 보류 조건
 

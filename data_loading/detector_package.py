@@ -22,12 +22,47 @@ from utils.io import read_json
 
 DetectorRecord = dict[str, Any]
 DetectorRecordsBySplit = dict[str, list[DetectorRecord]]
+DETECTOR_LABEL_MAP_FILE = "detector_label_map.json"
+DETECTOR_DATA_SUMMARY_FILE = "detector_data_summary.json"
 
 
 def load_detector_package(
     settings: Mapping[str, Any],
 ) -> tuple[DetectorRecordsBySplit, dict[str, Any], dict[str, Any]]:
-    """탐지 패키지를 읽고 라벨·경로·고정 분할의 일관성을 확인한다."""
+    """완성된 탐지 패키지를 읽고 전달된 metadata까지 검증한다."""
+
+    package_dir, _ = resolve_detector_data_paths(settings)
+    label_map = read_json(package_dir / DETECTOR_LABEL_MAP_FILE)
+    data_summary = read_json(package_dir / DETECTOR_DATA_SUMMARY_FILE)
+    records_by_split, expected_label_map, expected_summary = (
+        _inspect_detector_package_sources(settings)
+    )
+
+    if label_map != expected_label_map:
+        raise ValueError(
+            f"{DETECTOR_LABEL_MAP_FILE}이 annotation의 클래스 구성과 다릅니다."
+        )
+    if data_summary != expected_summary:
+        raise ValueError(
+            f"{DETECTOR_DATA_SUMMARY_FILE}가 annotation과 split manifest의 "
+            "실제 집계와 다릅니다."
+        )
+    return records_by_split, label_map, data_summary
+
+
+def calculate_detector_package_metadata(
+    settings: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """annotation과 manifest에서 전달용 label map과 summary를 계산한다."""
+
+    _, label_map, data_summary = _inspect_detector_package_sources(settings)
+    return label_map, data_summary
+
+
+def _inspect_detector_package_sources(
+    settings: Mapping[str, Any],
+) -> tuple[DetectorRecordsBySplit, dict[str, Any], dict[str, Any]]:
+    """metadata 생성 전 원천 파일과 이미지 연결을 검사한다."""
 
     package_dir, image_roots = resolve_detector_data_paths(settings)
     manifest = _read_detector_manifest(package_dir / "split_manifest.csv")
@@ -55,11 +90,7 @@ def load_detector_package(
         "background_label": 0,
         "classes": [{"label": 1, "name": "pill"}],
     }
-    return (
-        records_by_split,
-        label_map,
-        _summarize_detector_records(records_by_split),
-    )
+    return records_by_split, label_map, _summarize_detector_records(records_by_split)
 
 
 def _read_detector_manifest(path: Path) -> dict[int, dict[str, str]]:

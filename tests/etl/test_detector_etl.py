@@ -120,8 +120,8 @@ def test_training_package_metadata_is_written_only_after_validation(
     summary = {"num_train_images": 3, "num_val_images": 1}
     monkeypatch.setattr(
         package_module,
-        "load_detector_package",
-        lambda settings: ({}, label_map, summary),
+        "calculate_detector_package_metadata",
+        lambda settings: (label_map, summary),
     )
 
     label_path, summary_path = package_module.write_training_package_metadata(

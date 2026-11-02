@@ -20,13 +20,17 @@ from data_loading.detector_data_paths import (
     REPOSITORY_ROOT,
     resolve_detector_image_path,
 )
-from data_loading.detector_package import load_detector_package
+from data_loading.detector_package import (
+    calculate_detector_package_metadata,
+    load_detector_package,
+)
 from data_loading.detector_transforms import DEFAULT_DETECTOR_AUGMENTATION
 from detector.input_validation import (
     validate_detector_data_summary,
     validate_detector_label_map,
     validate_detector_training_batch,
 )
+from utils.io import write_json
 
 
 def write_png(path):
@@ -109,6 +113,13 @@ class DataTests(unittest.TestCase):
                 "categories": [],
             }
         self.save()
+        label_map, data_summary = calculate_detector_package_metadata(self.settings)
+        write_json(self.package / "detector_label_map.json", label_map, sort_keys=True)
+        write_json(
+            self.package / "detector_data_summary.json",
+            data_summary,
+            sort_keys=True,
+        )
 
     def save(self):
         for split, payload in self.labels.items():
@@ -143,6 +154,37 @@ class DataTests(unittest.TestCase):
             [[0.0, 2.0, 10.0, 22.0], [12.0, 2.0, 22.0, 22.0]],
         )
         self.assertEqual(records["train"][0]["relative_path"], "sample-1.png")
+
+    def test_missing_metadata_rejected(self):
+        for file_name in (
+            "detector_label_map.json",
+            "detector_data_summary.json",
+        ):
+            with self.subTest(file_name=file_name):
+                path = self.package / file_name
+                original = path.read_bytes()
+                path.unlink()
+                with self.assertRaises(FileNotFoundError):
+                    load_detector_package(self.settings)
+                path.write_bytes(original)
+
+    def test_label_map_mismatch_rejected(self):
+        path = self.package / "detector_label_map.json"
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value["classes"][0]["name"] = "tablet"
+        path.write_text(json.dumps(value), encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "클래스 구성"):
+            load_detector_package(self.settings)
+
+    def test_data_summary_mismatch_rejected(self):
+        path = self.package / "detector_data_summary.json"
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value["num_train_images"] += 1
+        path.write_text(json.dumps(value), encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "실제 집계"):
+            load_detector_package(self.settings)
 
     def test_data_paths_reject_experiment_settings(self):
         self.settings["augmentation"] = copy.deepcopy(DEFAULT_DETECTOR_AUGMENTATION)

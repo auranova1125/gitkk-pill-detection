@@ -4,7 +4,11 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from data_loading.detector_package import load_detector_package
+from data_loading.detector_package import (
+    DETECTOR_DATA_SUMMARY_FILE,
+    DETECTOR_LABEL_MAP_FILE,
+    calculate_detector_package_metadata,
+)
 from utils.io import write_json
 
 
@@ -22,8 +26,7 @@ def validate_training_package(
             for name, path in image_roots.items()
         },
     }
-    _, label_map, data_summary = load_detector_package(settings)
-    return label_map, data_summary
+    return calculate_detector_package_metadata(settings)
 
 
 def write_training_package_metadata(
@@ -35,8 +38,8 @@ def write_training_package_metadata(
     """검증된 label map과 summary를 최종 패키지에 기록한다."""
 
     package_dir = Path(package_dir).expanduser().resolve()
-    label_map_path = package_dir / "detector_label_map.json"
-    data_summary_path = package_dir / "detector_data_summary.json"
+    label_map_path = package_dir / DETECTOR_LABEL_MAP_FILE
+    data_summary_path = package_dir / DETECTOR_DATA_SUMMARY_FILE
     existing = [path for path in (label_map_path, data_summary_path) if path.exists()]
     if existing and not overwrite:
         names = ", ".join(path.name for path in existing)

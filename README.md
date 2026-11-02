@@ -249,6 +249,8 @@ uv run python main.py check-detector-data
 
 Notebook은 설정과 시각화를 담당하며, 학습·평가 핵심 로직은 Python 모듈을 호출합니다. 자동화나 재현이 필요한 경우 `main.py`의 `train-classifier`, `train-detector`, `evaluate`, `recognize-pills`, `smoke` 명령을 사용합니다.
 
+학습·통합 추론의 이름, tag와 `outputs/` 저장 위치는 [실행 이름·태그·결과 저장 규칙](docs/experiments/run_conventions.md)을 따릅니다.
+
 ## 검증
 
 ```bash

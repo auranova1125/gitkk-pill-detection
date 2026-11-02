@@ -30,6 +30,11 @@ data/detector/training_package_detector/
 
 Annotation의 각 이미지는 해당 이미지 안의 모든 알약 bbox를 포함해야 한다. 이미지별 bbox 누락, 잘못된 XYWH 좌표, 분할 불일치와 실제 파일 누락은 학습 전에 오류로 처리한다.
 
+`detector_label_map.json`과 `detector_data_summary.json`도 완성 패키지의 필수
+입력이다. runtime DataLoader는 두 파일을 대신 생성하지 않는다. annotation과
+`split_manifest.csv`에서 클래스 구성과 집계를 다시 계산해 전달된 두 파일과
+비교하며, 누락되거나 실제 데이터와 다르면 학습 전에 오류로 처리한다.
+
 `images.file_name`과 `split_manifest.csv`의 `image_path`에는 이미지 root를 기준으로 한 같은 상대 경로를 기록한다. `dataset`은 경로 문자열에 넣지 않고 manifest의 별도 열로 관리한다.
 
 ```text
