@@ -14,7 +14,7 @@
 학습에는 위 runtime 모듈과 드라이브의 데이터만 있으면 된다.
 데이터를 만든 방법·기준, 검수 결과, 확인 Notebook은 [분류 데이터 ETL](classifier_etl.md)에 있다.
 
-## 데이터
+## 데이터 v1
 구글 드라이브 `gitkk_archive/training_package_classifier.zip` (탐지기 `training_package_detector.zip`과 같은 폴더)
 
 zip을 풀면 맨 위에 바로 다음이 있다.
@@ -32,20 +32,35 @@ crops/<약 코드>/<sample_id>.png   원본에서 bbox 사방 5% 여백 + 경계
 | 그룹(파일명의 알약 조합) | train 1,786 / val 429, 겹침 0 |
 | split_hash | `49d2afee86a4ec8f48c25488eac9b1f9081b36066e5533eba40670087f60430c` |
 
+위 수치는 현재 기준 데이터셋의 기록이며 분류기가 강제하는 고정값은 아니다. 다른 클래스 구성이나 분할을 사용하면 해당 패키지의 `class_map.json`과 `data_summary.json`을 기준으로 검증한다.
+
+## 데이터 v2
+
+`training_package_classifier_v2.zip`은 v1에 사람 확인을 마친 2차 라벨 검수 조치를 적용한 패키지다. 파일 구조와 `class_map.json`은 v1과 같다.
+
+| 항목 | 값 |
+|---|---|
+| 샘플 | train 11,990 / val 2,808 |
+| 그룹 | train 1,774 / val 424, 겹침 0 |
+| 적용 조치 | 오류 crop 190개 제외, crop 2개의 품목 라벨 교환 |
+| split_hash | `a2eb581a04604ff1e0b156980965a49650ecb4dec919e3def500c35acf8241e0` |
+
+새 학습의 기본 후보는 v2다. 기존 기준 모델 재현이나 변경 전후 비교에는 v1을 사용하고, 실행 기록에는 사용한 패키지와 `split_hash`를 함께 남긴다. 상세 변경은 [분류 데이터 v2 보고서](../../reports/data/classifier/data_v2_report.md)에서 확인한다.
+
 ## 사용법
 `notebooks/baseline/train_classifier.ipynb` 설정 셀에서 다음을 바꾼다. 로더는 `class_map_path`와 같은 폴더에서 `samples.csv`와 `crops/`를 읽는다.
 ```python
 # 드라이브에서 바로 읽으면 느리므로 Colab 로컬에 푼다
-!unzip -q "/content/drive/MyDrive/gitkk_archive/training_package_classifier.zip" -d /content/training_package_classifier
+!unzip -q "/content/drive/MyDrive/gitkk_archive/training_package_classifier_v2.zip" -d /content/training_package_classifier_v2
 
 data_factory_path = "data_loading.classifier:build_classifier_inputs"
 config = ClassifierConfig(
     ...,
-    class_map_path="/content/training_package_classifier/class_map.json",
-    data_summary_path="/content/training_package_classifier/data_summary.json",
+    class_map_path="/content/training_package_classifier_v2/class_map.json",
+    data_summary_path="/content/training_package_classifier_v2/data_summary.json",
 )
 ```
-- 입력 검증만 따로: 레포 루트에서 `python -m data_loading.classifier /content/training_package_classifier/class_map.json`
+- 입력 검증만 따로: 레포 루트에서 `uv run python -m data_loading.classifier /content/training_package_classifier_v2/class_map.json`
 - `data_summary.json`이 `samples.csv`와 맞지 않으면(다른 패키지의 파일을 섞은 경우) 학습 전에 멈춘다
 
 ## 로더 구성
@@ -65,7 +80,10 @@ flip, color jitter, grayscale, blur, random erasing은 쓰지 않는다.
 ## 탐지 결과 분류
 탐지기가 찾은 bbox를 학습 데이터와 **같은 공통 모듈**로 자른다.
 ```python
-from data_loading.image_transforms import crop_pill, build_classifier_inference_transform
+from data_loading.image_transforms import (
+    crop_pill,
+    build_classifier_inference_transform,
+)
 
 transform = build_classifier_inference_transform()
 image = transform(crop_pill(original_image, (x, y, w, h)))

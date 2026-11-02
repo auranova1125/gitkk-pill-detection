@@ -56,6 +56,33 @@ uv run python -m etl.classifier.build_classifier_dataset --help
 
 `--overwrite` 없이 기존 산출물 폴더를 삭제하거나 교체하지 않는다. 일부 단계만 다시 확인할 때는 각 모듈의 `main()`을 직접 실행할 수 있다.
 
+## 라벨 2차 검수와 데이터 v2
+
+기본 ETL로 만든 v1 패키지는 bbox 수치 규칙과 원천 라벨 구성을 검증한다. 알약이 아닌 곳에 놓인 bbox나 서로 뒤바뀐 품목 라벨처럼 수치 규칙만으로 찾기 어려운 오류는 별도의 2차 검수로 확인한다.
+
+| 순서 | 모듈 | 책임 |
+| --- | --- | --- |
+| 1 | `label_audit/detect_bbox_errors.py` | 원본 이미지에서 알약 후보와 bbox의 위치 관계를 비교해 검수 후보 생성 |
+| 2 | `label_audit/detect_class_errors.py` | 기준 모델 embedding과 그룹 비교로 클래스 오류 후보 생성 |
+| 3 | `label_audit/records/*.csv` | 사람이 후보를 확인해 판정·조치·메모 기록 |
+| 4 | `label_audit/merge_review_actions.py` | 두 검수 결과를 crop별 최종 조치로 병합 |
+| 5 | `build_classifier_v2.py` | 검수한 v1 hash를 확인하고 제외·라벨 교환을 적용해 v2 생성 |
+| 6 | `label_audit/export_detector_actions.py` | 같은 원본 이미지에 대한 탐지 데이터 조치 목록 생성 |
+
+```bash
+uv run python -m etl.classifier.label_audit.detect_bbox_errors
+uv run python -m etl.classifier.label_audit.detect_class_errors
+
+# records/의 후보 CSV를 사람이 검토한 뒤 실행
+uv run python -m etl.classifier.label_audit.merge_review_actions
+uv run python -m etl.classifier.build_classifier_v2 --no-eval
+uv run python -m etl.classifier.label_audit.export_detector_actions
+```
+
+기준 checkpoint로 v1과 v2 validation을 다시 평가하려면 `--no-eval`을 빼고 `--checkpoint`를 지정한다. `build_classifier_v2`는 감사한 v1의 `split_hash`가 다르면 중단하고, 임시 디렉터리에서 실제 DataLoader 입력 검증까지 통과한 결과만 최종 폴더와 ZIP으로 옮긴다. 기존 결과를 교체하려면 `--overwrite`를 명시해야 한다.
+
+사람 판정과 최종 조치 CSV는 재생성할 수 없는 검수 기록이므로 Git으로 관리한다. embedding, 점수와 검수용 이미지는 `data/classifier/meta/label_audit/`에 생성하며 Git에 포함하지 않는다. 방법과 확정 결과는 [라벨 2차 검수 보고서](../../reports/data/classifier/label_audit_report.md), v1과 v2 비교는 [분류 데이터 v2 보고서](../../reports/data/classifier/data_v2_report.md)에 기록한다.
+
 ## 산출물
 
 최종 패키지는 [분류 데이터 사용 안내](classifier_data_guide.md)의 형식을 따른다.
@@ -67,6 +94,8 @@ training_package_classifier/
 ├── samples.csv
 └── crops/<pill_code>/<sample_id>.png
 ```
+
+2차 검수 패키지는 같은 구조의 `training_package_classifier_v2/`와 ZIP으로 생성한다. 남은 crop의 `sample_id`, split, group과 `class_map.json`은 v1과 호환된다.
 
 검수·집계 결과는 `reports/data/classifier/`에 기록한다. 데이터 분포와 crop은 [분류 데이터 품질 Notebook](../../notebooks/eda/classifier_data_quality.ipynb)에서 확인한다.
 
