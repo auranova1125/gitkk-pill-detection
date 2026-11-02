@@ -83,6 +83,41 @@ uv run python -m etl.classifier.label_audit.export_detector_actions
 
 사람 판정과 최종 조치 CSV는 재생성할 수 없는 검수 기록이므로 Git으로 관리한다. embedding, 점수와 검수용 이미지는 `data/classifier/meta/label_audit/`에 생성하며 Git에 포함하지 않는다. 방법과 확정 결과는 [라벨 2차 검수 보고서](../../reports/data/classifier/label_audit_report.md), v1과 v2 비교는 [분류 데이터 v2 보고서](../../reports/data/classifier/data_v2_report.md)에 기록한다.
 
+## AI Hub val 외부 평가셋
+
+AI Hub val(조합, `VS_1_조합.zip`·`VL_1_조합.zip`)로 **학습에 쓰지 않는 평가 전용 패키지**를 만든다. v2 val이 포화되어 실험끼리 차이가 보이지 않을 때 비교에 쓴다. 원본은 학습 원본과 섞이지 않게 `data/aihub_val/`(또는 `AIHUB_VAL_DIR`)에 따로 둔다.
+
+| 순서 | 내용 | 기준 |
+| --- | --- | --- |
+| 1 | 1차 라벨 검수 | `validate_source_labels`를 AI Hub val zip에 그대로 적용. 문제가 있는 사진은 이미지째 제외 |
+| 2 | 촬영 조건·클래스 | 연회색 배경, 주백색, 70/75/90°, 학습 class_map의 118종 |
+| 3 | 학습 데이터와 중복 | 학습 v2 패키지의 원본 사진과 비교. 픽셀 동일은 제외, pHash ≤ 5는 `near_dup_in_train=True`로 표시 (v2 val과 같은 규칙) |
+| 4 | 2차 라벨 검수 | `detect_bbox_errors`·`detect_class_errors`를 평가 패키지에 실행하고 `etl/classifier/aihub_val/records/`에 사람 판정 기록 |
+| 5 | 패키지 | v2와 같은 `cut_pill` crop, v2 `class_map.json` 복사, `split`은 모두 `eval` |
+
+```bash
+# 1~3, 5: 패키지 생성 (2차 검수 판정이 records/에 있으면 4도 반영)
+uv run python -m etl.classifier.aihub_val.build_eval_package [--overwrite]
+
+# 4: 2차 검수 후보 (평가 패키지 기준)
+uv run python -m etl.classifier.label_audit.detect_bbox_errors \
+  --package-dir data/classifier/export/eval_package_aihub_val \
+  --records-dir etl/classifier/aihub_val/records \
+  --output-dir data/classifier/aihub_val/label_audit \
+  --image-zip data/aihub_val/<...>/VS_1_조합.zip
+uv run python -m etl.classifier.label_audit.detect_class_errors \
+  --package-dir data/classifier/export/eval_package_aihub_val \
+  --records-dir etl/classifier/aihub_val/records \
+  --output-dir data/classifier/aihub_val/label_audit
+
+# 판정을 채운 뒤(검수 칸 "사람 확인 완료") 다시 생성
+uv run python -m etl.classifier.aihub_val.build_eval_package --overwrite
+```
+
+- `records/`의 판정 중 검수 칸이 완료 상태(`사람 확인 완료`)가 아닌 줄이 있으면 생성이 멈춘다
+- 결과: [AI Hub val 평가셋 보고서](../../reports/data/classifier/aihub_val_eval_package_report.md), [1차 라벨 검수](../../reports/data/classifier/aihub_val_validation_report.md)
+- 모델 평가와 결과 해석은 [분류 데이터 사용 안내](classifier_data_guide.md#ai-hub-val-외부-평가셋)
+
 ## 산출물
 
 최종 패키지는 [분류 데이터 사용 안내](classifier_data_guide.md)의 형식을 따른다.
