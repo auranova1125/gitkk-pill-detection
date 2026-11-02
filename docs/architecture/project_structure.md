@@ -80,6 +80,12 @@ gitkk-pill-detection/
 
 `etl/`은 학습 실행 중 import하지 않는다. `data_loading/`는 준비된 학습 패키지를 읽을 뿐 원천 데이터를 재생성하지 않는다.
 
+통합 추론 입력 이미지의 파일명 stem은 Kaggle `image_id`와 같은 ASCII 숫자여야 한다.
+예를 들어 `123.png`는 `image_id=123`으로 읽는다. 통합 추론은 JSON 결과와 함께
+`annotation_id,image_id,category_id,bbox_x,bbox_y,bbox_w,bbox_h,score` 컬럼의
+`submission.csv`를 실행 폴더에 저장한다. `score`는 탐지 점수와 분류 확률을 곱한 결합
+점수다.
+
 탐지 ETL은 확정된 Codeit 원천 adapter와 최종 패키지 검증만 구현한다. 형식이 확정되지 않은 SELECT adapter와 전체 조립 함수는 조용히 임의 처리하지 않고 `NotImplementedError`를 발생시키는 플레이스홀더다.
 
 ## 4. 분류기·탐지기 대칭성
@@ -106,6 +112,18 @@ gitkk-pill-detection/
 - `main.py`: 자동화, 재현, CLI smoke
 - `configs/*.yaml`: Notebook과 CLI가 공유할 수 있는 기본값
 - Python 모듈: 실제 학습·평가·추론 로직
+
+Baseline Notebook은 `실행 설정 → 입력 준비·검증 → 실행 → 결과 확인 → 평가·시각화`
+순서를 공유한다. 핵심 호출은 다음처럼 대응한다.
+
+| 단계 | 분류기 | 탐지기 | 통합 추론 |
+| --- | --- | --- | --- |
+| 입력 준비 | `prepare_classifier_data` | `prepare_detector_data` | `prepare_pill_recognition_data` |
+| 실행 | `train_classifier` | `train_detector` | `recognize_pills_from_config` |
+| 실행 결과 | `training_result` | `training_result` | `recognition_result` |
+
+탐지기의 bbox 사전 확인, 분류기의 유사 사진 제외 점수처럼 작업에만 필요한 셀은 공통
+흐름 뒤나 해당 단계 가까이에 별도로 둔다.
 - `reports/baseline/`: 고정된 기준 모델의 결과
 - `reports/experiments/`: 같은 조건에서 변경점과 결과를 누적하는 비교 기록
 - `reports/data/`: ETL 산출물과 데이터 검증 기록
