@@ -59,19 +59,25 @@ class DataTests(unittest.TestCase):
         self.settings.update(
             package_dir=str(self.package),
             image_roots={
-                "select": str(self.package / "images/select_aihub"),
-                "codeit": str(self.package / "images/select_codeit"),
+                "sprint": str(self.package / "images/sprint"),
+                "archive": str(self.package / "images/archive"),
             },
         )
         self.rows, self.labels = [], {}
         for split, offset in (("train", 0), ("validation", 2)):
             images, annotations = [], []
-            for j, dataset in enumerate(("select", "codeit"), 1):
+            for j, dataset in enumerate(("sprint", "archive"), 1):
                 iid = offset + j
                 group = f"K-{iid * 2 - 1:06d}-{iid * 2:06d}"
-                name = f"{dataset}/images/{group}_0_2_0_2_70_000_200.png"
+                name = f"{group}_0_2_0_2_70_000_200.png"
                 images.append({"id": iid, "file_name": name, "width": 32, "height": 32})
-                write_png(resolve_image_path(name, self.settings["image_roots"]))
+                write_png(
+                    resolve_image_path(
+                        name,
+                        dataset=dataset,
+                        roots=self.settings["image_roots"],
+                    )
+                )
                 for k in range(2):
                     annotations.append(
                         {
@@ -134,6 +140,7 @@ class DataTests(unittest.TestCase):
             records["train"][0]["boxes"],
             [[0.0, 2.0, 10.0, 22.0], [12.0, 2.0, 22.0, 22.0]],
         )
+        self.assertTrue(records["train"][0]["relative_path"].startswith("K-"))
 
     def test_public_factory_returns_valid_detector_batches(self):
         train_loader, val_loader, label_map, summary = self.build_inputs()
@@ -211,7 +218,7 @@ class DataTests(unittest.TestCase):
             dataset[0]
 
     def test_excluded_unreferenced_image_is_not_loaded(self):
-        write_png(Path(self.settings["image_roots"]["select"]) / "excluded.png")
+        write_png(Path(self.settings["image_roots"]["sprint"]) / "excluded.png")
         records, _, _ = read_records(self.settings)
         self.assertEqual(sum(map(len, records.values())), 4)
 
@@ -249,7 +256,9 @@ class DataTests(unittest.TestCase):
 
     def test_missing_image_rejected(self):
         resolve_image_path(
-            self.rows[0]["image_path"], self.settings["image_roots"]
+            self.rows[0]["image_path"],
+            dataset=self.rows[0]["dataset"],
+            roots=self.settings["image_roots"],
         ).unlink()
         with self.assertRaises(FileNotFoundError):
             read_records(self.settings)
@@ -301,10 +310,16 @@ class DataTests(unittest.TestCase):
 
     def test_group_overlap_rejected(self):
         old = self.rows[0]["group_id"]
-        name = f"select/images/{old}_0_2_0_2_90_000_200.png"
+        name = f"{old}_0_2_0_2_90_000_200.png"
         self.rows[2].update(group_id=old, image_path=name)
         self.labels["validation"]["images"][0]["file_name"] = name
-        write_png(resolve_image_path(name, self.settings["image_roots"]))
+        write_png(
+            resolve_image_path(
+                name,
+                dataset=self.rows[2]["dataset"],
+                roots=self.settings["image_roots"],
+            )
+        )
         self.save()
         with self.assertRaisesRegex(ValueError, "그룹 중복"):
             read_records(self.settings)
@@ -312,7 +327,17 @@ class DataTests(unittest.TestCase):
     def test_path_escape_rejected(self):
         with self.assertRaises(ValueError):
             resolve_image_path(
-                "select/images/../../private.png", self.settings["image_roots"]
+                "../../private.png",
+                dataset="sprint",
+                roots=self.settings["image_roots"],
+            )
+
+    def test_unknown_dataset_rejected(self):
+        with self.assertRaisesRegex(ValueError, "출처 설정"):
+            resolve_image_path(
+                "image.png",
+                dataset="unknown",
+                roots=self.settings["image_roots"],
             )
 
     def test_read_does_not_modify_sources(self):

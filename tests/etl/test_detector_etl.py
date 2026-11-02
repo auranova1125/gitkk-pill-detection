@@ -126,7 +126,7 @@ def test_training_package_metadata_is_written_only_after_validation(
 
     label_path, summary_path = package_module.write_training_package_metadata(
         tmp_path,
-        image_roots={"select": tmp_path / "select", "codeit": tmp_path / "codeit"},
+        image_roots={"source_a": tmp_path / "a", "source_b": tmp_path / "b"},
     )
 
     assert json.loads(label_path.read_text(encoding="utf-8")) == label_map
@@ -135,7 +135,7 @@ def test_training_package_metadata_is_written_only_after_validation(
         package_module.write_training_package_metadata(
             tmp_path,
             image_roots={
-                "select": tmp_path / "select",
-                "codeit": tmp_path / "codeit",
+                "source_a": tmp_path / "a",
+                "source_b": tmp_path / "b",
             },
         )

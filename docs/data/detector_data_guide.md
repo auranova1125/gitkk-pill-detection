@@ -15,21 +15,29 @@ DataLoader는 이미지 한 장과 그 이미지의 모든 알약 bbox를 함께
 
 ## 기본 데이터 배치
 
-기본 설정은 저장소의 `data/`를 기준으로 한다.
+기본 설정은 저장소의 `data/detector/training_package_detector/`를 기준으로 한다.
 
 ```text
-data/
+data/detector/training_package_detector/
 ├── annotations/
 │   ├── train.json
 │   └── validation.json
 ├── split_manifest.csv
-├── class_mapping.csv
-└── images/
-    ├── select_aihub/
-    └── select_codeit/
+├── detector_label_map.json
+├── detector_data_summary.json
+└── images/                       기본 설정에서 이미지를 함께 둘 때 사용
 ```
 
 Annotation의 각 이미지는 해당 이미지 안의 모든 알약 bbox를 포함해야 한다. 이미지별 bbox 누락, 잘못된 XYWH 좌표, 분할 불일치와 실제 파일 누락은 학습 전에 오류로 처리한다.
+
+`images.file_name`과 `split_manifest.csv`의 `image_path`에는 이미지 root를 기준으로 한 같은 상대 경로를 기록한다. `dataset`은 경로 문자열에 넣지 않고 manifest의 별도 열로 관리한다.
+
+```text
+dataset:    sprint
+image_path: K-001900-016548-019607-029451_0_2_0_2_70_000_200.png
+```
+
+로더는 `image_roots[dataset] / image_path`로 실제 파일을 찾는다. 절대 경로와 `..`로 root를 벗어나는 상대 경로는 허용하지 않는다.
 
 ## 저장소 밖 데이터 사용
 
@@ -39,8 +47,8 @@ Annotation의 각 이미지는 해당 이미지 안의 모든 알약 bbox를 포
 {
   "package_dir": "/absolute/path/to/detector_package",
   "image_roots": {
-    "select": "/absolute/path/to/select_images",
-    "codeit": "/absolute/path/to/codeit_images"
+    "sprint": "/absolute/path/to/sprint_train_images",
+    "additional_source": "/absolute/path/to/additional_images"
   },
   "augmentation": {
     "horizontal_flip": 0.0,
@@ -50,6 +58,8 @@ Annotation의 각 이미지는 해당 이미지 안의 모든 알약 bbox를 포
   }
 }
 ```
+
+`image_roots`의 키는 특정 데이터셋 이름으로 고정되지 않는다. manifest의 `dataset` 값과 일치하는 비어 있지 않은 이름이면 된다. 이미지가 한 출처뿐이면 항목도 하나만 두면 된다.
 
 환경 변수로 묵시적으로 경로를 바꾸지 않는다. CLI와 Notebook 모두 같은 설정 파일을 명시적으로 사용한다.
 

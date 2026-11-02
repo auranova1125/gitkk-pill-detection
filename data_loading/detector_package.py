@@ -11,16 +11,17 @@ import json
 import math
 import re
 from collections import defaultdict
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 from utils.io import read_json
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SETTINGS = {
-    "package_dir": "data",
+    "package_dir": "data/detector/training_package_detector",
     "image_roots": {
-        "select": "data/images/select_aihub",
-        "codeit": "data/images/select_codeit",
+        "default": "data/detector/training_package_detector/images",
     },
     "augmentation": {
         "horizontal_flip": 0.0,
@@ -40,45 +41,64 @@ def load_detector_settings(path: str | Path | None = None):
     """기본 설정 또는 명시한 JSON 설정 파일을 읽는다."""
 
     if path is None:
-        return copy.deepcopy(DEFAULT_SETTINGS)
+        settings = copy.deepcopy(DEFAULT_SETTINGS)
+        _validate_detector_settings(settings)
+        return settings
     path = repository_path(path)
     if not path.is_file():
         raise FileNotFoundError(f"지정한 데이터 설정 파일이 없습니다: {path}")
     settings = read_json(path)
-    for key in DEFAULT_SETTINGS:
-        if key not in settings:
-            raise ValueError(f"데이터 설정 항목이 없습니다: {key}")
-    if set(settings["image_roots"]) != {"select", "codeit"}:
-        raise ValueError("image_roots에는 select와 codeit을 지정해야 합니다.")
+    _validate_detector_settings(settings)
     return settings
 
 
+def _validate_detector_settings(settings: Any) -> None:
+    if not isinstance(settings, Mapping):
+        raise TypeError("detector data settings must be a mapping")
+    for key in DEFAULT_SETTINGS:
+        if key not in settings:
+            raise ValueError(f"데이터 설정 항목이 없습니다: {key}")
+    package_dir = settings["package_dir"]
+    if not isinstance(package_dir, str | Path) or not str(package_dir).strip():
+        raise ValueError("package_dir must be a non-empty path")
+    image_roots = settings["image_roots"]
+    if not isinstance(image_roots, Mapping) or not image_roots:
+        raise ValueError("image_roots must be a non-empty mapping")
+    for dataset, root in image_roots.items():
+        if not isinstance(dataset, str) or not dataset.strip():
+            raise ValueError("image_roots dataset names must be non-empty strings")
+        if not isinstance(root, str | Path) or not str(root).strip():
+            raise ValueError(f"image root must be a non-empty path: {dataset}")
+    if not isinstance(settings["augmentation"], Mapping):
+        raise TypeError("augmentation must be a mapping")
+
+
 def resolve_data_paths(settings):
+    _validate_detector_settings(settings)
     return repository_path(settings["package_dir"]), {
         name: repository_path(value) for name, value in settings["image_roots"].items()
     }
 
 
-def resolve_image_path(portable_name, roots):
-    """annotation의 출처별 경로를 실제 이미지 경로로 변환한다."""
+def resolve_image_path(relative_name, *, dataset, roots):
+    """dataset root와 상대 경로를 실제 이미지 경로로 변환한다."""
 
-    portable = PurePosixPath(str(portable_name).replace("\\", "/"))
-    if (
-        portable.is_absolute()
-        or ".." in portable.parts
-        or len(portable.parts) < 3
-        or portable.parts[1] != "images"
-    ):
-        raise ValueError(
-            f"이미지 경로는 출처/images/파일명 형식이어야 합니다: {portable}"
-        )
-    dataset = portable.parts[0]
     if dataset not in roots:
         raise ValueError(f"이미지 출처 설정이 없습니다: {dataset}")
+    relative = PurePosixPath(str(relative_name).replace("\\", "/"))
+    if (
+        relative.is_absolute()
+        or ".." in relative.parts
+        or not relative.parts
+        or str(relative) in {"", "."}
+    ):
+        raise ValueError(
+            f"이미지 경로는 데이터 루트 기준 상대 경로여야 합니다: {relative}"
+        )
     root = Path(roots[dataset]).resolve()
-    result = root.joinpath(*portable.parts[2:]).resolve()
+    result = root.joinpath(*relative.parts).resolve()
     if not result.is_relative_to(root):
-        raise ValueError(f"이미지 기준 폴더를 벗어난 경로입니다: {portable}")
+        raise ValueError(f"이미지 기준 폴더를 벗어난 경로입니다: {relative}")
     return result
 
 
@@ -177,25 +197,21 @@ def read_records(settings):
             if any(type(v) is not int or v <= 0 for v in (width, height)):
                 raise ValueError(f"이미지 크기 오류: {image_id}")
 
-            portable = str(image["file_name"]).replace("\\", "/")
-            dataset, relative = portable.split("/", 1)
-            relative_path = Path(relative)
-
-            if relative_path.is_absolute() or ".." in relative_path.parts:
-                raise ValueError(f"허용되지 않는 이미지 경로: {portable}")
-
-            if dataset not in roots:
-                raise ValueError(f"이미지 기준 폴더 설정 없음: {dataset}")
-
-            if dataset != row["dataset"] or portable != row["image_path"]:
+            relative_path = str(image["file_name"]).replace("\\", "/")
+            dataset = row["dataset"]
+            if relative_path != row["image_path"]:
                 raise ValueError(f"이미지 경로 기록 불일치: {image_id}")
 
-            group = canonical_group(portable)
+            group = canonical_group(relative_path)
 
             if group != row["group_id"]:
                 raise ValueError(f"조합 그룹 기록 불일치: {image_id}")
 
-            actual_path = resolve_image_path(portable, roots)
+            actual_path = resolve_image_path(
+                relative_path,
+                dataset=dataset,
+                roots=roots,
+            )
 
             if not actual_path.is_file():
                 raise FileNotFoundError(actual_path)
@@ -271,8 +287,8 @@ def read_records(settings):
                 {
                     "image_id": image_id,
                     "source_image_id": str(row["original_image_id"]),
-                    "original_file_name": original_file_name(portable),
-                    "portable_path": portable,
+                    "original_file_name": original_file_name(relative_path),
+                    "relative_path": relative_path,
                     "image_path": str(actual_path.resolve()),
                     "dataset": dataset,
                     "group_id": group,
@@ -313,7 +329,7 @@ def read_records(settings):
             "split": split,
             "image_id": record["image_id"],
             "group_id": record["group_id"],
-            "file_name": record["portable_path"],
+            "file_name": record["relative_path"],
             "annotation_ids": record["annotation_ids"],
             "bbox_xywh": record["bbox_xywh"],
             "category_ids": record["category_ids"],

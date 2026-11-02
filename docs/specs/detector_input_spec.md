@@ -72,6 +72,30 @@ def build_detector_inputs(
 
 Dataset에서 반환하는 tensor는 CPU에 두고 학습 loop에서 선택된 장치로 이동한다.
 
+### 2.4 학습 패키지 이미지 경로
+
+학습 패키지는 이미지 출처와 실제 상대 경로를 별도 필드로 관리한다.
+
+```text
+split_manifest.csv
+dataset,image_path
+sprint,K-001900-016548-019607-029451_0_2_0_2_70_000_200.png
+```
+
+`annotations/<split>.json`의 `images.file_name`은 manifest의 `image_path`와 같아야 한다. 경로 문자열에 `dataset/images/` 같은 가상 접두사를 추가하지 않는다.
+
+설정의 `image_roots`는 manifest에 등장하는 dataset 이름을 실제 이미지 root에 연결한다.
+
+```json
+{
+  "image_roots": {
+    "sprint": "data/sprint_ai_project1_data/train_images"
+  }
+}
+```
+
+실제 파일은 `image_roots[dataset] / image_path`에서 읽는다. `image_path`는 root 기준 상대 경로이며 절대 경로와 `..`를 포함할 수 없다. dataset 이름은 특정 원천 이름으로 고정하지 않는다.
+
 ## 3. 원본 JSON을 이미지 샘플로 구성하는 규칙
 
 확인된 예시 JSON에는 `images`, `annotations`, `categories` 배열이 있다. 실제 전달 JSON은 같은 구조를 바탕으로 이미지 안의 모든 알약 bbox를 `annotations`에 포함하도록 수정된다.
@@ -457,7 +481,7 @@ prediction = {
     "label": 1,
     "label_name": "pill",
     "detector_score": 0.91,
-    "detector_name": "ssdlite320_mobilenet_v3_large"
+    "detector_name": "ssdlite320_mobilenet_v3_large",
 }
 ```
 
