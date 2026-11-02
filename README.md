@@ -96,7 +96,7 @@ uv run python main.py train-detector --config configs/detector.yaml
 # checkpoint 평가와 통합 추론
 uv run python main.py evaluate classifier \
   --config configs/classifier.yaml \
-  --checkpoint outputs/resnet50_baseline/best.pt
+  --checkpoint outputs/classifier/20261103-resnet50-cls-v1-baseline-01/best.pt
 uv run python main.py recognize-pills --config configs/pill_recognition.yaml
 ```
 
@@ -265,7 +265,7 @@ uv run ruff check classifier detector pipeline data_loading configs utils etl te
 uv run ruff format --check classifier detector pipeline data_loading configs utils etl tests main.py
 ```
 
-학습 결과와 checkpoint는 `outputs/<run_name>/`에 저장하며 Git에 포함하지 않습니다. 분류 클래스 수의 기본값은 118이지만 `expected_num_classes`로 변경할 수 있으며, 검증 로직이 118을 절대값으로 강제하지 않습니다.
+학습 결과와 checkpoint는 `outputs/<task>/<run_name>/`에 저장하며 Git에 포함하지 않습니다. 분류 클래스 수의 기본값은 118이지만 `expected_num_classes`로 변경할 수 있으며, 검증 로직이 118을 절대값으로 강제하지 않습니다.
 
 ## 문서
 

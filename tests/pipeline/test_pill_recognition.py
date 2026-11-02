@@ -8,6 +8,8 @@ import pytest
 import torch
 from torch import nn
 
+import pipeline.pill_recognition as pill_recognition_module
+from configs.pill_recognition import PillRecognitionConfig
 from pipeline import (
     plot_pill_predictions,
     recognize_pills,
@@ -46,6 +48,21 @@ def make_batch(*, image_id: int = 7) -> dict[str, Any]:
             }
         ],
     }
+
+
+def make_config(tmp_path: Path) -> PillRecognitionConfig:
+    return PillRecognitionConfig(
+        run_name="inference-test",
+        inference_factory_path=None,
+        input_dir=tmp_path / "images",
+        detector_checkpoint_path=tmp_path / "detector.pt",
+        classifier_checkpoint_path=tmp_path / "classifier.pt",
+        detector_label_map_path=tmp_path / "label_map.json",
+        classifier_class_map_path=tmp_path / "class_map.json",
+        output_dir=tmp_path / "outputs" / "inference",
+        detector_name="detector-test",
+        device="cpu",
+    )
 
 
 def test_recognize_pills_combines_predictions(
@@ -97,6 +114,25 @@ def test_recognize_pills_rejects_duplicate_image_ids(
             detector_name="fixed-detector",
             show_progress=False,
         )
+
+
+def test_prepare_pill_recognition_run_records_config_and_rejects_overwrite(
+    tmp_path: Path,
+) -> None:
+    config = make_config(tmp_path)
+
+    run_dir = pill_recognition_module._prepare_pill_recognition_run(config)
+    resolved_config = json.loads(
+        (run_dir / "resolved_config.json").read_text(encoding="utf-8")
+    )
+
+    assert run_dir == config.run_dir
+    assert resolved_config["run_name"] == "inference-test"
+    assert resolved_config["output_dir"] == str(tmp_path / "outputs" / "inference")
+
+    (run_dir / "pill_predictions.json").write_text("[]\n", encoding="utf-8")
+    with pytest.raises(FileExistsError, match="inference artifacts"):
+        pill_recognition_module._prepare_pill_recognition_run(config)
 
 
 def test_save_and_plot_pill_recognition_artifacts(

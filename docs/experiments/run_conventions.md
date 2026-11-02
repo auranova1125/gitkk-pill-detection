@@ -24,8 +24,8 @@ outputs/
 | 탐지기 학습 | `outputs/detector` | `outputs/detector/<run_name>` |
 | 탐지·분류 통합 추론 | `outputs/inference/<run_name>` | 해당 경로 자체 |
 
-학습 코드는 `output_dir / run_name`을 사용한다. 통합 추론은 학습이 아니므로
-`PillRecognitionConfig.output_dir`에 최종 실행 폴더를 직접 전달한다.
+분류기 학습, 탐지기 학습과 통합 추론 모두 `output_dir / run_name`을 사용한다.
+`output_dir`에는 작업별 결과 루트를 전달하고 `run_dir`은 설정 객체에서 계산한다.
 
 `outputs/`는 Git에 포함하지 않는다. 공유할 기준 결과와 비교표는 `reports/`에 기록한다.
 
@@ -140,15 +140,16 @@ run_name = "20261102-ssdlite320-det-mini-smoke-01"
 `run_name`과 가까운 위치에 같은 값을 주석으로 둔다.
 
 ```yaml
-training:
-  run_name: 20261102-ssdlite320-det-mini-smoke-01
-  # tags:
-  #   - task:detector
-  #   - stage:smoke
-  #   - model:ssdlite320
-  #   - data:det-mini
-  #   - change:baseline
-  #   - device:cuda
+run_name: 20261103-ssdlite320-det-mini-smoke-01
+output_dir: outputs/detector
+device: cuda
+# tags:
+#   - task:detector
+#   - stage:smoke
+#   - model:ssdlite320
+#   - data:det-mini
+#   - change:baseline
+#   - device:cuda
 ```
 
 W&B를 연결할 때 주석의 배열을 설정 필드로 옮기고 다음처럼 그대로 전달한다.
@@ -177,13 +178,14 @@ run_name = "20261102-ssdlite320-det-mini-smoke-01"
 
 ```python
 output_root = project_root / "outputs"
-inference_run_name = (
+output_dir = output_root / "inference"
+run_name = (
     "20261102-ssdlite320-resnet50-infer-mini-smoke-01"
 )
 
 detector_run_dir = output_root / "detector" / detector_run_name
 classifier_run_dir = output_root / "classifier" / classifier_run_name
-result_dir = output_root / "inference" / inference_run_name
+result_dir = output_dir / run_name
 ```
 
 ## 6. 기존 실행 결과 전환
@@ -197,7 +199,8 @@ detector_run_dir = output_root / detector_run_name
 classifier_run_dir = output_root / classifier_run_name
 
 # 통합 추론 결과만 새 규칙으로 저장
-result_dir = output_root / "inference" / inference_run_name
+output_dir = output_root / "inference"
+result_dir = output_dir / run_name
 ```
 
 새 학습부터 `outputs/classifier`와 `outputs/detector`를 사용한다. 기존 완료 폴더를 옮겨야

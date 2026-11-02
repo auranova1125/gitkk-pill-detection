@@ -269,6 +269,7 @@ def recognize_pills_from_config(
 ) -> PillRecognitionResult:
     """설정의 factory와 두 checkpoint를 불러와 알약 인식을 실행한다."""
 
+    run_dir = _prepare_pill_recognition_run(config)
     device = resolve_device(config.device)
     factory = load_data_factory(
         config.inference_factory_path,
@@ -306,8 +307,24 @@ def recognize_pills_from_config(
         detector_name=config.detector_name,
         show_progress=config.show_progress,
     )
-    save_pill_recognition_artifacts(result, config.output_dir)
+    save_pill_recognition_artifacts(result, run_dir)
     return result
+
+
+def _prepare_pill_recognition_run(config: PillRecognitionConfig) -> Path:
+    """기존 결과 덮어쓰기를 막고 실제 추론 설정을 실행 폴더에 기록한다."""
+
+    run_dir = config.run_dir
+    artifact_names = ("pill_predictions.json", "pill_recognition_errors.json")
+    existing = [run_dir / name for name in artifact_names if (run_dir / name).exists()]
+    if existing:
+        names = ", ".join(path.name for path in existing)
+        raise FileExistsError(
+            f"run directory already contains inference artifacts: {names}"
+        )
+    run_dir.mkdir(parents=True, exist_ok=True)
+    write_json(run_dir / "resolved_config.json", config.to_dict(), sort_keys=True)
+    return run_dir
 
 
 def save_pill_recognition_artifacts(
