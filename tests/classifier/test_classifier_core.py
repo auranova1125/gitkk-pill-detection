@@ -27,13 +27,11 @@ from classifier.model import (
     set_model_train_mode,
 )
 from configs.classifier import ClassifierConfig
-from data_loading.classifier import (
-    build_classifier_inputs,
-    read_samples,
-)
-from data_loading.classifier import (
+from data_loading.classifier import build_classifier_inputs
+from data_loading.classifier_package import (
     make_data_summary as make_runtime_data_summary,
 )
+from data_loading.classifier_package import read_samples
 
 NUM_CLASSES = 8
 

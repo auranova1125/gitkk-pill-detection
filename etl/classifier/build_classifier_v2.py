@@ -14,8 +14,8 @@ import torch
 from classifier.evaluate import EvaluationResult, evaluate_with_predictions
 from classifier.inference import load_classifier_inference_model
 from classifier.training_data import validate_classifier_training_data
-from data_loading.classifier import (
-    build_classifier_inputs,
+from data_loading.classifier import build_classifier_inputs
+from data_loading.classifier_package import (
     make_data_summary,
     read_samples,
     split_hash,

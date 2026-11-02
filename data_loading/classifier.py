@@ -17,8 +17,6 @@ crops/의 PNG는 원본 사진에서 bbox 사방 5% 여백을 더해 이미지 �
 입력 검증:  python -m data_loading.classifier <class_map.json 경로>
 """
 
-import hashlib
-import json
 import random
 import sys
 from collections.abc import Callable
@@ -32,6 +30,7 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
+from data_loading.classifier_package import load_classifier_package
 from data_loading.image_transforms import (
     CLASSIFIER_IMAGE_SIZE,
     IMAGENET_MEAN,
@@ -43,7 +42,6 @@ from data_loading.image_transforms import (
 
 SIZE = CLASSIFIER_IMAGE_SIZE
 MEAN, STD = list(IMAGENET_MEAN), list(IMAGENET_STD)
-SPLIT_VERSION = "detector-split-manifest-v1"  # 탐지기 split_manifest.csv의 그룹 분할을 그대로 따른 분할
 ClassifierTransform = Callable[[Image.Image], torch.Tensor]
 
 
@@ -82,17 +80,6 @@ META_KEYS = [
     "group_id",
     "drug_dir",
 ]
-
-
-def read_samples(root: str | Path) -> pd.DataFrame:
-    df = pd.read_csv(Path(root) / "samples.csv", dtype=str, keep_default_na=False)
-    df["class_index"] = df.class_index.astype(int)
-    df["category_id"] = df.category_id.astype(int)
-    df["bbox_xywh"] = df.bbox_xywh.map(lambda s: [float(v) for v in json.loads(s)])
-    df["drug_dir"] = df.drug_dir.astype(object).where(
-        df.drug_dir != "", None
-    )  # 명세서 3.3: 정보가 없으면 None (NaN 아님)
-    return df
 
 
 class PillCropDataset(Dataset[dict[str, Any]]):
@@ -136,51 +123,6 @@ def _seed_worker(_worker_id: int) -> None:
     random.seed(seed)
 
 
-# ── data_summary ─────────────────────────────────────────────────────────
-def split_hash(samples: pd.DataFrame) -> str:
-    key = {
-        "version": SPLIT_VERSION,
-        "train": sorted(samples[samples.split == "train"].sample_id),
-        "validation": sorted(samples[samples.split == "val"].sample_id),
-    }
-    return hashlib.sha256(json.dumps(key, ensure_ascii=False).encode()).hexdigest()
-
-
-def make_data_summary(
-    samples: pd.DataFrame,
-    num_classes: int,
-) -> dict[str, Any]:
-    train_samples = samples[samples.split == "train"]
-    val_samples = samples[samples.split == "val"]
-
-    def count_classes(split_samples: pd.DataFrame) -> dict[str, int]:
-        class_counts = split_samples.class_index.value_counts()
-        return {
-            str(class_index): int(class_counts.get(class_index, 0))
-            for class_index in range(num_classes)
-        }
-
-    val_class_counts = count_classes(val_samples)
-    return {
-        "num_classes": num_classes,
-        "num_train_samples": len(train_samples),
-        "num_val_samples": len(val_samples),
-        "train_class_counts": count_classes(train_samples),
-        "val_class_counts": val_class_counts,
-        "train_group_count": train_samples.group_id.nunique(),
-        "val_group_count": val_samples.group_id.nunique(),
-        "group_overlap_count": len(
-            set(train_samples.group_id) & set(val_samples.group_id)
-        ),
-        "validation_class_indices": [
-            class_index
-            for class_index in range(num_classes)
-            if val_class_counts[str(class_index)] > 0
-        ],
-        "split_hash": split_hash(samples),
-    }
-
-
 # ── 데이터 구성 함수 (명세서 2.2) ─────────────────────────────────────────
 def build_classifier_inputs(
     *,
@@ -192,17 +134,11 @@ def build_classifier_inputs(
     dict[str, Any],
     dict[str, Any],
 ]:
-    class_map = json.loads(Path(config.class_map_path).read_text(encoding="utf-8"))
-    data_summary = json.loads(
-        Path(config.data_summary_path).read_text(encoding="utf-8")
+    samples, class_map, data_summary = load_classifier_package(
+        class_map_path=config.class_map_path,
+        data_summary_path=config.data_summary_path,
     )
     root = Path(config.class_map_path).parent
-    samples = read_samples(root)
-    # 파일끼리 어긋나면(다른 분할의 data_summary 등) 학습 전에 멈춘다
-    if make_data_summary(samples, class_map["num_classes"]) != data_summary:
-        raise ValueError(
-            "data_summary.json이 samples.csv와 맞지 않습니다. 같은 패키지의 파일인지 확인하세요."
-        )
 
     train_samples = samples[samples.split == "train"]
     val_samples = samples[samples.split == "val"]

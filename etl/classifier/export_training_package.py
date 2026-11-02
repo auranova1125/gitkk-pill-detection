@@ -30,7 +30,7 @@ import pandas as pd
 import torch
 from PIL import Image
 
-import data_loading.classifier as ci
+import data_loading.classifier_package as ci
 from classifier.training_data import validate_classifier_training_data
 from data_loading.image_transforms import CROP_MARGIN as MARGIN
 from data_loading.image_transforms import cut_pill
