@@ -25,6 +25,8 @@ DETECTOR_PACKAGE = (
 REPORTS = (
     ROOT / "reports" / "data" / "classifier"
 )  # 실행 결과 문서 (자동 생성, git에 올림)
+LABEL_AUDIT_RECORDS = Path(__file__).with_name("label_audit") / "records"
+LABEL_AUDIT_OUTPUT = META / "label_audit"  # embedding, 점수와 검수용 이미지
 
 COMBO_ZIPS = [
     1,
