@@ -49,19 +49,18 @@ image_path: K-001900-016548-019607-029451_0_2_0_2_70_000_200.png
   "image_roots": {
     "sprint": "/absolute/path/to/sprint_train_images",
     "additional_source": "/absolute/path/to/additional_images"
-  },
-  "augmentation": {
-    "horizontal_flip": 0.0,
-    "vertical_flip": 0.0,
-    "brightness": 0.0,
-    "contrast": 0.0
   }
 }
 ```
 
 `image_roots`의 키는 특정 데이터셋 이름으로 고정되지 않는다. manifest의 `dataset` 값과 일치하는 비어 있지 않은 이름이면 된다. 이미지가 한 출처뿐이면 항목도 하나만 두면 된다.
 
-환경 변수로 묵시적으로 경로를 바꾸지 않는다. CLI와 Notebook 모두 같은 설정 파일을 명시적으로 사용한다.
+이 JSON은 데이터 위치만 정의한다. 학습 증강은 데이터 자체의 속성이 아니므로
+`DetectorConfig`의 `horizontal_flip`, `vertical_flip`, `brightness`, `contrast`로
+설정한다. CLI는 `configs/detector.yaml`, Notebook은 같은 설정 객체의 값을 사용한다.
+
+환경 변수로 묵시적으로 경로를 바꾸지 않는다. CLI와 Notebook 모두 같은 데이터
+경로 설정 파일을 명시적으로 사용한다.
 
 ## 입력 검사
 

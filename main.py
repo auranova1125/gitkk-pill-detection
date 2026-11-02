@@ -177,7 +177,8 @@ def _print_json(value: Any) -> None:
 
 def _check_detector_data(settings_path: Path | None, report_path: Path) -> int:
     """탐지 학습 패키지를 읽고 검사 결과를 JSON으로 저장한다."""
-    from data_loading.detector_package import load_detector_settings, read_records
+    from data_loading.detector_data_paths import load_detector_data_paths
+    from data_loading.detector_package import load_detector_package
     from utils.io import write_json
 
     result: dict[str, Any] = {
@@ -186,7 +187,7 @@ def _check_detector_data(settings_path: Path | None, report_path: Path) -> int:
         "executed_at_utc": datetime.now(UTC).isoformat(),
     }
     try:
-        _, _, summary = read_records(load_detector_settings(settings_path))
+        _, _, summary = load_detector_package(load_detector_data_paths(settings_path))
         result.update(
             status="passed",
             scope="full_labels_and_paths",

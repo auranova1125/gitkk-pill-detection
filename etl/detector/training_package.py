@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from data_loading.detector_package import DEFAULT_SETTINGS, read_records
+from data_loading.detector_package import load_detector_package
 from utils.io import write_json
 
 
@@ -21,9 +21,8 @@ def validate_training_package(
             name: str(Path(path).expanduser().resolve())
             for name, path in image_roots.items()
         },
-        "augmentation": dict(DEFAULT_SETTINGS["augmentation"]),
     }
-    _, label_map, data_summary = read_records(settings)
+    _, label_map, data_summary = load_detector_package(settings)
     return label_map, data_summary
 
 

@@ -10,9 +10,12 @@ crops/의 PNG는 원본 사진에서 bbox 사방 5% 여백을 더해 이미지 �
 이후 처리(학습: 회전 → 중앙 정사각형 padding, 공통: 224 resize → normalize)는 이 파일에서 한다.
 
 탐지 결과를 분류할 때 (명세서 8절):
-    from data_loading.classifier import detection_transform
-    from data_loading.image_transforms import crop_pill
-    image = detection_transform()(crop_pill(original_image, bbox_xywh))   # float32 [3, 224, 224]
+    from data_loading.image_transforms import (
+        build_classifier_inference_transform,
+        crop_pill,
+    )
+    transform = build_classifier_inference_transform()
+    image = transform(crop_pill(original_image, bbox_xywh))
 
 입력 검증:  python -m data_loading.classifier <class_map.json 경로>
 """
@@ -35,7 +38,6 @@ from data_loading.image_transforms import (
     CLASSIFIER_IMAGE_SIZE,
     IMAGENET_MEAN,
     IMAGENET_STD,
-    build_classifier_inference_transform,
     build_classifier_train_transform,
     build_classifier_validation_transform,
 )
@@ -52,21 +54,6 @@ class ClassifierDataConfig(Protocol):
     seed: int
     class_map_path: Path
     data_summary_path: Path
-
-
-def train_transform() -> ClassifierTransform:
-    """명세서 6.2: crop 후 padding 전에 회전. 새로 생긴 영역도 (124, 116, 104)."""
-    return build_classifier_train_transform()
-
-
-def val_transform() -> ClassifierTransform:
-    """명세서 6.3: 무작위 처리 없음."""
-    return build_classifier_validation_transform()
-
-
-def detection_transform() -> ClassifierTransform:
-    """명세서 8.1: crop_pill로 자른 탐지 결과 → float32 [3, 224, 224]. crop_pill이 이미 정사각형으로 만든다."""
-    return build_classifier_inference_transform()
 
 
 # ── 샘플 ─────────────────────────────────────────────────────────────────
@@ -117,7 +104,7 @@ def collate_classifier_samples(samples: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _seed_worker(_worker_id: int) -> None:
+def seed_classifier_worker(_worker_id: int) -> None:
     seed = torch.initial_seed() % 2**32
     np.random.seed(seed)
     random.seed(seed)
@@ -142,8 +129,16 @@ def build_classifier_inputs(
 
     train_samples = samples[samples.split == "train"]
     val_samples = samples[samples.split == "val"]
-    train_dataset = PillCropDataset(train_samples, root, train_transform())
-    val_dataset = PillCropDataset(val_samples, root, val_transform())
+    train_dataset = PillCropDataset(
+        train_samples,
+        root,
+        build_classifier_train_transform(),
+    )
+    val_dataset = PillCropDataset(
+        val_samples,
+        root,
+        build_classifier_validation_transform(),
+    )
 
     # 명세서 7절: 클래스 빈도의 역수로 뽑는다. sampler를 쓰므로 shuffle=False
     counts = data_summary["train_class_counts"]
@@ -166,7 +161,7 @@ def build_classifier_inputs(
         "num_workers": 2 if uses_cuda else 0,
         "pin_memory": uses_cuda,
         "collate_fn": collate_classifier_samples,
-        "worker_init_fn": _seed_worker,
+        "worker_init_fn": seed_classifier_worker,
     }
     train_loader = DataLoader(
         train_dataset,

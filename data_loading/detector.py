@@ -2,22 +2,41 @@
 
 from __future__ import annotations
 
-import math
 import random
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any, Protocol
 
 import numpy as np
 import torch
-from PIL import Image, ImageEnhance
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset, get_worker_info
 
-from .detector_package import load_detector_settings, read_records
+from .detector_data_paths import load_detector_data_paths
+from .detector_package import load_detector_package
+from .detector_transforms import (
+    apply_detector_augmentation,
+    build_detector_train_augmentation,
+    build_detector_validation_augmentation,
+    validate_detector_augmentation,
+)
 
-if TYPE_CHECKING:
-    from detector import DetectorConfig
+
+class DetectorDataConfig(Protocol):
+    """탐지 DataLoader factory가 사용하는 최소 설정."""
+
+    batch_size: int
+    seed: int
+    data_settings_path: Path | None
+    horizontal_flip: float
+    vertical_flip: float
+    brightness: float
+    contrast: float
 
 
-def collate_detector_samples(samples):
+def collate_detector_samples(
+    samples: list[dict[str, Any]],
+) -> dict[str, Any]:
     return {
         "images": [sample["image"] for sample in samples],
         "targets": [sample["target"] for sample in samples],
@@ -25,22 +44,28 @@ def collate_detector_samples(samples):
     }
 
 
-def seed_detector_worker(worker_id):
+def seed_detector_worker(_worker_id: int) -> None:
     info = get_worker_info()
     if info is not None:
         info.dataset.rng.seed(torch.initial_seed())
 
 
-class PillDetectionDataset(Dataset):
-    def __init__(self, records, augmentation, seed):
+class PillDetectionDataset(Dataset[dict[str, Any]]):
+    def __init__(
+        self,
+        records: list[dict[str, Any]],
+        augmentation: Mapping[str, float],
+        seed: int,
+    ) -> None:
+        validate_detector_augmentation(augmentation)
         self.records = records
         self.augmentation = dict(augmentation)
         self.rng = random.Random(seed)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.records)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> dict[str, Any]:
         record = self.records[index]
 
         with Image.open(record["image_path"]) as source:
@@ -55,35 +80,12 @@ class PillDetectionDataset(Dataset):
 
         boxes = torch.tensor(record["boxes"], dtype=torch.float32).reshape(-1, 4)
 
-        horizontal = self.augmentation["horizontal_flip"]
-        vertical = self.augmentation["vertical_flip"]
-
-        if horizontal > 0 and self.rng.random() < horizontal:
-            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
-            left = boxes[:, 0].clone()
-            right = boxes[:, 2].clone()
-            boxes[:, 0] = width - right
-            boxes[:, 2] = width - left
-
-        if vertical > 0 and self.rng.random() < vertical:
-            image = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
-            top = boxes[:, 1].clone()
-            bottom = boxes[:, 3].clone()
-            boxes[:, 1] = height - bottom
-            boxes[:, 3] = height - top
-
-        brightness = self.augmentation["brightness"]
-        contrast = self.augmentation["contrast"]
-
-        if brightness > 0:
-            image = ImageEnhance.Brightness(image).enhance(
-                self.rng.uniform(1 - brightness, 1 + brightness)
-            )
-
-        if contrast > 0:
-            image = ImageEnhance.Contrast(image).enhance(
-                self.rng.uniform(1 - contrast, 1 + contrast)
-            )
+        image, boxes = apply_detector_augmentation(
+            image,
+            boxes,
+            augmentation=self.augmentation,
+            rng=self.rng,
+        )
 
         image_tensor = (
             torch.from_numpy(np.array(image, dtype=np.uint8, copy=True))
@@ -132,53 +134,37 @@ class PillDetectionDataset(Dataset):
         }
 
 
-def build_detector_inputs(*, config: DetectorConfig, device):
-    """팀원의 학습 코드가 호출하는 공통 함수. 데이터는 다시 나누지 않는다."""
+def build_detector_inputs(
+    *,
+    config: DetectorDataConfig,
+    device: torch.device,
+) -> tuple[DataLoader, DataLoader, dict[str, Any], dict[str, Any]]:
+    """고정 분할 패키지에서 탐지 학습·검증 DataLoader를 만든다."""
+
     settings_path = getattr(config, "data_settings_path", None)
-    return _build_detector_inputs(
-        config=config,
-        device=device,
-        settings=load_detector_settings(settings_path),
+    records_by_split, label_map, summary = load_detector_package(
+        load_detector_data_paths(settings_path)
     )
-
-
-def _build_detector_inputs(*, config, device, settings):
-    records_by_split, label_map, summary = read_records(settings)
-    augmentation = settings["augmentation"]
-    required_options = {"horizontal_flip", "vertical_flip", "brightness", "contrast"}
-
-    if set(augmentation) != required_options:
-        raise ValueError("증강 설정 항목이 올바르지 않습니다.")
-
-    for name, value in augmentation.items():
-        if (
-            isinstance(value, bool)
-            or not isinstance(value, (int, float))
-            or not math.isfinite(value)
-        ):
-            raise ValueError(f"증강 설정의 숫자 오류: {name}")
-
-        upper = 1.0 if name.endswith("flip") else 0.3
-
-        if not 0 <= value <= upper:
-            raise ValueError(f"증강 설정 범위 오류: {name}")
-
+    train_augmentation = build_detector_train_augmentation(config)
+    validation_augmentation = build_detector_validation_augmentation()
     summary = dict(
-        summary, train_augmentation=dict(augmentation), validation_augmentation="none"
+        summary,
+        train_augmentation=dict(train_augmentation),
+        validation_augmentation="none",
     )
 
     workers = 2 if device.type == "cuda" else 0
     pin_memory = device.type == "cuda"
-    loaders = []
+    loaders: list[DataLoader] = []
 
     for split, offset in [("train", 0), ("validation", 1)]:
-        transforms = (
-            augmentation if split == "train" else {name: 0.0 for name in augmentation}
+        augmentation = (
+            train_augmentation if split == "train" else validation_augmentation
         )
 
         dataset = PillDetectionDataset(
             records_by_split[split],
-            transforms,
+            augmentation,
             config.seed + offset,
         )
 

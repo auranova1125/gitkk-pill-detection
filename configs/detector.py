@@ -35,6 +35,10 @@ class DetectorConfig:
     batch_size: int = 8
     max_epochs: int = 50
     momentum: float = 0.9
+    horizontal_flip: float = 0.0
+    vertical_flip: float = 0.0
+    brightness: float = 0.0
+    contrast: float = 0.0
     resume_from: Path | None = None
     show_progress: bool = True
 
@@ -78,6 +82,20 @@ class DetectorConfig:
             name="weight_decay",
             minimum=0.0,
         )
+        for name in ("horizontal_flip", "vertical_flip"):
+            self._validate_finite_number(
+                getattr(self, name),
+                name=name,
+                minimum=0.0,
+                maximum=1.0,
+            )
+        for name in ("brightness", "contrast"):
+            self._validate_finite_number(
+                getattr(self, name),
+                name=name,
+                minimum=0.0,
+                maximum=0.3,
+            )
         self._validate_finite_number(
             self.score_threshold,
             name="score_threshold",
