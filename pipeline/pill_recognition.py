@@ -33,6 +33,7 @@ from detector.inference import (
 )
 from detector.input_validation import validate_detector_label_map
 from utils.io import read_json, write_json
+from utils.plotting import resolve_korean_font
 from utils.runtime import resolve_device
 
 
@@ -352,8 +353,9 @@ def plot_pill_predictions(
 
     figure, axis = plt.subplots(figsize=(10, 7))
     axis.imshow(image.permute(1, 2, 0).numpy())
+    font_properties = resolve_korean_font()
     if title:
-        axis.set_title(title)
+        axis.set_title(title, fontproperties=font_properties)
 
     for index, prediction in enumerate(predictions):
         if not isinstance(prediction, PillPrediction):
@@ -375,6 +377,7 @@ def plot_pill_predictions(
             f"{prediction.class_name} ({prediction.final_score:.3f})",
             color="white",
             fontsize=9,
+            fontproperties=font_properties,
             bbox={"facecolor": "red", "alpha": 0.75, "pad": 2},
         )
     axis.set_axis_off()

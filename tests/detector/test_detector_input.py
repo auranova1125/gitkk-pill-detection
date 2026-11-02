@@ -137,6 +137,10 @@ def test_detector_config_defaults_and_serialization(tmp_path: Path) -> None:
     assert config.batch_size == 8
     assert config.max_epochs == 50
     assert config.momentum == 0.9
+    assert config.horizontal_flip == 0.0
+    assert config.vertical_flip == 0.0
+    assert config.brightness == 0.0
+    assert config.contrast == 0.0
     assert config.to_dict()["output_dir"] == str(tmp_path / "outputs")
     assert config.to_dict()["resume_from"] is None
 
@@ -153,6 +157,10 @@ def test_detector_config_defaults_and_serialization(tmp_path: Path) -> None:
         ("learning_rate", float("nan")),
         ("momentum", 1.0),
         ("weight_decay", -1.0),
+        ("horizontal_flip", -0.1),
+        ("vertical_flip", 1.1),
+        ("brightness", 0.31),
+        ("contrast", -0.1),
         ("score_threshold", 1.1),
         ("nms_threshold", -0.1),
         ("early_stopping_patience", 0),

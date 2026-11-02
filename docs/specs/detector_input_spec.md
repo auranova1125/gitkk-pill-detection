@@ -60,7 +60,10 @@ def build_detector_inputs(
 3. `label_map`
 4. `data_summary`
 
-같은 seed와 데이터 버전으로 다시 호출하면 같은 split, label map과 summary가 만들어져야 한다. Notebook은 첫 batch를 검증한 뒤 실제 학습 전에 loader를 다시 생성할 수 있다.
+같은 데이터 패키지로 다시 호출하면 같은 split과, 패키지에 포함된 label map 및
+summary가 반환되어야 한다. runtime DataLoader는 두 metadata 파일을 자동 생성하지
+않고 실제 annotation·manifest에서 다시 계산한 값과 일치하는지 검증한다. Notebook은
+첫 batch를 검증한 뒤 실제 학습 전에 loader를 다시 생성할 수 있다.
 
 ### 2.3 권장 DataLoader 설정
 
@@ -71,6 +74,30 @@ def build_detector_inputs(
 | CPU | 0 | `False` |
 
 Dataset에서 반환하는 tensor는 CPU에 두고 학습 loop에서 선택된 장치로 이동한다.
+
+### 2.4 학습 패키지 이미지 경로
+
+학습 패키지는 이미지 출처와 실제 상대 경로를 별도 필드로 관리한다.
+
+```text
+split_manifest.csv
+dataset,image_path
+sprint,K-001900-016548-019607-029451_0_2_0_2_70_000_200.png
+```
+
+`annotations/<split>.json`의 `images.file_name`은 manifest의 `image_path`와 같아야 한다. 경로 문자열에 `dataset/images/` 같은 가상 접두사를 추가하지 않는다.
+
+설정의 `image_roots`는 manifest에 등장하는 dataset 이름을 실제 이미지 root에 연결한다.
+
+```json
+{
+  "image_roots": {
+    "sprint": "data/sprint_ai_project1_data/train_images"
+  }
+}
+```
+
+실제 파일은 `image_roots[dataset] / image_path`에서 읽는다. `image_path`는 root 기준 상대 경로이며 절대 경로와 `..`를 포함할 수 없다. dataset 이름은 특정 원천 이름으로 고정하지 않는다.
 
 ## 3. 원본 JSON을 이미지 샘플로 구성하는 규칙
 
@@ -116,7 +143,7 @@ y2 = y + height
 
 ### 3.2 그룹 분할
 
-촬영 그룹은 파일명의 첫 번째 `_` 앞부분으로 만든다.
+현재 원천 데이터의 촬영 그룹은 파일명의 첫 번째 `_` 앞부분으로 만든다.
 
 ```text
 file_name: K-001900-016548-019607-029451_0_2_0_2_70_000_200.png
@@ -124,6 +151,8 @@ group_id:  K-001900-016548-019607-029451
 ```
 
 같은 `group_id`의 이미지는 모두 train 또는 모두 validation에 들어가야 한다. 두 split의 그룹 중복은 0이어야 한다.
+
+파일명 해석과 `group_id` 생성은 원천 ETL adapter가 담당한다. 완성 패키지를 읽는 runtime DataLoader는 특정 파일명 형식을 요구하지 않으며, `split_manifest.csv`의 확정된 `group_id`로 split 중복만 검사한다.
 
 ## 4. DataLoader batch 형식
 
@@ -318,6 +347,10 @@ Dataset의 `__getitem__()`은 다음 형태를 권장한다.
 
 ## 9. `label_map`
 
+완성 패키지는 `detector_label_map.json`을 필수로 포함한다. 이 파일은 데이터 생성
+단계에서 기록하며 runtime DataLoader는 annotation에서 계산한 클래스 구성과 같은지
+검증한 뒤 반환한다.
+
 ```json
 {
   "num_foreground_classes": 1,
@@ -343,6 +376,10 @@ Dataset의 `__getitem__()`은 다음 형태를 권장한다.
 구조는 이후 foreground 클래스가 추가되더라도 확장할 수 있게 list를 사용하지만, 현재 baseline은 단일 클래스만 허용한다.
 
 ## 10. `data_summary`
+
+완성 패키지는 `detector_data_summary.json`을 필수로 포함한다. 이 파일은 데이터 생성
+단계에서 기록하며 runtime DataLoader는 annotation과 `split_manifest.csv`에서 다시
+계산한 집계와 완전히 같은지 검증한 뒤 반환한다.
 
 ```json
 {
@@ -457,7 +494,7 @@ prediction = {
     "label": 1,
     "label_name": "pill",
     "detector_score": 0.91,
-    "detector_name": "ssdlite320_mobilenet_v3_large"
+    "detector_name": "ssdlite320_mobilenet_v3_large",
 }
 ```
 

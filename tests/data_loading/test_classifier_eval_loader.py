@@ -9,11 +9,11 @@ import pytest
 import torch
 from PIL import Image
 
-from data_loading.classifier import (
-    build_classifier_eval_loader,
-    eval_hash,
-    make_eval_summary,
-    read_samples,
+from data_loading.classifier import build_classifier_eval_loader
+from data_loading.classifier_package import (
+    calculate_classifier_eval_hash,
+    read_classifier_samples,
+    summarize_classifier_eval_samples,
 )
 
 
@@ -63,7 +63,9 @@ def _write_package(root: Path, *, split: str = "eval") -> dict[str, Any]:
             }
         )
     pd.DataFrame(rows).to_csv(root / "samples.csv", index=False)
-    summary = make_eval_summary(read_samples(root), class_map["num_classes"])
+    summary = summarize_classifier_eval_samples(
+        read_classifier_samples(root), class_map["num_classes"]
+    )
     (root / "eval_summary.json").write_text(json.dumps(summary), encoding="utf-8")
     return summary
 
@@ -80,12 +82,16 @@ def test_eval_summary_counts_only_present_classes(tmp_path: Path) -> None:
 
 def test_eval_hash_changes_when_label_changes(tmp_path: Path) -> None:
     _write_package(tmp_path)
-    samples = read_samples(tmp_path)
+    samples = read_classifier_samples(tmp_path)
     changed = samples.copy()
     changed.loc[0, "class_index"] = 1
 
-    assert eval_hash(samples) == eval_hash(samples.iloc[::-1])
-    assert eval_hash(samples) != eval_hash(changed)
+    assert calculate_classifier_eval_hash(samples) == calculate_classifier_eval_hash(
+        samples.iloc[::-1]
+    )
+    assert calculate_classifier_eval_hash(samples) != calculate_classifier_eval_hash(
+        changed
+    )
 
 
 def test_eval_loader_reads_all_samples_without_train(tmp_path: Path) -> None:

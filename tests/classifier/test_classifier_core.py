@@ -27,12 +27,10 @@ from classifier.model import (
     set_model_train_mode,
 )
 from configs.classifier import ClassifierConfig
-from data_loading.classifier import (
-    build_classifier_inputs,
-    read_samples,
-)
-from data_loading.classifier import (
-    make_data_summary as make_runtime_data_summary,
+from data_loading.classifier import build_classifier_inputs
+from data_loading.classifier_package import (
+    read_classifier_samples,
+    summarize_classifier_samples,
 )
 
 NUM_CLASSES = 8
@@ -300,7 +298,10 @@ def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> No
             )
 
     pd.DataFrame(rows).to_csv(tmp_path / "samples.csv", index=False)
-    data_summary = make_runtime_data_summary(read_samples(tmp_path), num_classes)
+    data_summary = summarize_classifier_samples(
+        read_classifier_samples(tmp_path),
+        num_classes,
+    )
     (tmp_path / "data_summary.json").write_text(
         json.dumps(data_summary, ensure_ascii=False),
         encoding="utf-8",

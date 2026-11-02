@@ -14,11 +14,11 @@ import torch
 from classifier.evaluate import EvaluationResult, evaluate_with_predictions
 from classifier.inference import load_classifier_inference_model
 from classifier.training_data import validate_classifier_training_data
-from data_loading.classifier import (
-    build_classifier_inputs,
-    make_data_summary,
-    read_samples,
-    split_hash,
+from data_loading.classifier import build_classifier_inputs
+from data_loading.classifier_package import (
+    calculate_classifier_split_hash,
+    read_classifier_samples,
+    summarize_classifier_samples,
 )
 from etl.classifier.paths import (
     DATA,
@@ -196,8 +196,8 @@ def write_classifier_v2_package(
             )
         v2_samples.to_csv(temporary_package / "samples.csv", index=False)
         write_json(temporary_package / "class_map.json", class_map)
-        summary = make_data_summary(
-            read_samples(temporary_package),
+        summary = summarize_classifier_samples(
+            read_classifier_samples(temporary_package),
             class_map["num_classes"],
         )
         write_json(temporary_package / "data_summary.json", summary)
@@ -291,7 +291,9 @@ def build_classifier_v2(
         dtype=str,
         keep_default_na=False,
     )
-    actual_hash = split_hash(read_samples(source_package_dir))
+    actual_hash = calculate_classifier_split_hash(
+        read_classifier_samples(source_package_dir)
+    )
     if actual_hash != expected_source_split_hash:
         raise ValueError(
             f"source split hash differs from the audited package: {actual_hash}"
