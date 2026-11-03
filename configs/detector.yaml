@@ -14,7 +14,7 @@ show_progress: true
 seed: 42
 
 data_factory_path: data_loading.detector:build_detector_inputs
-data_settings_path: null
+data_dir: data/detector
 
 model_name: ssdlite320_mobilenet_v3_large
 pretrained_backbone: true

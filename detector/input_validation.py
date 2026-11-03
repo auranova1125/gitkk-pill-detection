@@ -28,8 +28,6 @@ _REQUIRED_CLASS_FIELDS = {"label", "name"}
 _REQUIRED_SUMMARY_FIELDS = {
     "num_train_images",
     "num_val_images",
-    "num_train_source_annotations",
-    "num_val_source_annotations",
     "num_train_instances",
     "num_val_instances",
     "train_group_count",
@@ -46,12 +44,11 @@ _REQUIRED_SUMMARY_FIELDS = {
 _REQUIRED_TARGET_FIELDS = {"boxes", "labels", "image_id", "area", "iscrowd"}
 _REQUIRED_META_FIELDS = {
     "image_id",
-    "source_image_id",
     "file_name",
     "image_path",
     "group_id",
     "original_size",
-    "source_annotation_count",
+    "annotation_count",
     "annotation_ids",
     "bbox_xywh",
 }
@@ -144,8 +141,6 @@ def validate_detector_data_summary(
     integer_fields = (
         "num_train_images",
         "num_val_images",
-        "num_train_source_annotations",
-        "num_val_source_annotations",
         "num_train_instances",
         "num_val_instances",
         "train_group_count",
@@ -178,7 +173,6 @@ def validate_detector_data_summary(
 
 def _validate_split_summary(data_summary: Mapping[str, Any], *, split: str) -> None:
     image_count = data_summary[f"num_{split}_images"]
-    source_count = data_summary[f"num_{split}_source_annotations"]
     instance_count = data_summary[f"num_{split}_instances"]
     group_count = data_summary[f"{split}_group_count"]
     max_instances = data_summary[f"{split}_max_instances_per_image"]
@@ -187,11 +181,6 @@ def _validate_split_summary(data_summary: Mapping[str, Any], *, split: str) -> N
         f"data_summary.{split}_label_counts",
     )
 
-    if source_count != instance_count:
-        _fail(
-            f"data_summary.num_{split}_source_annotations must equal "
-            f"num_{split}_instances"
-        )
     if label_count != instance_count:
         _fail(
             f"data_summary.num_{split}_instances must equal the sum of "
@@ -368,13 +357,13 @@ def _validate_meta(
     if image_id != target["image_id"]:
         _fail(f"{name}.image_id must match batch.targets[{index}].image_id")
 
-    for field_name in ("source_image_id", "file_name", "image_path", "group_id"):
+    for field_name in ("file_name", "image_path", "group_id"):
         _require_non_empty_string(meta[field_name], f"{name}.{field_name}")
     _validate_original_size(meta["original_size"], f"{name}.original_size")
 
-    source_count = meta["source_annotation_count"]
-    if not _is_integer(source_count) or source_count <= 0:
-        _fail(f"{name}.source_annotation_count must be a positive integer")
+    annotation_count = meta["annotation_count"]
+    if not _is_integer(annotation_count) or annotation_count <= 0:
+        _fail(f"{name}.annotation_count must be a positive integer")
 
     annotation_ids = meta["annotation_ids"]
     if not isinstance(annotation_ids, list):
@@ -392,7 +381,7 @@ def _validate_meta(
 
     target_count = target["boxes"].shape[0]
     lengths = {
-        "source_annotation_count": source_count,
+        "annotation_count": annotation_count,
         "annotation_ids": len(annotation_ids),
         "bbox_xywh": len(bbox_xywh),
         "target_boxes": target_count,

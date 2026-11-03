@@ -12,7 +12,6 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, get_worker_info
 
-from .detector_data_paths import load_detector_data_paths
 from .detector_package import load_detector_package
 from .detector_transforms import (
     DEFAULT_DETECTOR_AUGMENTATION,
@@ -27,7 +26,7 @@ class DetectorDataConfig(Protocol):
 
     batch_size: int
     seed: int
-    data_settings_path: Path | None
+    data_dir: Path
     horizontal_flip: float
     vertical_flip: float
     brightness: float
@@ -113,17 +112,15 @@ class PillDetectionDataset(Dataset[dict[str, Any]]):
 
         meta = {
             "image_id": record["image_id"],
-            "source_image_id": record["source_image_id"],
             "file_name": record["original_file_name"],
             "image_path": record["image_path"],
             "group_id": record["group_id"],
             "original_size": [height, width],
-            "source_annotation_count": count,
+            "annotation_count": count,
             "annotation_ids": list(record["annotation_ids"]),
             "bbox_xywh": [list(box) for box in record["bbox_xywh"]],
-            "source_category_ids": list(record["category_ids"]),
+            "category_ids": list(record["category_ids"]),
             "drug_codes": list(record["drug_codes"]),
-            "dataset": record["dataset"],
             "transformed_boxes_xyxy": boxes.tolist(),
         }
 
@@ -141,17 +138,9 @@ def build_detector_inputs(
 ) -> tuple[DataLoader, DataLoader, dict[str, Any], dict[str, Any]]:
     """고정 분할 패키지에서 탐지 학습·검증 DataLoader를 만든다."""
 
-    records_by_split, label_map, summary = load_detector_package(
-        load_detector_data_paths(config.data_settings_path)
-    )
+    records_by_split, label_map, summary = load_detector_package(config.data_dir)
     train_augmentation = build_detector_train_augmentation(config)
     validation_augmentation = dict(DEFAULT_DETECTOR_AUGMENTATION)
-    summary = dict(
-        summary,
-        train_augmentation=train_augmentation,
-        validation_augmentation="none",
-    )
-
     train_dataset = PillDetectionDataset(
         records_by_split["train"],
         train_augmentation,

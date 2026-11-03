@@ -8,6 +8,7 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+import data_loading.factory as data_loading_factory_module
 from configs.detector import DetectorConfig
 from detector.input_validation import (
     InputValidationError,
@@ -15,14 +16,13 @@ from detector.input_validation import (
     validate_detector_label_map,
     validate_detector_training_batch,
 )
+from detector.training_data import prepare_detector_data
 
 
 def make_data_summary() -> dict[str, Any]:
     return {
         "num_train_images": 4,
         "num_val_images": 2,
-        "num_train_source_annotations": 7,
-        "num_val_source_annotations": 3,
         "num_train_instances": 7,
         "num_val_instances": 3,
         "train_group_count": 2,
@@ -79,12 +79,11 @@ class SyntheticDetectionDataset(Dataset[dict[str, Any]]):
             },
             "meta": {
                 "image_id": index,
-                "source_image_id": f"source-{index}",
                 "file_name": f"synthetic-{index}.png",
                 "image_path": f"/synthetic/synthetic-{index}.png",
                 "group_id": f"group-{index}",
                 "original_size": [height, width],
-                "source_annotation_count": object_count,
+                "annotation_count": object_count,
                 "annotation_ids": annotation_ids,
                 "bbox_xywh": bbox_xywh,
             },
@@ -143,6 +142,42 @@ def test_detector_config_defaults_and_serialization(tmp_path: Path) -> None:
     assert config.contrast == 0.0
     assert config.to_dict()["output_dir"] == str(tmp_path / "outputs")
     assert config.to_dict()["resume_from"] is None
+
+
+def test_prepare_detector_data_returns_fresh_loaders(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    valid_batch: dict[str, Any],
+    label_map: dict[str, Any],
+) -> None:
+    summary = make_data_summary()
+    loaders = [([valid_batch], [valid_batch]), ([valid_batch], [valid_batch])]
+    factory_calls = 0
+
+    def factory(*, config: DetectorConfig, device: torch.device) -> tuple[Any, ...]:
+        nonlocal factory_calls
+        assert config.device == "cpu"
+        assert device == torch.device("cpu")
+        train_loader, val_loader = loaders[factory_calls]
+        factory_calls += 1
+        return train_loader, val_loader, label_map, summary
+
+    monkeypatch.setattr(
+        data_loading_factory_module,
+        "load_data_factory",
+        lambda _: factory,
+    )
+    config = make_config(
+        tmp_path,
+        data_factory_path="synthetic.module:factory",
+        device="cpu",
+    )
+
+    prepared = prepare_detector_data(config)
+
+    assert factory_calls == 2
+    assert prepared.train_loader is loaders[1][0]
+    assert prepared.val_loader is loaders[1][1]
 
 
 @pytest.mark.parametrize(
@@ -222,7 +257,7 @@ def test_validate_detector_data_summary_accepts_consistent_counts(
     [
         ("group_overlap_count", 1, "group_overlap_count"),
         ("train_empty_image_count", 1, "train_empty_image_count"),
-        ("num_train_source_annotations", 6, "source_annotations"),
+        ("num_train_instances", 6, "num_train_instances"),
         ("train_label_counts", {"1": 6}, "train_label_counts"),
         ("train_label_counts", {"0": 7}, "pill label"),
     ],
@@ -314,12 +349,12 @@ def test_validate_detector_training_batch_rejects_non_pill_label(
         validate_detector_training_batch(invalid_batch, label_map)
 
 
-def test_validate_detector_training_batch_rejects_source_count_mismatch(
+def test_validate_detector_training_batch_rejects_annotation_count_mismatch(
     valid_batch: dict[str, Any],
     label_map: dict[str, Any],
 ) -> None:
     invalid_batch = deepcopy(valid_batch)
-    invalid_batch["meta"][0]["source_annotation_count"] = 1
+    invalid_batch["meta"][0]["annotation_count"] = 1
 
     with pytest.raises(InputValidationError, match="counts must match"):
         validate_detector_training_batch(invalid_batch, label_map)

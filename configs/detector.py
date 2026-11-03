@@ -26,8 +26,8 @@ class DetectorConfig:
     score_threshold: float
     nms_threshold: float
     early_stopping_patience: int
+    data_dir: Path = Path("data/detector")
     data_factory_path: str | None = None
-    data_settings_path: Path | None = None
     pretrained_backbone: bool = True
     device: str = "auto"
     model_name: str = "ssdlite320_mobilenet_v3_large"
@@ -44,10 +44,9 @@ class DetectorConfig:
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
+        self.data_dir = Path(self.data_dir)
         if self.resume_from is not None:
             self.resume_from = Path(self.resume_from)
-        if self.data_settings_path is not None:
-            self.data_settings_path = Path(self.data_settings_path)
 
         validate_run_name(self.run_name)
         if not self.model_name.strip():
@@ -142,7 +141,7 @@ class DetectorConfig:
         values = asdict(self)
         for field_name in (
             "output_dir",
-            "data_settings_path",
+            "data_dir",
             "resume_from",
         ):
             value = values[field_name]

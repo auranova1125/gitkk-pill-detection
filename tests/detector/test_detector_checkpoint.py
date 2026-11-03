@@ -42,8 +42,6 @@ def make_data_summary() -> dict[str, Any]:
     return {
         "num_train_images": 2,
         "num_val_images": 2,
-        "num_train_source_annotations": 3,
-        "num_val_source_annotations": 3,
         "num_train_instances": 3,
         "num_val_instances": 3,
         "train_group_count": 1,
