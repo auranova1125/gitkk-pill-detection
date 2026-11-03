@@ -14,12 +14,8 @@ show_progress: true
 inference_factory_path: data_loading.recognition:build_pill_recognition_inputs
 input_dir: data/inference
 
-detector_checkpoint_path: outputs/detector/20261103-ssdlite320-det-default-baseline-01/best.pt
-detector_label_map_path: outputs/detector/20261103-ssdlite320-det-default-baseline-01/label_map.json
-detector_name: 20261103-ssdlite320-det-default-baseline-01
-
-classifier_checkpoint_path: outputs/classifier/20261103-resnet50-cls-v1-baseline-01/best.pt
-classifier_class_map_path: outputs/classifier/20261103-resnet50-cls-v1-baseline-01/class_map.json
+detector_run_dir: outputs/detector/20261103-ssdlite320-det-default-baseline-01
+classifier_run_dir: outputs/classifier/20261103-resnet50-cls-v1-baseline-01
 
 batch_size: 4
 score_threshold: 0.25

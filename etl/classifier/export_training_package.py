@@ -181,13 +181,11 @@ def export_training_package(*, overwrite: bool = False) -> None:
     cfg = SimpleNamespace(
         batch_size=32,
         seed=42,
-        class_map_path=PKG / "class_map.json",
-        data_summary_path=PKG / "data_summary.json",
+        data_dir=PKG,
     )
     training_data = build_classifier_inputs(config=cfg, device=torch.device("cpu"))
     validate_classifier_training_data(
         training_data,
-        expected_num_classes=len(classes),
     )
     print(
         f"입력 검증 완료: train {summary['num_train_samples']}, val {summary['num_val_samples']}"

@@ -192,10 +192,7 @@ def recognize_pills(
 ) -> PillRecognitionResult:
     """이미지 batch를 탐지하고 crop을 분류해 최종 예측을 반환한다."""
 
-    num_classes = class_map.get("num_classes")
-    if not isinstance(num_classes, int) or isinstance(num_classes, bool):
-        raise TypeError("class_map.num_classes must be an integer")
-    validate_classifier_class_map(class_map, expected_num_classes=num_classes)
+    validate_classifier_class_map(class_map)
     if not isinstance(show_progress, bool):
         raise TypeError("show_progress must be a boolean")
     score_threshold = normalize_probability(score_threshold, name="score_threshold")
@@ -292,16 +289,17 @@ def recognize_pills(
 def prepare_pill_recognition_data(
     config: PillRecognitionConfig,
 ) -> PillRecognitionData:
-    """추론 factory를 한 번 호출하고 첫 batch와 실행 장치를 검증한다."""
+    """검증용 factory 결과를 소비한 뒤 새 추론 입력을 반환한다."""
 
     device = resolve_device(config.device)
     factory = load_data_factory(
         config.inference_factory_path,
         setting_name="inference_factory_path",
     )
-    data_loader = factory(config=config, batch_size=config.batch_size)
-    preview_batch = first_batch(data_loader, name="inference_loader")
+    validation_loader = factory(config=config, batch_size=config.batch_size)
+    preview_batch = first_batch(validation_loader, name="inference_loader")
     validate_inference_batch(preview_batch)
+    data_loader = factory(config=config, batch_size=config.batch_size)
     return PillRecognitionData(
         data_loader=data_loader,
         preview_batch=preview_batch,
@@ -324,10 +322,7 @@ def recognize_pills_from_config(
     validate_detector_label_map(detector_label_map)
     if not isinstance(class_map, Mapping):
         raise TypeError("class map JSON root must be a mapping")
-    num_classes = class_map.get("num_classes")
-    if not isinstance(num_classes, int) or isinstance(num_classes, bool):
-        raise TypeError("class_map.num_classes must be an integer")
-    validate_classifier_class_map(class_map, expected_num_classes=num_classes)
+    validate_classifier_class_map(class_map)
 
     detector_model, device = load_detector_inference_model(
         config.detector_checkpoint_path,
@@ -337,7 +332,6 @@ def recognize_pills_from_config(
     classifier_model, device = load_classifier_inference_model(
         config.classifier_checkpoint_path,
         class_map,
-        expected_num_classes=num_classes,
         device=device,
     )
     result = recognize_pills(

@@ -37,7 +37,6 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert classifier.run_dir == Path(
         "outputs/classifier/20261103-resnet50-cls-v1-baseline-01"
     )
-    assert classifier.expected_num_classes == 118
     assert detector.model_name == "ssdlite320_mobilenet_v3_large"
     assert detector.output_dir == Path("outputs/detector")
     assert detector.run_dir == Path(
@@ -55,6 +54,12 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert pill_recognition.run_dir == Path(
         "outputs/inference/20261103-ssdlite320-resnet50-infer-default-smoke-01"
     )
+    assert pill_recognition.detector_checkpoint_path == (
+        pill_recognition.detector_run_dir / "best.pt"
+    )
+    assert pill_recognition.classifier_class_map_path == (
+        pill_recognition.classifier_run_dir / "class_map.json"
+    )
 
 
 def test_classifier_yaml_rejects_unknown_field(tmp_path: Path) -> None:
@@ -65,8 +70,7 @@ data_factory_path: package.module:factory
 unknown_field: true
 run_name: test
 output_dir: outputs
-class_map_path: class_map.json
-data_summary_path: data_summary.json
+data_dir: data/classifier
 """,
         encoding="utf-8",
     )
@@ -80,12 +84,9 @@ def test_pill_recognition_config_rejects_non_finite_threshold(tmp_path: Path) ->
         "run_name": "inference-test",
         "inference_factory_path": None,
         "input_dir": tmp_path / "images",
-        "detector_checkpoint_path": tmp_path / "detector.pt",
-        "classifier_checkpoint_path": tmp_path / "classifier.pt",
-        "detector_label_map_path": tmp_path / "label_map.json",
-        "classifier_class_map_path": tmp_path / "class_map.json",
+        "detector_run_dir": tmp_path / "detector-run",
+        "classifier_run_dir": tmp_path / "classifier-run",
         "output_dir": tmp_path / "outputs",
-        "detector_name": "detector",
         "score_threshold": float("nan"),
     }
 
@@ -98,12 +99,9 @@ def test_pill_recognition_config_rejects_run_name_path(tmp_path: Path) -> None:
         "run_name": "inference/invalid",
         "inference_factory_path": None,
         "input_dir": tmp_path / "images",
-        "detector_checkpoint_path": tmp_path / "detector.pt",
-        "classifier_checkpoint_path": tmp_path / "classifier.pt",
-        "detector_label_map_path": tmp_path / "label_map.json",
-        "classifier_class_map_path": tmp_path / "class_map.json",
+        "detector_run_dir": tmp_path / "detector-run",
+        "classifier_run_dir": tmp_path / "classifier-run",
         "output_dir": tmp_path / "outputs",
-        "detector_name": "detector",
     }
 
     with pytest.raises(ValueError, match="path separators"):
@@ -117,12 +115,9 @@ def test_pill_recognition_config_rejects_nonstandard_run_name(
         "run_name": "inference_test",
         "inference_factory_path": None,
         "input_dir": tmp_path / "images",
-        "detector_checkpoint_path": tmp_path / "detector.pt",
-        "classifier_checkpoint_path": tmp_path / "classifier.pt",
-        "detector_label_map_path": tmp_path / "label_map.json",
-        "classifier_class_map_path": tmp_path / "class_map.json",
+        "detector_run_dir": tmp_path / "detector-run",
+        "classifier_run_dir": tmp_path / "classifier-run",
         "output_dir": tmp_path / "outputs",
-        "detector_name": "detector",
     }
 
     with pytest.raises(ValueError, match="lowercase letters"):
@@ -203,10 +198,8 @@ def test_classifier_training_reuses_validated_data(
     config = ClassifierConfig(
         run_name="training-test",
         output_dir=tmp_path / "outputs",
-        class_map_path=tmp_path / "class_map.json",
-        data_summary_path=tmp_path / "data_summary.json",
+        data_dir=tmp_path,
         data_factory_path="synthetic.module:factory",
-        expected_num_classes=num_classes,
         pretrained=False,
         device="cpu",
     )
@@ -226,7 +219,7 @@ def test_classifier_training_reuses_validated_data(
     result = train_classifier(config, data=prepared_data)
 
     assert result is sentinel
-    assert factory_calls == 1
+    assert factory_calls == 2
     assert prepared_data.device == torch.device("cpu")
 
 
