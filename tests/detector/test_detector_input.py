@@ -131,9 +131,11 @@ def make_config(tmp_path: Path, **overrides: Any) -> DetectorConfig:
 def test_detector_config_defaults_and_serialization(tmp_path: Path) -> None:
     config = make_config(tmp_path)
 
-    assert config.model_name == "ssdlite320_mobilenet_v3_large"
+    assert config.model_name == "fasterrcnn_resnet50_fpn_v2"
     assert config.seed == 42
-    assert config.batch_size == 8
+    assert config.batch_size == 1
+    assert config.image_min_size is None
+    assert config.image_max_size is None
     assert config.max_epochs == 50
     assert config.momentum == 0.9
     assert config.horizontal_flip == 0.0
@@ -187,6 +189,8 @@ def test_prepare_detector_data_returns_fresh_loaders(
         ("model_name", ""),
         ("seed", -1),
         ("batch_size", 0),
+        ("image_min_size", 0),
+        ("image_max_size", 0),
         ("max_epochs", 0),
         ("learning_rate", 0.0),
         ("learning_rate", float("nan")),
@@ -206,8 +210,23 @@ def test_detector_config_rejects_invalid_values(
     field_name: str,
     field_value: Any,
 ) -> None:
+    overrides = {field_name: field_value}
+    if field_name == "image_min_size":
+        overrides["image_max_size"] = 640
+    elif field_name == "image_max_size":
+        overrides["image_min_size"] = 384
     with pytest.raises(ValueError):
-        make_config(tmp_path, **{field_name: field_value})
+        make_config(tmp_path, **overrides)
+
+
+def test_detector_config_requires_image_sizes_together(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="configured together"):
+        make_config(tmp_path, image_min_size=384)
+
+
+def test_detector_config_rejects_reversed_image_sizes(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="less than or equal"):
+        make_config(tmp_path, image_min_size=640, image_max_size=384)
 
 
 def test_validate_detector_label_map_accepts_pill_mapping(

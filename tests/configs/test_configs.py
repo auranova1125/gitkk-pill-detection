@@ -37,10 +37,12 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert classifier.run_dir == Path(
         "outputs/classifier/20261103-resnet50-cls-v1-baseline-01"
     )
-    assert detector.model_name == "ssdlite320_mobilenet_v3_large"
+    assert detector.model_name == "fasterrcnn_resnet50_fpn_v2"
+    assert detector.image_min_size == 384
+    assert detector.image_max_size == 640
     assert detector.output_dir == Path("outputs/detector")
     assert detector.run_dir == Path(
-        "outputs/detector/20261103-ssdlite320-det-default-baseline-01"
+        "outputs/detector/20261104-fasterrcnn-r50-fpn-v2-det-default-baseline-02"
     )
     assert detector.data_factory_path == "data_loading.detector:build_detector_inputs"
     assert (

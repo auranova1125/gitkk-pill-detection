@@ -259,6 +259,8 @@ def test_load_inference_model_restores_matching_backbone_structure(
         "num_classes": 2,
         "pretrained_backbone": True,
         "nms_threshold": 0.45,
+        "image_min_size": None,
+        "image_max_size": None,
     }
 
 

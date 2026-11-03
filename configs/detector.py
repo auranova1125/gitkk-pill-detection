@@ -11,6 +11,7 @@ from configs.yaml_loading import (
     validate_boolean,
     validate_device_name,
     validate_factory_path,
+    validate_positive_integer,
     validate_run_name,
 )
 
@@ -30,9 +31,11 @@ class DetectorConfig:
     data_factory_path: str | None = None
     pretrained_backbone: bool = True
     device: str = "auto"
-    model_name: str = "ssdlite320_mobilenet_v3_large"
+    model_name: str = "fasterrcnn_resnet50_fpn_v2"
+    image_min_size: int | None = None
+    image_max_size: int | None = None
     seed: int = 42
-    batch_size: int = 8
+    batch_size: int = 1
     max_epochs: int = 50
     momentum: float = 0.9
     horizontal_flip: float = 0.0
@@ -51,6 +54,17 @@ class DetectorConfig:
         validate_run_name(self.run_name)
         if not self.model_name.strip():
             raise ValueError("model_name must not be empty")
+        if (self.image_min_size is None) != (self.image_max_size is None):
+            raise ValueError(
+                "image_min_size and image_max_size must be configured together"
+            )
+        if self.image_min_size is not None and self.image_max_size is not None:
+            validate_positive_integer(self.image_min_size, name="image_min_size")
+            validate_positive_integer(self.image_max_size, name="image_max_size")
+            if self.image_min_size > self.image_max_size:
+                raise ValueError(
+                    "image_min_size must be less than or equal to image_max_size"
+                )
         validate_factory_path(self.data_factory_path, name="data_factory_path")
         validate_boolean(self.pretrained_backbone, name="pretrained_backbone")
         validate_device_name(self.device)
