@@ -10,7 +10,7 @@ from configs.yaml_loading import (
     validate_boolean,
     validate_device_name,
     validate_factory_path,
-    validate_keys,
+    validate_run_name,
 )
 
 
@@ -45,10 +45,7 @@ class ClassifierConfig:
         if self.resume_from is not None:
             self.resume_from = Path(self.resume_from)
 
-        if not self.run_name.strip():
-            raise ValueError("run_name must not be empty")
-        if Path(self.run_name).name != self.run_name:
-            raise ValueError("run_name must not contain path separators")
+        validate_run_name(self.run_name)
         validate_factory_path(self.data_factory_path, name="data_factory_path")
         if not isinstance(self.expected_num_classes, int) or isinstance(
             self.expected_num_classes, bool
@@ -88,33 +85,20 @@ class ClassifierConfig:
             values[field_name] = str(value) if value is not None else None
         return values
 
+    @property
+    def run_dir(self) -> Path:
+        """분류기 결과 루트 아래의 현재 학습 실행 폴더를 반환한다."""
+
+        return self.output_dir / self.run_name
+
 
 def load_classifier_config(path: Path) -> ClassifierConfig:
     """분류기 YAML을 읽어 하나의 실행 설정으로 변환한다."""
 
     raw = load_task_yaml(path, expected_task="classifier")
-    validate_keys(
-        raw,
-        allowed={
-            "task",
-            "training",
-            "data_factory_path",
-            "expected_num_classes",
-            "pretrained",
-            "device",
-        },
-        required={"task", "training", "data_factory_path"},
-        context="classifier config",
-    )
-    runtime_values = {
-        "data_factory_path": raw["data_factory_path"],
-        "expected_num_classes": raw.get("expected_num_classes", 118),
-        "pretrained": raw.get("pretrained", True),
-        "device": raw.get("device", "auto"),
-    }
+    values = {key: value for key, value in raw.items() if key != "task"}
     return build_dataclass(
         ClassifierConfig,
-        raw["training"],
-        context="classifier config.training",
-        extra_values=runtime_values,
+        values,
+        context="classifier config",
     )

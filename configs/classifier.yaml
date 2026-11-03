@@ -1,22 +1,31 @@
 task: classifier
+run_name: 20261103-resnet50-cls-v1-baseline-01
+output_dir: outputs/classifier
 device: auto
+show_progress: true
+# tags:
+#   - task:classifier
+#   - stage:baseline
+#   - model:resnet50
+#   - data:cls-v1
+#   - change:baseline
+#   - device:auto
+
+seed: 42
+
 data_factory_path: data_loading.classifier:build_classifier_inputs
+class_map_path: data/training_package_classifier/class_map.json
+data_summary_path: data/training_package_classifier/data_summary.json
 expected_num_classes: 118
+
 pretrained: true
 
-training:
-  run_name: resnet50_baseline
-  output_dir: outputs
-  class_map_path: data/training_package_classifier/class_map.json
-  data_summary_path: data/training_package_classifier/data_summary.json
-  seed: 42
-  batch_size: 32
-  max_epochs: 30
-  head_only_epochs: 3
-  lr_head_only: 0.001
-  lr_layer4: 0.0001
-  lr_fc: 0.0005
-  weight_decay: 0.0001
-  early_stopping_patience: 7
-  resume_from: null
-  show_progress: true
+batch_size: 32
+max_epochs: 30
+head_only_epochs: 3
+lr_head_only: 0.001
+lr_layer4: 0.0001
+lr_fc: 0.0005
+weight_decay: 0.0001
+early_stopping_patience: 7
+resume_from: null

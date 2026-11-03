@@ -32,15 +32,29 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
         PROJECT_ROOT / "configs" / "pill_recognition.yaml"
     )
 
-    assert classifier.run_name == "resnet50_baseline"
+    assert classifier.run_name == "20261103-resnet50-cls-v1-baseline-01"
+    assert classifier.output_dir == Path("outputs/classifier")
+    assert classifier.run_dir == Path(
+        "outputs/classifier/20261103-resnet50-cls-v1-baseline-01"
+    )
     assert classifier.expected_num_classes == 118
     assert detector.model_name == "ssdlite320_mobilenet_v3_large"
+    assert detector.output_dir == Path("outputs/detector")
+    assert detector.run_dir == Path(
+        "outputs/detector/20261103-ssdlite320-det-default-baseline-01"
+    )
     assert detector.data_factory_path == "data_loading.detector:build_detector_inputs"
     assert (
         pill_recognition.inference_factory_path
         == "data_loading.recognition:build_pill_recognition_inputs"
     )
     assert pill_recognition.input_dir == Path("data/inference")
+    assert pill_recognition.run_name == (
+        "20261103-ssdlite320-resnet50-infer-default-smoke-01"
+    )
+    assert pill_recognition.run_dir == Path(
+        "outputs/inference/20261103-ssdlite320-resnet50-infer-default-smoke-01"
+    )
 
 
 def test_classifier_yaml_rejects_unknown_field(tmp_path: Path) -> None:
@@ -49,11 +63,10 @@ def test_classifier_yaml_rejects_unknown_field(tmp_path: Path) -> None:
         """task: classifier
 data_factory_path: package.module:factory
 unknown_field: true
-training:
-  run_name: test
-  output_dir: outputs
-  class_map_path: class_map.json
-  data_summary_path: data_summary.json
+run_name: test
+output_dir: outputs
+class_map_path: class_map.json
+data_summary_path: data_summary.json
 """,
         encoding="utf-8",
     )
@@ -64,6 +77,7 @@ training:
 
 def test_pill_recognition_config_rejects_non_finite_threshold(tmp_path: Path) -> None:
     values = {
+        "run_name": "inference-test",
         "inference_factory_path": None,
         "input_dir": tmp_path / "images",
         "detector_checkpoint_path": tmp_path / "detector.pt",
@@ -76,6 +90,42 @@ def test_pill_recognition_config_rejects_non_finite_threshold(tmp_path: Path) ->
     }
 
     with pytest.raises(ValueError, match="score_threshold"):
+        PillRecognitionConfig(**values)
+
+
+def test_pill_recognition_config_rejects_run_name_path(tmp_path: Path) -> None:
+    values = {
+        "run_name": "inference/invalid",
+        "inference_factory_path": None,
+        "input_dir": tmp_path / "images",
+        "detector_checkpoint_path": tmp_path / "detector.pt",
+        "classifier_checkpoint_path": tmp_path / "classifier.pt",
+        "detector_label_map_path": tmp_path / "label_map.json",
+        "classifier_class_map_path": tmp_path / "class_map.json",
+        "output_dir": tmp_path / "outputs",
+        "detector_name": "detector",
+    }
+
+    with pytest.raises(ValueError, match="path separators"):
+        PillRecognitionConfig(**values)
+
+
+def test_pill_recognition_config_rejects_nonstandard_run_name(
+    tmp_path: Path,
+) -> None:
+    values = {
+        "run_name": "inference_test",
+        "inference_factory_path": None,
+        "input_dir": tmp_path / "images",
+        "detector_checkpoint_path": tmp_path / "detector.pt",
+        "classifier_checkpoint_path": tmp_path / "classifier.pt",
+        "detector_label_map_path": tmp_path / "label_map.json",
+        "classifier_class_map_path": tmp_path / "class_map.json",
+        "output_dir": tmp_path / "outputs",
+        "detector_name": "detector",
+    }
+
+    with pytest.raises(ValueError, match="lowercase letters"):
         PillRecognitionConfig(**values)
 
 

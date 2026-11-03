@@ -11,7 +11,7 @@ from configs.yaml_loading import (
     validate_boolean,
     validate_device_name,
     validate_factory_path,
-    validate_keys,
+    validate_run_name,
 )
 
 
@@ -49,10 +49,7 @@ class DetectorConfig:
         if self.data_settings_path is not None:
             self.data_settings_path = Path(self.data_settings_path)
 
-        if not self.run_name.strip():
-            raise ValueError("run_name must not be empty")
-        if Path(self.run_name).name != self.run_name:
-            raise ValueError("run_name must not contain path separators")
+        validate_run_name(self.run_name)
         if not self.model_name.strip():
             raise ValueError("model_name must not be empty")
         validate_factory_path(self.data_factory_path, name="data_factory_path")
@@ -152,33 +149,20 @@ class DetectorConfig:
             values[field_name] = str(value) if value is not None else None
         return values
 
+    @property
+    def run_dir(self) -> Path:
+        """탐지기 결과 루트 아래의 현재 학습 실행 폴더를 반환한다."""
+
+        return self.output_dir / self.run_name
+
 
 def load_detector_config(path: Path) -> DetectorConfig:
     """탐지기 YAML을 읽어 하나의 실행 설정으로 변환한다."""
 
     raw = load_task_yaml(path, expected_task="detector")
-    validate_keys(
-        raw,
-        allowed={
-            "task",
-            "training",
-            "data_factory_path",
-            "data_settings_path",
-            "pretrained_backbone",
-            "device",
-        },
-        required={"task", "training", "data_factory_path"},
-        context="detector config",
-    )
-    runtime_values = {
-        "data_factory_path": raw["data_factory_path"],
-        "data_settings_path": raw.get("data_settings_path"),
-        "pretrained_backbone": raw.get("pretrained_backbone", True),
-        "device": raw.get("device", "auto"),
-    }
+    values = {key: value for key, value in raw.items() if key != "task"}
     return build_dataclass(
         DetectorConfig,
-        raw["training"],
-        context="detector config.training",
-        extra_values=runtime_values,
+        values,
+        context="detector config",
     )

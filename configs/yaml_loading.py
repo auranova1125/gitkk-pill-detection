@@ -1,5 +1,6 @@
 """작업별 YAML을 설정 dataclass로 변환할 때 쓰는 공통 검증 함수."""
 
+import re
 from collections.abc import Mapping
 from dataclasses import MISSING, fields
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Any
 import yaml
 
 DEVICE_NAMES = {"auto", "cpu", "mps", "cuda"}
+RUN_NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def load_task_yaml(path: Path, *, expected_task: str) -> dict[str, Any]:
@@ -88,6 +90,21 @@ def validate_device_name(value: str) -> None:
     if value.strip().lower() not in DEVICE_NAMES:
         choices = ", ".join(sorted(DEVICE_NAMES))
         raise ValueError(f"device must be one of: {choices}")
+
+
+def validate_run_name(value: str) -> None:
+    """실행 이름이 비어 있지 않고 단일 경로명인지 검사한다."""
+
+    if not isinstance(value, str):
+        raise TypeError("run_name must be a string")
+    if not value.strip():
+        raise ValueError("run_name must not be empty")
+    if Path(value).name != value:
+        raise ValueError("run_name must not contain path separators")
+    if RUN_NAME_PATTERN.fullmatch(value) is None:
+        raise ValueError(
+            "run_name must contain only lowercase letters, numbers, and hyphens"
+        )
 
 
 def validate_positive_integer(value: int, *, name: str) -> None:

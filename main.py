@@ -151,7 +151,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = recognize_pills_from_config(config)
         _print_json(
             {
-                "output_dir": str(config.output_dir),
+                "run_name": config.run_name,
+                "run_dir": str(config.run_dir),
                 "num_predictions": len(result.predictions),
                 "num_detector_errors": len(result.detector_errors),
                 "num_classifier_errors": len(result.classifier_errors),
