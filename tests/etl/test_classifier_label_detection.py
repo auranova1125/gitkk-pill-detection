@@ -4,15 +4,29 @@ from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
+from PIL import Image
 
 from etl.classifier.label_audit.detect_bbox_errors import (
     bbox_iou,
+    load_source_image,
     position_priority,
 )
 from etl.classifier.label_audit.detect_class_errors import (
     build_class_scores,
     compare_group_embeddings,
 )
+
+
+def test_local_detector_image_does_not_require_source_archives(tmp_path) -> None:
+    path = tmp_path / "detector.png"
+    pixels = np.full((12, 16, 3), [10, 80, 200], dtype=np.uint8)
+    Image.fromarray(pixels).save(path)
+    archives = {}
+    actual = load_source_image(
+        "original", "aihub", {"original.png": (str(path), "")}, archives
+    )
+    np.testing.assert_array_equal(actual, pixels)
+    assert not archives
 
 
 def test_bbox_iou_and_position_priority() -> None:

@@ -248,9 +248,12 @@ def load_source_image(
     image_index: dict[str, tuple[str, str]],
     archives: dict[str, zipfile.ZipFile],
 ) -> np.ndarray:
-    """Kaggle 폴더 또는 AI Hub zip에서 RGB 이미지를 읽는다."""
+    """지정한 로컬 이미지, Kaggle 폴더 또는 AI Hub zip에서 RGB를 읽는다."""
 
     file_name = f"{image_id}.png"
+    if file_name in image_index and not image_index[file_name][1]:
+        with Image.open(image_index[file_name][0]) as image:
+            return np.array(image.convert("RGB"))
     if source == "kaggle":
         with Image.open(KAGGLE / "train_images" / file_name) as image:
             return np.array(image.convert("RGB"))
@@ -383,13 +386,22 @@ def detect_bbox_errors(
     output_dir: Path = LABEL_AUDIT_OUTPUT,
     processes: int = 8,
     write_sheets: bool = True,
+    source_image_paths: dict[str, str] | None = None,
 ) -> pd.DataFrame:
-    """전체 v1 crop의 위치 점수를 계산하고 사람 검수 후보를 갱신한다."""
+    """입력 samples의 위치 점수를 계산하고 기존 사람 판정을 보존한다.
+
+    source_image_paths는 원본 파일명에서 로컬 이미지 경로로의 매핑이다.
+    지정하지 않으면 기존 분류기 원본 ZIP 탐색 방식을 사용한다.
+    """
 
     if processes <= 0:
         raise ValueError("processes must be greater than zero")
     samples = pd.read_csv(package_dir / "samples.csv")
-    image_index = build_source_image_index()
+    image_index = (
+        build_source_image_index()
+        if source_image_paths is None
+        else {name: (path, "") for name, path in source_image_paths.items()}
+    )
     image_groups = list(samples.groupby("image_id"))
     chunks = [image_groups[index::processes] for index in range(processes)]
     arguments = [(chunk, image_index) for chunk in chunks if chunk]
