@@ -38,6 +38,10 @@ from data_loading.classifier_package import (
 )
 from data_loading.image_transforms import CROP_MARGIN as MARGIN
 from data_loading.image_transforms import cut_pill
+from etl.classifier.legacy_image_exclusions import (
+    exclude_classifier_samples,
+    load_excluded_image_ids,
+)
 from etl.classifier.paths import (
     CLASSES,
     COMBO_ZIPS,
@@ -57,6 +61,17 @@ def export_training_package(*, overwrite: bool = False) -> None:
     crops = pd.read_csv(CROPS / "crops.csv")
     if "split" not in crops:
         raise ValueError("assign_data_splits.py를 먼저 실행하세요")
+    crops, excluded_crops = exclude_classifier_samples(
+        crops,
+        load_excluded_image_ids(),
+        image_id_column="image",
+    )
+    if not excluded_crops.empty:
+        print(
+            f"확정 제외 이미지 반영: "
+            f"{excluded_crops.image.map(str).nunique()}장, "
+            f"crop {len(excluded_crops)}개"
+        )
     files = pd.read_csv(META / "label_files.csv")
     files["code"] = files.code.str.replace("-오류", "", regex=False)
     classes = pd.read_csv(CLASSES)
