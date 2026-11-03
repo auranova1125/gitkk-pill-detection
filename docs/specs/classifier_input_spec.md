@@ -6,7 +6,7 @@
 
 이 문서는 데이터 구성 코드가 경구약제 분류기에 전달해야 하는 함수와 데이터 형식을 정의한다. 아래 명세를 만족하면 `classifier.input_validation`의 입력 검증과 `classifier.train.run_training()`을 통과할 수 있다.
 
-이 문서에서 `N`은 현재 실행이 기대하는 클래스 수를 뜻한다. 구현의 기본값과 현재 데이터 예시는 118이지만 고정된 절대값은 아니다. 클래스 수가 바뀌면 `expected_num_classes=N`을 전달하고, 같은 `N`을 `class_map`, `data_summary`, target과 모델 출력 전체에 일관되게 적용한다.
+이 문서에서 `N`은 `class_map.json`이 선언하는 클래스 수를 뜻한다. 현재 데이터 예시는 118이지만 고정된 절대값은 아니다. 검증과 모델 생성은 모두 같은 class map에서 `N`을 구한다.
 
 데이터 구성 파트가 최종적으로 제공해야 하는 값은 다음 네 가지다.
 
@@ -56,7 +56,7 @@ def build_classifier_inputs(
     return train_loader, val_loader, class_map, data_summary
 ```
 
-함수는 여러 번 호출해도 같은 분할과 같은 `class_map`을 반환해야 한다. 학습 코드는 factory를 한 번 호출하고 첫 batch까지 검증한 뒤, 같은 재순회 가능한 DataLoader로 전체 학습을 실행한다.
+함수는 여러 번 호출해도 같은 분할과 같은 `class_map`을 반환해야 한다. 학습 코드는 검증용 factory 결과의 첫 batch를 확인한 뒤 factory를 다시 호출해 새 DataLoader로 학습을 시작한다.
 
 ### 2.3 `config` 사용
 
@@ -66,10 +66,9 @@ def build_classifier_inputs(
 | --- | --- |
 | `config.batch_size` | 두 DataLoader의 batch 크기 |
 | `config.seed` | 분할, sampler와 worker의 재현 가능한 seed |
-| `config.class_map_path` | 원본 `class_map.json` 위치 |
-| `config.data_summary_path` | 원본 `data_summary.json` 위치 |
+| `config.data_dir` | `class_map.json`, `data_summary.json`, `samples.csv`, `crops/`가 함께 있는 패키지 폴더 |
 
-`run_training()`은 `class_map_path`와 `data_summary_path`를 직접 읽지 않는다. 데이터 구성 함수가 파일을 읽어서 Python dict로 반환해야 한다. 학습 코드는 전달받은 dict를 실행 디렉터리에 다시 저장한다.
+`run_training()`은 패키지 파일을 직접 읽지 않는다. 데이터 구성 함수가 `data_dir`의 파일을 읽어서 Python dict로 반환해야 한다. 학습 코드는 전달받은 dict를 실행 디렉터리에 다시 저장한다.
 
 `device`는 DataLoader 옵션을 정할 때 사용한다. Dataset에서 반환하는 tensor는 CPU tensor여도 되며, 학습 코드가 선택된 장치로 이동한다.
 
@@ -436,35 +435,17 @@ from utils.runtime import select_device
 
 device = select_device()
 config = ClassifierConfig(...)
-expected_num_classes = 118  # 현재 데이터 예시이며 필요하면 다른 N으로 변경
 train_loader, val_loader, class_map, data_summary = build_classifier_inputs(
     config=config,
     device=device,
 )
 
-validate_class_map(
-    class_map,
-    expected_num_classes=expected_num_classes,
-)
-validate_data_summary(
-    data_summary,
-    class_map,
-    expected_num_classes=expected_num_classes,
-)
-validate_batch(
-    next(iter(train_loader)),
-    class_map,
-    expected_num_classes=expected_num_classes,
-)
-validate_batch(
-    next(iter(val_loader)),
-    class_map,
-    expected_num_classes=expected_num_classes,
-)
+validate_class_map(class_map)
+validate_data_summary(data_summary, class_map)
+validate_batch(next(iter(train_loader)), class_map)
+validate_batch(next(iter(val_loader)), class_map)
 print("입력 검증 완료")
 ```
-
-현재 118종 데이터에서는 `expected_num_classes`를 생략해도 기본값 118이 사용된다. 다른 클래스 수를 사용할 때는 검증뿐 아니라 학습·상세 평가·checkpoint 로딩에도 같은 값을 전달한다.
 
 ```python
 training_result = run_training(
@@ -473,11 +454,10 @@ training_result = run_training(
     val_loader,
     class_map,
     data_summary,
-    expected_num_classes=expected_num_classes,
 )
 ```
 
-첫 batch 검증으로 sampler 또는 random transform의 난수 상태는 진행될 수 있다. factory와 DataLoader가 같은 seed에서 항상 같은 순서로 동작하고, DataLoader가 새 iterator로 전체 epoch를 다시 순회할 수 있어야 한다. 학습 코드는 검증 후 같은 DataLoader를 재순회한다.
+첫 batch 검증은 검증용 DataLoader의 sampler 또는 random transform 상태만 진행시킨다. factory는 같은 seed에서 같은 분할과 metadata를 반환해야 하며, 학습은 검증 후 새로 생성한 DataLoader로 시작한다.
 
 탐지 결과 batch는 다음처럼 검사한다.
 

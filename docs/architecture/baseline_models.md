@@ -14,7 +14,7 @@
 | Scheduler | fine-tuning 단계의 CosineAnnealingLR | 전체 학습의 CosineAnnealingLR |
 | Best 기준 | validation macro F1, 동률이면 Top-1 | 고 IoU mAP@[0.75:0.95], 동률이면 mean average recall |
 
-품목 수의 현재 기본값은 118이지만 분류기 구조의 절대값은 아니다. `ClassifierConfig.expected_num_classes`와 전달된 class map을 함께 변경할 수 있다. 탐지기는 품목 수와 무관하게 단일 foreground 클래스만 예측한다.
+현재 데이터는 118개 품목을 포함하지만 분류기 구조의 절대값은 아니다. 클래스 수는 전달된 `class_map.json`에서 결정된다. 탐지기는 품목 수와 무관하게 단일 foreground 클래스만 예측한다.
 
 ## 2. 분류기 기준
 
