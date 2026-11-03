@@ -190,7 +190,7 @@ images: list[torch.Tensor]
 
 이미지는 서로 다른 높이와 너비를 가질 수 있으므로 `[B, 3, H, W]`로 강제 stack하지 않는다.
 
-DataLoader는 ImageNet mean/std normalization을 적용하지 않는다. SSDLite 내부 transform이 normalization과 고정 입력 크기 변환을 수행한다. 외부에서 미리 `320×320`로 resize할 필요도 없다.
+DataLoader는 ImageNet mean/std normalization을 적용하지 않는다. 등록된 torchvision 탐지 모델의 내부 transform이 모델별 normalization과 resize를 수행한다. SSDLite를 위해 `320×320`으로 만들거나 Faster R-CNN을 위해 특정 크기로 미리 resize하지 않는다. Faster R-CNN의 내부 크기는 `image_min_size`와 `image_max_size` 실행 설정으로 관리하며 checkpoint에도 기록한다.
 
 geometry augmentation을 적용했다면 bbox에도 동일한 변환이 반영되어야 한다.
 
@@ -435,7 +435,7 @@ Validation에는 random transform을 적용하지 않는다.
 RGB 변환 → float32 → [0, 1] scaling
 ```
 
-SSDLite가 내부에서 resize와 normalization을 수행하므로 DataLoader에서 중복 적용하지 않는다.
+탐지 모델이 내부에서 resize와 normalization을 수행하므로 DataLoader에서 중복 적용하지 않는다.
 
 ## 12. 추론 DataLoader
 
@@ -591,7 +591,8 @@ print("탐지기 입력 검증 완료")
 
 ## 18. 공식 API 참고
 
-torchvision의 SSDLite builder는 입력 크기 320 기반 모델이며 `num_classes`에 background를 포함한다. torchvision detection tutorial은 image list와 XYXY box, label 0의 background 의미를 설명한다.
+torchvision의 SSDLite와 Faster R-CNN builder는 모두 `num_classes`에 background를 포함한다. torchvision detection tutorial은 image list와 XYXY box, label 0의 background 의미를 설명한다.
 
 - [torchvision SSDLite320 MobileNetV3-Large](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html)
+- [torchvision Faster R-CNN ResNet50-FPN v2](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn_v2.html)
 - [TorchVision Object Detection Finetuning Tutorial](https://docs.pytorch.org/tutorials/intermediate/torchvision_tutorial.html)
