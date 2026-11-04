@@ -16,6 +16,9 @@ input_dir: data/inference
 
 detector_run_dir: outputs/detector/20261103-ssdlite320-det-default-baseline-01
 classifier_run_dir: outputs/classifier/20261103-resnet50-cls-v1-baseline-01
+detector_backend: torchvision
+detector_image_size: 640
+detector_nms_threshold: 0.45
 
 batch_size: 4
 score_threshold: 0.25

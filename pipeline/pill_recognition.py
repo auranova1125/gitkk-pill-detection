@@ -1,8 +1,9 @@
 """단일 클래스 알약 탐지와 품목 분류를 연결한 pill recognition 추론."""
 
 import csv
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -31,12 +32,17 @@ from data_loading.validation import (
 )
 from detector.inference import (
     DetectorInferenceError,
+    DetectorInferenceResult,
     DetectorPrediction,
     load_detector_inference_model,
     predict_detector,
     validate_inference_batch,
 )
 from detector.input_validation import validate_detector_label_map
+from detector.yolo_inference import (
+    load_yolo_detector_inference_model,
+    predict_yolo_detector,
+)
 from utils.io import read_json, write_json
 from utils.plotting import resolve_korean_font
 from utils.runtime import resolve_device
@@ -51,6 +57,7 @@ SUBMISSION_FIELD_NAMES = (
     "bbox_h",
     "score",
 )
+DetectorPredictor = Callable[..., DetectorInferenceResult]
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,7 +187,7 @@ def build_classifier_batch(
 
 
 def recognize_pills(
-    detector_model: nn.Module,
+    detector_model: Any,
     classifier_model: nn.Module,
     data_loader: Iterable[Mapping[str, Any]],
     class_map: Mapping[str, Any],
@@ -189,6 +196,7 @@ def recognize_pills(
     score_threshold: float,
     detector_name: str,
     show_progress: bool = True,
+    detector_predictor: DetectorPredictor = predict_detector,
 ) -> PillRecognitionResult:
     """이미지 batch를 탐지하고 crop을 분류해 최종 예측을 반환한다."""
 
@@ -198,6 +206,8 @@ def recognize_pills(
     score_threshold = normalize_probability(score_threshold, name="score_threshold")
     if not isinstance(detector_name, str) or not detector_name.strip():
         raise ValueError("detector_name must be a non-empty string")
+    if not callable(detector_predictor):
+        raise TypeError("detector_predictor must be callable")
 
     class_lookup = {entry["class_index"]: entry for entry in class_map["classes"]}
     detector_predictions: list[DetectorPrediction] = []
@@ -222,7 +232,7 @@ def recognize_pills(
                     )
                 seen_image_ids.add(image_id)
 
-            detector_result = predict_detector(
+            detector_result = detector_predictor(
                 detector_model,
                 [batch],
                 device,
@@ -286,6 +296,35 @@ def recognize_pills(
     )
 
 
+def load_configured_detector(
+    config: PillRecognitionConfig,
+    label_map: Mapping[str, Any],
+    *,
+    device: torch.device,
+) -> tuple[Any, torch.device, DetectorPredictor]:
+    """설정한 backend의 탐지 모델과 공통 예측 함수를 반환한다."""
+
+    if config.detector_backend == "ultralytics":
+        model, selected_device = load_yolo_detector_inference_model(
+            config.detector_checkpoint_path,
+            label_map,
+            device=device,
+        )
+        predictor = partial(
+            predict_yolo_detector,
+            image_size=config.detector_image_size,
+            nms_threshold=config.detector_nms_threshold,
+        )
+        return model, selected_device, predictor
+
+    model, selected_device = load_detector_inference_model(
+        config.detector_checkpoint_path,
+        label_map,
+        device=device,
+    )
+    return model, selected_device, predict_detector
+
+
 def prepare_pill_recognition_data(
     config: PillRecognitionConfig,
 ) -> PillRecognitionData:
@@ -324,8 +363,8 @@ def recognize_pills_from_config(
         raise TypeError("class map JSON root must be a mapping")
     validate_classifier_class_map(class_map)
 
-    detector_model, device = load_detector_inference_model(
-        config.detector_checkpoint_path,
+    detector_model, device, detector_predictor = load_configured_detector(
+        config,
         detector_label_map,
         device=device,
     )
@@ -343,6 +382,7 @@ def recognize_pills_from_config(
         score_threshold=config.score_threshold,
         detector_name=config.detector_name,
         show_progress=config.show_progress,
+        detector_predictor=detector_predictor,
     )
     save_pill_recognition_artifacts(result, run_dir)
     save_submission_csv(result, run_dir)

@@ -64,6 +64,9 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert pill_recognition.detector_checkpoint_path == (
         pill_recognition.detector_run_dir / "best.pt"
     )
+    assert pill_recognition.detector_backend == "torchvision"
+    assert pill_recognition.detector_image_size == 640
+    assert pill_recognition.detector_nms_threshold == pytest.approx(0.45)
     assert pill_recognition.classifier_class_map_path == (
         pill_recognition.classifier_run_dir / "class_map.json"
     )
@@ -74,6 +77,24 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert yolo_detector.max_epochs == 1
     assert yolo_detector.run_dir == Path(
         "outputs/detector/20261104-yolo26s-det-default-smoke-01"
+    )
+
+
+def test_pill_recognition_config_uses_yolo_checkpoint_layout(
+    tmp_path: Path,
+) -> None:
+    config = PillRecognitionConfig(
+        run_name="yolo-inference-test",
+        inference_factory_path=None,
+        input_dir=tmp_path / "images",
+        detector_run_dir=tmp_path / "yolo-run",
+        classifier_run_dir=tmp_path / "classifier-run",
+        output_dir=tmp_path / "outputs",
+        detector_backend="ultralytics",
+    )
+
+    assert config.detector_checkpoint_path == (
+        tmp_path / "yolo-run" / "weights" / "best.pt"
     )
 
 
