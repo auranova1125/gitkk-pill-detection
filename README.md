@@ -244,6 +244,7 @@ uv run python main.py check-detector-data
 
 ### 실험·EDA
 
+- [YOLO26s 탐지기 학습](notebooks/experiments/train_yolo26s_detector.ipynb)
 - [분류기 baseline 분석](notebooks/experiments/classifier_baseline_analysis.ipynb)
 - [분류 데이터 품질 확인](notebooks/eda/classifier_data_quality.ipynb)
 

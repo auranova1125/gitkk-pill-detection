@@ -6,12 +6,15 @@ from configs.pill_recognition import (
     PillRecognitionConfig,
     load_pill_recognition_config,
 )
+from configs.yolo_detector import YoloDetectorConfig, load_yolo_detector_config
 
 __all__ = [
     "ClassifierConfig",
     "DetectorConfig",
     "PillRecognitionConfig",
+    "YoloDetectorConfig",
     "load_classifier_config",
     "load_detector_config",
     "load_pill_recognition_config",
+    "load_yolo_detector_config",
 ]

@@ -13,9 +13,11 @@ from classifier.training_data import prepare_classifier_data
 from configs import (
     ClassifierConfig,
     PillRecognitionConfig,
+    YoloDetectorConfig,
     load_classifier_config,
     load_detector_config,
     load_pill_recognition_config,
+    load_yolo_detector_config,
 )
 from data_loading.classifier import build_classifier_inputs
 from data_loading.factory import load_data_factory
@@ -30,6 +32,9 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     detector = load_detector_config(PROJECT_ROOT / "configs" / "detector.yaml")
     pill_recognition = load_pill_recognition_config(
         PROJECT_ROOT / "configs" / "pill_recognition.yaml"
+    )
+    yolo_detector = load_yolo_detector_config(
+        PROJECT_ROOT / "configs" / "yolo_detector.yaml"
     )
 
     assert classifier.run_name == "20261103-resnet50-cls-v1-baseline-01"
@@ -62,6 +67,37 @@ def test_default_yaml_configs_load_into_existing_model_configs() -> None:
     assert pill_recognition.classifier_class_map_path == (
         pill_recognition.classifier_run_dir / "class_map.json"
     )
+    assert yolo_detector.model_name == "yolo26s.pt"
+    assert yolo_detector.device == "mps"
+    assert yolo_detector.image_size == 640
+    assert yolo_detector.batch_size == 4
+    assert yolo_detector.max_epochs == 1
+    assert yolo_detector.run_dir == Path(
+        "outputs/detector/20261104-yolo26s-det-default-smoke-01"
+    )
+
+
+def test_yolo_detector_config_rejects_invalid_augmentation(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="mosaic"):
+        YoloDetectorConfig(
+            run_name="yolo-test",
+            output_dir=tmp_path,
+            mosaic=1.1,
+        )
+
+
+def test_yolo_detector_config_requires_explicit_optimizer_for_learning_rate(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="optimizer must be explicit"):
+        YoloDetectorConfig(
+            run_name="yolo-test",
+            output_dir=tmp_path,
+            optimizer="auto",
+            initial_learning_rate=0.001,
+        )
 
 
 def test_classifier_yaml_rejects_unknown_field(tmp_path: Path) -> None:
