@@ -40,6 +40,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_CONFIG_DIR / "detector.yaml",
     )
 
+    yolo_detector_parser = subparsers.add_parser(
+        "train-yolo-detector",
+        help="Ultralytics YOLO 탐지기 학습을 실행한다.",
+    )
+    yolo_detector_parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_DIR / "yolo_detector.yaml",
+    )
+
     evaluate_parser = subparsers.add_parser(
         "evaluate",
         help="분류기 또는 탐지기 checkpoint를 평가한다.",
@@ -118,6 +128,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "best_checkpoint_path": str(result.best_checkpoint_path),
                 "completed_epoch": result.completed_epoch,
                 "best_epoch": result.best_epoch,
+            }
+        )
+        return 0
+
+    if args.command == "train-yolo-detector":
+        from configs.yolo_detector import load_yolo_detector_config
+        from detector.yolo_training import train_yolo_detector
+
+        config = load_yolo_detector_config(args.config)
+        result = train_yolo_detector(config)
+        _print_json(
+            {
+                "run_dir": str(result.run_dir),
+                "best_checkpoint_path": str(result.best_checkpoint_path),
+                "last_checkpoint_path": str(result.last_checkpoint_path),
+                "metrics_path": str(result.metrics_path),
             }
         )
         return 0

@@ -47,9 +47,7 @@ def load_excluded_image_ids(path: Path = DEFAULT_EXCLUSIONS_PATH) -> set[str]:
 
     exclusions = pd.read_csv(path, dtype=str, keep_default_na=False)
     if EXCLUDED_FILE_NAME_COLUMN not in exclusions:
-        raise ValueError(
-            f"제외 목록에 필수 열이 없습니다: {EXCLUDED_FILE_NAME_COLUMN}"
-        )
+        raise ValueError(f"제외 목록에 필수 열이 없습니다: {EXCLUDED_FILE_NAME_COLUMN}")
     image_ids = {
         normalize_source_image_id(file_name)
         for file_name in exclusions[EXCLUDED_FILE_NAME_COLUMN]
@@ -114,9 +112,9 @@ def apply_exclusions_to_classifier_package(
         temporary_summary_path.replace(summary_path)
 
     return ImageExclusionResult(
-        excluded_image_count=excluded["image_id"].map(
-            normalize_source_image_id
-        ).nunique(),
+        excluded_image_count=excluded["image_id"]
+        .map(normalize_source_image_id)
+        .nunique(),
         excluded_sample_count=len(excluded),
         train_sample_count=int((remaining["split"] == "train").sum()),
         validation_sample_count=int((remaining["split"] == "val").sum()),

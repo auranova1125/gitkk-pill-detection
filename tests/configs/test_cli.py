@@ -8,6 +8,7 @@ def test_parser_exposes_expected_commands() -> None:
 
     assert parser.parse_args(["train-classifier"]).command == "train-classifier"
     assert parser.parse_args(["train-detector"]).command == "train-detector"
+    assert parser.parse_args(["train-yolo-detector"]).command == "train-yolo-detector"
     assert (
         parser.parse_args(
             [

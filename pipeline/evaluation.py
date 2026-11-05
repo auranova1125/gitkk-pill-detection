@@ -92,7 +92,9 @@ def evaluate_pill_recognition(
     unknown_image_ids = predictions_by_image.keys() - targets_by_image.keys()
     if unknown_image_ids:
         unknown = sorted(unknown_image_ids)[0]
-        raise ValueError(f"prediction image_id is absent from validation data: {unknown}")
+        raise ValueError(
+            f"prediction image_id is absent from validation data: {unknown}"
+        )
 
     metric = MeanAveragePrecision(
         box_format="xyxy",
@@ -121,9 +123,7 @@ def evaluate_pill_recognition(
         )
         details.extend(image_details)
         statuses = [detail.status for detail in image_details]
-        detection_matches += statuses.count("correct") + statuses.count(
-            "misclassified"
-        )
+        detection_matches += statuses.count("correct") + statuses.count("misclassified")
         correct_predictions += statuses.count("correct")
         misclassified += statuses.count("misclassified")
         false_positives += statuses.count("false_positive")
