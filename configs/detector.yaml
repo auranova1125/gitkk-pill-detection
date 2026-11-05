@@ -1,27 +1,40 @@
 task: detector
+run_name: 20261104-fasterrcnn-r50-fpn-v2-det-default-baseline-02
+output_dir: outputs/detector
 device: auto
-# 기본 runtime DataLoader factory. 다른 구현을 실험할 때 module:function을 바꾼다.
-data_factory_path: data_loading.detector:build_detector_inputs
-data_settings_path: null
-pretrained_backbone: true
+show_progress: true
+# tags:
+#   - task:detector
+#   - stage:baseline
+#   - model:fasterrcnn-r50-fpn-v2
+#   - data:det-default
+#   - change:baseline
+#   - device:auto
 
-training:
-  run_name: ssdlite320_baseline
-  output_dir: outputs
-  model_name: ssdlite320_mobilenet_v3_large
-  seed: 42
-  batch_size: 8
-  max_epochs: 50
-  learning_rate: 0.005
-  momentum: 0.9
-  weight_decay: 0.0005
-  # 이미지와 bbox에 함께 적용하는 학습 증강 확률/강도
-  horizontal_flip: 0.0
-  vertical_flip: 0.0
-  brightness: 0.0
-  contrast: 0.0
-  score_threshold: 0.25
-  nms_threshold: 0.45
-  early_stopping_patience: 7
-  resume_from: null
-  show_progress: true
+seed: 42
+
+data_factory_path: data_loading.detector:build_detector_inputs
+data_dir: data/detector
+
+model_name: fasterrcnn_resnet50_fpn_v2
+pretrained_backbone: true
+# Faster R-CNN 내부 resize. 원본 bbox 좌표는 DataLoader에서 변경하지 않는다.
+image_min_size: 384
+image_max_size: 640
+
+batch_size: 1
+max_epochs: 20
+learning_rate: 0.005
+momentum: 0.9
+weight_decay: 0.0005
+
+# 이미지와 bbox에 함께 적용하는 학습 증강 확률/강도
+horizontal_flip: 0.0
+vertical_flip: 0.0
+brightness: 0.0
+contrast: 0.0
+
+score_threshold: 0.25
+nms_threshold: 0.45
+early_stopping_patience: 7
+resume_from: null

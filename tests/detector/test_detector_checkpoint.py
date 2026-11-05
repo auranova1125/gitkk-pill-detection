@@ -42,8 +42,6 @@ def make_data_summary() -> dict[str, Any]:
     return {
         "num_train_images": 2,
         "num_val_images": 2,
-        "num_train_source_annotations": 3,
-        "num_val_source_annotations": 3,
         "num_train_instances": 3,
         "num_val_instances": 3,
         "train_group_count": 1,
@@ -108,6 +106,8 @@ def model_config() -> dict[str, Any]:
         "num_classes": 2,
         "pretrained_backbone": False,
         "nms_threshold": 0.45,
+        "image_min_size": None,
+        "image_max_size": None,
     }
 
 
@@ -248,6 +248,28 @@ def test_checkpoint_compatibility_rejects_mismatch(
             expected_label_map_hash="expected-label-map",
             expected_split_hash="synthetic-split",
         )
+
+
+def test_checkpoint_compatibility_accepts_legacy_missing_image_sizes() -> None:
+    legacy_model_config = {
+        "num_classes": 2,
+        "pretrained_backbone": False,
+        "nms_threshold": 0.45,
+    }
+    checkpoint = {
+        "model_name": "ssdlite320_mobilenet_v3_large",
+        "model_config": legacy_model_config,
+        "label_map_hash": "expected-label-map",
+        "split_hash": "synthetic-split",
+    }
+
+    validate_checkpoint_compatibility(
+        checkpoint,
+        expected_model_name="ssdlite320_mobilenet_v3_large",
+        expected_model_config=model_config(),
+        expected_label_map_hash="expected-label-map",
+        expected_split_hash="synthetic-split",
+    )
 
 
 def test_early_stopping_uses_recall_to_break_map_tie() -> None:

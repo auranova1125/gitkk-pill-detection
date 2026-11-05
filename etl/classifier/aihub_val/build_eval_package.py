@@ -412,7 +412,8 @@ def write_package(
     )
     save_table(excluded, package_dir / "excluded.csv")
     summary = summarize_classifier_eval_samples(
-        read_classifier_samples(package_dir), class_map["num_classes"]
+        read_classifier_samples(package_dir),
+        class_map["num_classes"],
     )
     (package_dir / "eval_summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

@@ -1,0 +1,42 @@
+task: yolo_detector
+run_name: 20261104-yolo26s-det-default-smoke-01
+output_dir: outputs/detector
+data_dir: data/detector
+device: mps
+# tags:
+#   - task:detector
+#   - stage:smoke
+#   - model:yolo26s
+#   - data:det-default
+#   - change:baseline
+#   - device:mps
+
+model_name: yolo26s.pt
+seed: 42
+image_size: 640
+batch_size: 4
+max_epochs: 1
+early_stopping_patience: 7
+workers: 0
+cache_images: false
+deterministic: true
+show_progress: true
+
+optimizer: auto
+initial_learning_rate: null
+weight_decay: 0.0005
+
+# inference/validation에서 사용할 기준값. 학습 중 validation은 낮은 conf부터 계산한다.
+score_threshold: 0.25
+nms_threshold: 0.45
+
+# 이미지와 bbox에 함께 적용되는 Ultralytics 학습 증강
+horizontal_flip: 0.5
+vertical_flip: 0.5
+hsv_hue: 0.015
+hsv_saturation: 0.4
+hsv_value: 0.2
+translate: 0.1
+scale: 0.3
+mosaic: 0.5
+close_mosaic_epochs: 1

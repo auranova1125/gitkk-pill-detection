@@ -243,7 +243,10 @@ def evaluate_external_package(
         progress_description="External evaluation",
     )
     result = summarize_external_evaluation(
-        artifacts, class_map, read_classifier_samples(package_dir), eval_summary
+        artifacts,
+        class_map,
+        read_classifier_samples(package_dir),
+        eval_summary,
     )
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

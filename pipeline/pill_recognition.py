@@ -1,7 +1,9 @@
 """단일 클래스 알약 탐지와 품목 분류를 연결한 pill recognition 추론."""
 
-from collections.abc import Iterable, Mapping, Sequence
+import csv
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -16,25 +18,46 @@ from classifier.inference import (
 )
 from classifier.input_validation import validate_classifier_class_map
 from configs.pill_recognition import PillRecognitionConfig
-from data_loading.factory import load_data_factory
+from data_loading.factory import first_batch, load_data_factory
 from data_loading.image_transforms import (
     CLASSIFIER_IMAGE_SIZE,
     clip_xyxy_to_image,
     crop_tensor_xyxy,
     preprocess_classifier_crop,
 )
-from data_loading.validation import normalize_probability, validate_rgb_image_tensor
+from data_loading.validation import (
+    normalize_bbox_xywh,
+    normalize_probability,
+    validate_rgb_image_tensor,
+)
 from detector.inference import (
     DetectorInferenceError,
+    DetectorInferenceResult,
     DetectorPrediction,
     load_detector_inference_model,
     predict_detector,
     validate_inference_batch,
 )
 from detector.input_validation import validate_detector_label_map
+from detector.yolo_inference import (
+    load_yolo_detector_inference_model,
+    predict_yolo_detector,
+)
 from utils.io import read_json, write_json
 from utils.plotting import resolve_korean_font
 from utils.runtime import resolve_device
+
+SUBMISSION_FIELD_NAMES = (
+    "annotation_id",
+    "image_id",
+    "category_id",
+    "bbox_x",
+    "bbox_y",
+    "bbox_w",
+    "bbox_h",
+    "score",
+)
+DetectorPredictor = Callable[..., DetectorInferenceResult]
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +100,15 @@ class PillRecognitionResult:
             "detector_errors": [error.to_dict() for error in self.detector_errors],
             "classifier_errors": [error.to_dict() for error in self.classifier_errors],
         }
+
+
+@dataclass(frozen=True, slots=True)
+class PillRecognitionData:
+    """검증을 마쳐 미리보기와 통합 추론에 재사용할 입력."""
+
+    data_loader: Iterable[Mapping[str, Any]]
+    preview_batch: Mapping[str, Any]
+    device: torch.device
 
 
 def build_classifier_batch(
@@ -155,7 +187,7 @@ def build_classifier_batch(
 
 
 def recognize_pills(
-    detector_model: nn.Module,
+    detector_model: Any,
     classifier_model: nn.Module,
     data_loader: Iterable[Mapping[str, Any]],
     class_map: Mapping[str, Any],
@@ -164,18 +196,18 @@ def recognize_pills(
     score_threshold: float,
     detector_name: str,
     show_progress: bool = True,
+    detector_predictor: DetectorPredictor = predict_detector,
 ) -> PillRecognitionResult:
     """이미지 batch를 탐지하고 crop을 분류해 최종 예측을 반환한다."""
 
-    num_classes = class_map.get("num_classes")
-    if not isinstance(num_classes, int) or isinstance(num_classes, bool):
-        raise TypeError("class_map.num_classes must be an integer")
-    validate_classifier_class_map(class_map, expected_num_classes=num_classes)
+    validate_classifier_class_map(class_map)
     if not isinstance(show_progress, bool):
         raise TypeError("show_progress must be a boolean")
     score_threshold = normalize_probability(score_threshold, name="score_threshold")
     if not isinstance(detector_name, str) or not detector_name.strip():
         raise ValueError("detector_name must be a non-empty string")
+    if not callable(detector_predictor):
+        raise TypeError("detector_predictor must be callable")
 
     class_lookup = {entry["class_index"]: entry for entry in class_map["classes"]}
     detector_predictions: list[DetectorPrediction] = []
@@ -200,7 +232,7 @@ def recognize_pills(
                     )
                 seen_image_ids.add(image_id)
 
-            detector_result = predict_detector(
+            detector_result = detector_predictor(
                 detector_model,
                 [batch],
                 device,
@@ -264,50 +296,117 @@ def recognize_pills(
     )
 
 
-def recognize_pills_from_config(
+def load_configured_detector(
     config: PillRecognitionConfig,
-) -> PillRecognitionResult:
-    """설정의 factory와 두 checkpoint를 불러와 알약 인식을 실행한다."""
+    label_map: Mapping[str, Any],
+    *,
+    device: torch.device,
+) -> tuple[Any, torch.device, DetectorPredictor]:
+    """설정한 backend의 탐지 모델과 공통 예측 함수를 반환한다."""
+
+    if config.detector_backend == "ultralytics":
+        model, selected_device = load_yolo_detector_inference_model(
+            config.detector_checkpoint_path,
+            label_map,
+            device=device,
+        )
+        predictor = partial(
+            predict_yolo_detector,
+            image_size=config.detector_image_size,
+            nms_threshold=config.detector_nms_threshold,
+        )
+        return model, selected_device, predictor
+
+    model, selected_device = load_detector_inference_model(
+        config.detector_checkpoint_path,
+        label_map,
+        device=device,
+    )
+    return model, selected_device, predict_detector
+
+
+def prepare_pill_recognition_data(
+    config: PillRecognitionConfig,
+) -> PillRecognitionData:
+    """검증용 factory 결과를 소비한 뒤 새 추론 입력을 반환한다."""
 
     device = resolve_device(config.device)
     factory = load_data_factory(
         config.inference_factory_path,
         setting_name="inference_factory_path",
     )
+    validation_loader = factory(config=config, batch_size=config.batch_size)
+    preview_batch = first_batch(validation_loader, name="inference_loader")
+    validate_inference_batch(preview_batch)
+    data_loader = factory(config=config, batch_size=config.batch_size)
+    return PillRecognitionData(
+        data_loader=data_loader,
+        preview_batch=preview_batch,
+        device=device,
+    )
+
+
+def recognize_pills_from_config(
+    config: PillRecognitionConfig,
+    *,
+    data: PillRecognitionData | None = None,
+) -> PillRecognitionResult:
+    """검증된 입력과 두 checkpoint로 알약 인식을 실행한다."""
+
+    prepared_data = data or prepare_pill_recognition_data(config)
+    run_dir = _prepare_pill_recognition_run(config)
+    device = prepared_data.device
     detector_label_map = read_json(config.detector_label_map_path)
     class_map = read_json(config.classifier_class_map_path)
     validate_detector_label_map(detector_label_map)
     if not isinstance(class_map, Mapping):
         raise TypeError("class map JSON root must be a mapping")
-    num_classes = class_map.get("num_classes")
-    if not isinstance(num_classes, int) or isinstance(num_classes, bool):
-        raise TypeError("class_map.num_classes must be an integer")
-    validate_classifier_class_map(class_map, expected_num_classes=num_classes)
+    validate_classifier_class_map(class_map)
 
-    inference_loader = factory(config=config, batch_size=config.batch_size)
-    detector_model, device = load_detector_inference_model(
-        config.detector_checkpoint_path,
+    detector_model, device, detector_predictor = load_configured_detector(
+        config,
         detector_label_map,
         device=device,
     )
     classifier_model, device = load_classifier_inference_model(
         config.classifier_checkpoint_path,
         class_map,
-        expected_num_classes=num_classes,
         device=device,
     )
     result = recognize_pills(
         detector_model,
         classifier_model,
-        inference_loader,
+        prepared_data.data_loader,
         class_map,
         device,
         score_threshold=config.score_threshold,
         detector_name=config.detector_name,
         show_progress=config.show_progress,
+        detector_predictor=detector_predictor,
     )
-    save_pill_recognition_artifacts(result, config.output_dir)
+    save_pill_recognition_artifacts(result, run_dir)
+    save_submission_csv(result, run_dir)
     return result
+
+
+def _prepare_pill_recognition_run(config: PillRecognitionConfig) -> Path:
+    """기존 결과 덮어쓰기를 막고 실제 추론 설정을 실행 폴더에 기록한다."""
+
+    run_dir = config.run_dir
+    artifact_names = (
+        "pill_predictions.json",
+        "pill_recognition_errors.json",
+        "submission.csv",
+    )
+    existing = [run_dir / name for name in artifact_names if (run_dir / name).exists()]
+    if existing:
+        names = ", ".join(path.name for path in existing)
+        raise FileExistsError(
+            f"run directory already contains inference artifacts: {names}"
+        )
+    run_dir.mkdir(parents=True, exist_ok=True)
+    write_json(run_dir / "resolved_config.json", config.to_dict(), sort_keys=True)
+    return run_dir
 
 
 def save_pill_recognition_artifacts(
@@ -334,6 +433,76 @@ def save_pill_recognition_artifacts(
         },
     )
     return predictions_path, errors_path
+
+
+def save_submission_csv(
+    result: PillRecognitionResult,
+    output_dir: Path,
+) -> Path:
+    """통합 예측을 Kaggle 제출 형식의 CSV로 저장한다."""
+
+    if not isinstance(result, PillRecognitionResult):
+        raise TypeError("result must be a PillRecognitionResult")
+
+    normalized_predictions: list[
+        tuple[int, PillPrediction, tuple[float, float, float, float]]
+    ] = []
+    detection_ids: set[str] = set()
+    for index, prediction in enumerate(result.predictions):
+        if not isinstance(prediction.image_id, str):
+            raise TypeError(f"predictions[{index}].image_id must be a string")
+        if not prediction.image_id.isascii() or not prediction.image_id.isdigit():
+            raise ValueError(
+                f"predictions[{index}].image_id must be an ASCII integer string"
+            )
+        if prediction.detection_id in detection_ids:
+            raise ValueError(f"duplicate detection_id: {prediction.detection_id}")
+        detection_ids.add(prediction.detection_id)
+        if (
+            not isinstance(prediction.category_id, int)
+            or isinstance(prediction.category_id, bool)
+            or prediction.category_id <= 0
+        ):
+            raise ValueError(
+                f"predictions[{index}].category_id must be a positive integer"
+            )
+        bbox_xywh = normalize_bbox_xywh(
+            prediction.bbox_xywh,
+            name=f"predictions[{index}].bbox_xywh",
+        )
+        normalize_probability(
+            prediction.final_score,
+            name=f"predictions[{index}].final_score",
+        )
+        normalized_predictions.append((int(prediction.image_id), prediction, bbox_xywh))
+
+    normalized_predictions.sort(
+        key=lambda item: (item[0], item[1].detection_id),
+    )
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    submission_path = output_dir / "submission.csv"
+    with submission_path.open("w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=SUBMISSION_FIELD_NAMES)
+        writer.writeheader()
+        for annotation_id, (image_id, prediction, bbox_xywh) in enumerate(
+            normalized_predictions,
+            start=1,
+        ):
+            x, y, width, height = bbox_xywh
+            writer.writerow(
+                {
+                    "annotation_id": annotation_id,
+                    "image_id": image_id,
+                    "category_id": prediction.category_id,
+                    "bbox_x": x,
+                    "bbox_y": y,
+                    "bbox_w": width,
+                    "bbox_h": height,
+                    "score": prediction.final_score,
+                }
+            )
+    return submission_path
 
 
 def plot_pill_predictions(

@@ -64,7 +64,8 @@ def _write_package(root: Path, *, split: str = "eval") -> dict[str, Any]:
         )
     pd.DataFrame(rows).to_csv(root / "samples.csv", index=False)
     summary = summarize_classifier_eval_samples(
-        read_classifier_samples(root), class_map["num_classes"]
+        read_classifier_samples(root),
+        class_map["num_classes"],
     )
     (root / "eval_summary.json").write_text(json.dumps(summary), encoding="utf-8")
     return summary
@@ -116,6 +117,15 @@ def test_eval_loader_rejects_training_splits(tmp_path: Path) -> None:
     _write_package(tmp_path, split="val")
 
     with pytest.raises(ValueError, match="split"):
+        build_classifier_eval_loader(tmp_path, device=torch.device("cpu"))
+
+
+def test_eval_loader_rejects_empty_samples(tmp_path: Path) -> None:
+    _write_package(tmp_path)
+    samples = pd.read_csv(tmp_path / "samples.csv").iloc[:0]
+    samples.to_csv(tmp_path / "samples.csv", index=False)
+
+    with pytest.raises(ValueError, match="샘플이 없습니다"):
         build_classifier_eval_loader(tmp_path, device=torch.device("cpu"))
 
 

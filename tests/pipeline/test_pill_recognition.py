@@ -1,6 +1,8 @@
 """탐지기와 분류기 pill recognition 추론 pipeline 테스트."""
 
+import csv
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -8,10 +10,16 @@ import pytest
 import torch
 from torch import nn
 
+import pipeline.pill_recognition as pill_recognition_module
+from configs.pill_recognition import PillRecognitionConfig
 from pipeline import (
+    PillRecognitionData,
     plot_pill_predictions,
+    prepare_pill_recognition_data,
     recognize_pills,
+    recognize_pills_from_config,
     save_pill_recognition_artifacts,
+    save_submission_csv,
 )
 
 
@@ -46,6 +54,18 @@ def make_batch(*, image_id: int = 7) -> dict[str, Any]:
             }
         ],
     }
+
+
+def make_config(tmp_path: Path) -> PillRecognitionConfig:
+    return PillRecognitionConfig(
+        run_name="inference-test",
+        inference_factory_path=None,
+        input_dir=tmp_path / "images",
+        detector_run_dir=tmp_path / "detector-test",
+        classifier_run_dir=tmp_path / "classifier-test",
+        output_dir=tmp_path / "outputs" / "inference",
+        device="cpu",
+    )
 
 
 def test_recognize_pills_combines_predictions(
@@ -99,6 +119,173 @@ def test_recognize_pills_rejects_duplicate_image_ids(
         )
 
 
+def test_prepare_pill_recognition_run_records_config_and_rejects_overwrite(
+    tmp_path: Path,
+) -> None:
+    config = make_config(tmp_path)
+
+    run_dir = pill_recognition_module._prepare_pill_recognition_run(config)
+    resolved_config = json.loads(
+        (run_dir / "resolved_config.json").read_text(encoding="utf-8")
+    )
+
+    assert run_dir == config.run_dir
+    assert resolved_config["run_name"] == "inference-test"
+    assert resolved_config["output_dir"] == str(tmp_path / "outputs" / "inference")
+
+    (run_dir / "pill_predictions.json").write_text("[]\n", encoding="utf-8")
+    with pytest.raises(FileExistsError, match="inference artifacts"):
+        pill_recognition_module._prepare_pill_recognition_run(config)
+
+
+def test_prepare_pill_recognition_data_returns_fresh_loader(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = make_config(tmp_path)
+    loaders = [[make_batch()], [make_batch()]]
+    factory_calls = 0
+
+    def factory(*, config: PillRecognitionConfig, batch_size: int):
+        nonlocal factory_calls
+        assert config.run_name == "inference-test"
+        assert batch_size == 4
+        loader = loaders[factory_calls]
+        factory_calls += 1
+        return loader
+
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "load_data_factory",
+        lambda factory_path, *, setting_name: factory,
+    )
+
+    prepared_data = prepare_pill_recognition_data(config)
+
+    assert factory_calls == 2
+    assert prepared_data.data_loader is loaders[1]
+    assert prepared_data.preview_batch is loaders[0][0]
+    assert prepared_data.device == torch.device("cpu")
+
+
+def test_recognize_pills_from_config_saves_submission_csv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    classifier_class_map: dict[str, Any],
+    detector_label_map: dict[str, Any],
+) -> None:
+    config = make_config(tmp_path)
+    config.detector_run_dir.mkdir()
+    config.classifier_run_dir.mkdir()
+    config.detector_label_map_path.write_text(
+        json.dumps(detector_label_map),
+        encoding="utf-8",
+    )
+    config.classifier_class_map_path.write_text(
+        json.dumps(classifier_class_map),
+        encoding="utf-8",
+    )
+    batch = make_batch()
+    prepared_data = PillRecognitionData(
+        data_loader=[batch],
+        preview_batch=batch,
+        device=torch.device("cpu"),
+    )
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "load_detector_inference_model",
+        lambda *args, **kwargs: (FixedDetector(), torch.device("cpu")),
+    )
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "load_classifier_inference_model",
+        lambda *args, **kwargs: (FixedClassifier(), torch.device("cpu")),
+    )
+
+    result = recognize_pills_from_config(config, data=prepared_data)
+
+    with (config.run_dir / "submission.csv").open(
+        encoding="utf-8", newline=""
+    ) as csv_file:
+        rows = list(csv.DictReader(csv_file))
+    assert len(result.predictions) == 1
+    assert rows[0]["image_id"] == "7"
+    assert rows[0]["category_id"] == "1901"
+
+
+def test_recognize_pills_from_config_selects_yolo_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    classifier_class_map: dict[str, Any],
+    detector_label_map: dict[str, Any],
+) -> None:
+    config = replace(
+        make_config(tmp_path),
+        detector_backend="ultralytics",
+        detector_image_size=640,
+        detector_nms_threshold=0.45,
+    )
+    (config.detector_run_dir / "weights").mkdir(parents=True)
+    config.classifier_run_dir.mkdir()
+    config.detector_label_map_path.write_text(
+        json.dumps(detector_label_map),
+        encoding="utf-8",
+    )
+    config.classifier_class_map_path.write_text(
+        json.dumps(classifier_class_map),
+        encoding="utf-8",
+    )
+    batch = make_batch()
+    prepared_data = PillRecognitionData(
+        data_loader=[batch],
+        preview_batch=batch,
+        device=torch.device("cpu"),
+    )
+    captured: dict[str, Any] = {}
+
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "load_yolo_detector_inference_model",
+        lambda path, label_map, *, device: (
+            captured.update(checkpoint_path=path) or FixedDetector(),
+            device,
+        ),
+    )
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "load_classifier_inference_model",
+        lambda *args, **kwargs: (FixedClassifier(), torch.device("cpu")),
+    )
+
+    def fake_yolo_predictor(
+        model: Any,
+        data_loader: Any,
+        device: torch.device,
+        **kwargs: Any,
+    ):
+        captured.update(kwargs)
+        return pill_recognition_module.predict_detector(
+            model,
+            data_loader,
+            device,
+            score_threshold=kwargs["score_threshold"],
+            detector_name=kwargs["detector_name"],
+        )
+
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "predict_yolo_detector",
+        fake_yolo_predictor,
+    )
+
+    result = recognize_pills_from_config(config, data=prepared_data)
+
+    assert len(result.predictions) == 1
+    assert captured["checkpoint_path"] == config.detector_checkpoint_path
+    assert captured["image_size"] == 640
+    assert captured["nms_threshold"] == pytest.approx(0.45)
+
+
 def test_save_and_plot_pill_recognition_artifacts(
     tmp_path: Path,
     classifier_class_map: dict[str, Any],
@@ -126,3 +313,65 @@ def test_save_and_plot_pill_recognition_artifacts(
     assert predictions[0]["class_name"] == "drug-1"
     assert errors == {"detector_errors": [], "classifier_errors": []}
     assert len(figure.axes[0].patches) == 1
+
+
+def test_save_submission_csv_uses_competition_columns(
+    tmp_path: Path,
+    classifier_class_map: dict[str, Any],
+) -> None:
+    result = recognize_pills(
+        FixedDetector(),
+        FixedClassifier(),
+        [make_batch(image_id=10), make_batch(image_id=2)],
+        classifier_class_map,
+        torch.device("cpu"),
+        score_threshold=0.5,
+        detector_name="fixed-detector",
+        show_progress=False,
+    )
+
+    submission_path = save_submission_csv(result, tmp_path)
+    with submission_path.open(encoding="utf-8", newline="") as csv_file:
+        rows = list(csv.DictReader(csv_file))
+
+    assert list(rows[0]) == [
+        "annotation_id",
+        "image_id",
+        "category_id",
+        "bbox_x",
+        "bbox_y",
+        "bbox_w",
+        "bbox_h",
+        "score",
+    ]
+    assert [row["annotation_id"] for row in rows] == ["1", "2"]
+    assert [row["image_id"] for row in rows] == ["2", "10"]
+    assert all(row["category_id"] == "1901" for row in rows)
+    assert rows[0]["bbox_x"] == "2.0"
+    assert rows[0]["bbox_y"] == "3.0"
+    assert rows[0]["bbox_w"] == "16.0"
+    assert rows[0]["bbox_h"] == "17.0"
+    assert float(rows[0]["score"]) == pytest.approx(result.predictions[0].final_score)
+
+
+def test_save_submission_csv_rejects_non_numeric_image_id(
+    tmp_path: Path,
+    classifier_class_map: dict[str, Any],
+) -> None:
+    result = recognize_pills(
+        FixedDetector(),
+        FixedClassifier(),
+        [make_batch()],
+        classifier_class_map,
+        torch.device("cpu"),
+        score_threshold=0.5,
+        detector_name="fixed-detector",
+        show_progress=False,
+    )
+    invalid_result = replace(
+        result,
+        predictions=(replace(result.predictions[0], image_id="image-7"),),
+    )
+
+    with pytest.raises(ValueError, match="ASCII integer string"):
+        save_submission_csv(invalid_result, tmp_path)

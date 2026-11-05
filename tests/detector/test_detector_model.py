@@ -5,7 +5,8 @@ from typing import Any
 import pytest
 import torch
 from torch import nn
-from torchvision.models import MobileNet_V3_Large_Weights
+from torchvision.models import MobileNet_V3_Large_Weights, ResNet50_Weights
+from torchvision.models.detection.faster_rcnn import FasterRCNN
 from torchvision.models.detection.ssd import SSD
 
 import detector.model as model_module
@@ -13,6 +14,7 @@ from detector.model import (
     MODEL_BUILDERS,
     available_detector_models,
     build_detector_model,
+    build_fasterrcnn_resnet50_fpn_v2,
     build_ssdlite320,
 )
 from utils.runtime import select_device
@@ -46,8 +48,11 @@ def make_images_and_targets() -> tuple[
     return images, targets
 
 
-def test_available_detector_models_contains_ssdlite() -> None:
-    assert available_detector_models() == ("ssdlite320_mobilenet_v3_large",)
+def test_available_detector_models_contains_registered_models() -> None:
+    assert available_detector_models() == (
+        "fasterrcnn_resnet50_fpn_v2",
+        "ssdlite320_mobilenet_v3_large",
+    )
 
 
 def test_build_detector_model_dispatches_registered_builder(
@@ -60,10 +65,14 @@ def test_build_detector_model_dispatches_registered_builder(
         num_classes: int,
         pretrained_backbone: bool,
         nms_threshold: float,
+        image_min_size: int | None,
+        image_max_size: int | None,
     ) -> nn.Module:
         captured["num_classes"] = num_classes
         captured["pretrained_backbone"] = pretrained_backbone
         captured["nms_threshold"] = nms_threshold
+        captured["image_min_size"] = image_min_size
+        captured["image_max_size"] = image_max_size
         return nn.Identity()
 
     monkeypatch.setitem(MODEL_BUILDERS, "fake_detector", fake_builder)
@@ -80,6 +89,8 @@ def test_build_detector_model_dispatches_registered_builder(
         "num_classes": NUM_MODEL_CLASSES,
         "pretrained_backbone": False,
         "nms_threshold": 0.4,
+        "image_min_size": None,
+        "image_max_size": None,
     }
 
 
@@ -151,6 +162,62 @@ def test_build_ssdlite_configures_two_model_classes() -> None:
     assert model.transform.min_size == (320,)
     assert model.transform.max_size == 320
     assert model.nms_thresh == pytest.approx(0.4)
+
+
+@pytest.mark.parametrize(
+    ("pretrained_backbone", "expected_weights"),
+    [
+        (True, ResNet50_Weights.IMAGENET1K_V2),
+        (False, None),
+    ],
+)
+def test_build_fasterrcnn_selects_backbone_weights(
+    monkeypatch: pytest.MonkeyPatch,
+    pretrained_backbone: bool,
+    expected_weights: ResNet50_Weights | None,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_fasterrcnn_builder(**kwargs: Any) -> nn.Module:
+        captured.update(kwargs)
+        return nn.Identity()
+
+    monkeypatch.setattr(
+        model_module,
+        "fasterrcnn_resnet50_fpn_v2",
+        fake_fasterrcnn_builder,
+    )
+
+    model = build_fasterrcnn_resnet50_fpn_v2(
+        num_classes=NUM_MODEL_CLASSES,
+        pretrained_backbone=pretrained_backbone,
+    )
+
+    assert isinstance(model, nn.Identity)
+    assert captured == {
+        "weights": None,
+        "weights_backbone": expected_weights,
+        "num_classes": NUM_MODEL_CLASSES,
+        "box_nms_thresh": 0.5,
+        "min_size": 800,
+        "max_size": 1333,
+    }
+
+
+def test_build_fasterrcnn_configures_two_model_classes() -> None:
+    model = build_fasterrcnn_resnet50_fpn_v2(
+        num_classes=NUM_MODEL_CLASSES,
+        pretrained_backbone=False,
+        nms_threshold=0.4,
+        image_min_size=384,
+        image_max_size=640,
+    )
+
+    assert isinstance(model, FasterRCNN)
+    assert model.roi_heads.box_predictor.cls_score.out_features == NUM_MODEL_CLASSES
+    assert model.transform.min_size == (384,)
+    assert model.transform.max_size == 640
+    assert model.roi_heads.nms_thresh == pytest.approx(0.4)
 
 
 def test_ssdlite_training_forward_and_backward() -> None:

@@ -28,7 +28,9 @@ data/
 │   ├── train_images/
 │   └── train_annotations/
 └── detector/
-    └── training_package_detector.zip
+    ├── images/
+    ├── annotations.json
+    └── split_manifest.csv
 ```
 
 탐지기 패키지의 `split_manifest.csv`를 사용하면 동일한 원본 그룹이 분류기 train과 validation에 나뉘는 것을 막을 수 있다.
@@ -43,7 +45,7 @@ uv run python -m etl.classifier.build_classifier_dataset
 
 주요 옵션은 다음과 같다.
 
-- `--detector-package`: 탐지기 학습 패키지 경로
+- `--detector-data-dir`: 탐지기 데이터 폴더 경로
 - `--target`: 클래스별 선정 목표 수
 - `--skip-png-validation`: 원천 PNG 존재 여부 검사를 생략
 - `--overwrite`: 기존 crop·export 결과를 명시적으로 교체

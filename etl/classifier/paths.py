@@ -19,9 +19,7 @@ CLASSES = Path(__file__).with_name("classes.csv")
 META = DATA / "classifier" / "meta"  # 선정 목록, bbox
 CROPS = DATA / "classifier" / "crops"  # crops/<약 코드>/*.jpg
 EXPORT = DATA / "classifier" / "export"  # 분류기 팀에 넘기는 입력 패키지
-DETECTOR_PACKAGE = (
-    DATA / "detector" / "training_package_detector.zip"
-)  # 탐지기 학습 패키지 (split_manifest.csv)
+DETECTOR_DATA = DATA / "detector"  # images/, annotations.json, split_manifest.csv
 REPORTS = (
     ROOT / "reports" / "data" / "classifier"
 )  # 실행 결과 문서 (자동 생성, git에 올림)
