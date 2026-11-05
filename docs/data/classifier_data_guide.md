@@ -91,6 +91,39 @@ image = transform(crop_pill(original_image, (x, y, w, h)))
 `near_dup_in_train=True`인 val 샘플 799개는 그룹은 다르지만 거의 같은 사진(알약 하나만 다른 조합)이 train에 있다.
 전체 val과 이 샘플을 뺀 val(2,064개)의 Macro F1을 함께 보면, train 사진을 외워서 맞힌 몫을 확인할 수 있다.
 
+## AI Hub val 외부 평가셋
+
+v2 val은 기준 모델이 모두 맞혀서 실험끼리 비교할 수 없다. 그래서 **학습에 쓰지 않는** AI Hub val(조합)로 평가 전용 패키지를 만들었다. 만드는 방법은 [분류 데이터 ETL](classifier_etl.md#ai-hub-val-외부-평가셋), 구성은 [평가셋 보고서](../../reports/data/classifier/aihub_val_eval_package_report.md).
+
+| 데이터 | 역할 | 사용 시점 |
+| --- | --- | --- |
+| v2 train | 학습 | 매 epoch |
+| v2 val | best epoch 선택 | 매 epoch |
+| **AI Hub val** | **실험 간 비교** | 학습이 끝난 checkpoint |
+
+```text
+eval_package_aihub_val/
+├── class_map.json      v2와 같음
+├── eval_summary.json   crop·사진·그룹 수, 클래스별 수, eval_hash
+├── samples.csv         v2와 같은 열. split은 모두 "eval"
+├── excluded.csv        뺀 사진·crop과 사유
+└── crops/<약 코드>/<sample_id>.png
+```
+
+평가:
+```bash
+uv run python -m classifier.evaluate_external \
+  --checkpoint <best.pt> \
+  --package data/classifier/export/eval_package_aihub_val \
+  --output-dir outputs/classifier_eval/aihub_val/<run_name>
+```
+
+- 로더는 `data_loading.classifier.build_classifier_eval_loader`다. train 없이 평가셋만 읽고, 전처리는 val과 같다
+- 평가셋에는 118종 중 54종만 있다. **Macro F1(평가셋에 있는 54종 평균)**을 주 지표로 보고, Top-1과 클래스별 Recall은 개수와 함께 읽는다
+- `near_dup_in_train=True` crop을 뺀 점수도 `evaluation_report.md`에 함께 나온다
+- 실험 기간에는 AI Hub val을 학습에 넣지 않는다. 이 점수를 보며 설정을 반복해서 고치면 평가셋에도 과적합되므로, 실험 선택용으로만 쓴다
+- 실험 기록에는 checkpoint와 함께 `eval_hash`를 적는다
+
 ## 분류기 팀과 확인할 것 (실험 후 결정)
 지금은 명세서대로 두고, 학습 결과를 보고 바꿀지 정한다.
 

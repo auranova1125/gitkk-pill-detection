@@ -10,6 +10,8 @@ import pandas as pd
 from utils.io import read_json
 
 CLASSIFIER_SPLIT_VERSION = "detector-split-manifest-v1"
+CLASSIFIER_EVAL_VERSION = "external-eval-v1"
+CLASSIFIER_EVAL_SPLIT = "eval"
 CLASSIFIER_MAPPING_COLUMNS = ("category_id", "item_seq", "name")
 
 
@@ -83,6 +85,51 @@ def summarize_classifier_samples(
     }
 
 
+def calculate_classifier_eval_hash(samples: pd.DataFrame) -> str:
+    """평가 샘플과 정답 라벨로 외부 평가 패키지의 식별자를 만든다."""
+
+    key = {
+        "version": CLASSIFIER_EVAL_VERSION,
+        "samples": sorted(
+            f"{sample_id}:{class_index}"
+            for sample_id, class_index in zip(
+                samples.sample_id,
+                samples.class_index,
+                strict=True,
+            )
+        ),
+    }
+    return hashlib.sha256(
+        json.dumps(key, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+
+
+def summarize_classifier_eval_samples(
+    samples: pd.DataFrame,
+    num_classes: int,
+) -> dict[str, Any]:
+    """외부 평가 샘플에서 ``eval_summary.json`` 내용을 계산한다."""
+
+    class_counts = samples.class_index.value_counts()
+    counts = {
+        str(class_index): int(class_counts.get(class_index, 0))
+        for class_index in range(num_classes)
+    }
+    return {
+        "num_classes": num_classes,
+        "num_eval_samples": len(samples),
+        "num_eval_images": samples.image_id.nunique(),
+        "eval_group_count": samples.group_id.nunique(),
+        "eval_class_counts": counts,
+        "eval_class_indices": [
+            class_index
+            for class_index in range(num_classes)
+            if counts[str(class_index)] > 0
+        ],
+        "eval_hash": calculate_classifier_eval_hash(samples),
+    }
+
+
 def validate_classifier_sample_mappings(
     samples: pd.DataFrame,
     class_map: dict[str, Any],
@@ -137,3 +184,34 @@ def load_classifier_package(
             "같은 패키지의 파일인지 확인하세요."
         )
     return samples, class_map, data_summary
+
+
+def load_classifier_eval_package(
+    data_dir: str | Path,
+) -> tuple[pd.DataFrame, dict[str, Any], dict[str, Any]]:
+    """학습과 분리된 외부 평가 패키지를 읽고 내부 일관성을 확인한다."""
+
+    package_dir = Path(data_dir).expanduser().resolve()
+    class_map = read_json(package_dir / "class_map.json")
+    eval_summary = read_json(package_dir / "eval_summary.json")
+    samples = read_classifier_samples(package_dir)
+    if samples.empty:
+        raise ValueError("평가 패키지에 샘플이 없습니다.")
+    validate_classifier_sample_mappings(samples, class_map)
+
+    invalid_splits = set(samples.split) - {CLASSIFIER_EVAL_SPLIT}
+    if invalid_splits:
+        raise ValueError(
+            f"평가 패키지의 split은 모두 {CLASSIFIER_EVAL_SPLIT!r}이어야 합니다: "
+            f"{sorted(invalid_splits)}"
+        )
+    actual_summary = summarize_classifier_eval_samples(
+        samples,
+        class_map["num_classes"],
+    )
+    if actual_summary != eval_summary:
+        raise ValueError(
+            "eval_summary.json이 samples.csv와 맞지 않습니다. "
+            "같은 패키지의 파일인지 확인하세요."
+        )
+    return samples, class_map, eval_summary

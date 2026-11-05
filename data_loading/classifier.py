@@ -32,7 +32,10 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
-from data_loading.classifier_package import load_classifier_package
+from data_loading.classifier_package import (
+    load_classifier_eval_package,
+    load_classifier_package,
+)
 from data_loading.image_transforms import (
     build_classifier_train_transform,
     build_classifier_validation_transform,
@@ -101,6 +104,34 @@ def seed_classifier_worker(_worker_id: int) -> None:
     seed = torch.initial_seed() % 2**32
     np.random.seed(seed)
     random.seed(seed)
+
+
+def build_classifier_eval_loader(
+    package_dir: str | Path,
+    *,
+    batch_size: int = 64,
+    device: torch.device,
+) -> tuple[DataLoader[dict[str, Any]], dict[str, Any], dict[str, Any]]:
+    """학습과 분리된 외부 평가 패키지로 결정적 DataLoader를 만든다."""
+
+    samples, class_map, eval_summary = load_classifier_eval_package(package_dir)
+    root = Path(package_dir).expanduser().resolve()
+    dataset = PillCropDataset(
+        samples,
+        root,
+        build_classifier_validation_transform(),
+    )
+    uses_cuda = torch.device(device).type == "cuda"
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=2 if uses_cuda else 0,
+        pin_memory=uses_cuda,
+        collate_fn=collate_classifier_samples,
+        worker_init_fn=seed_classifier_worker,
+    )
+    return loader, class_map, eval_summary
 
 
 # ── 데이터 구성 함수 (명세서 2.2) ─────────────────────────────────────────
