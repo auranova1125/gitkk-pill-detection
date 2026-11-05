@@ -174,9 +174,7 @@ def apply_detector_exclusions(
         excluded_images=len(excluded_images),
         excluded_annotations=len(excluded_annotations),
         train_images=int((remaining_manifest["split"] == "train").sum()),
-        validation_images=int(
-            (remaining_manifest["split"] == "validation").sum()
-        ),
+        validation_images=int((remaining_manifest["split"] == "validation").sum()),
     )
 
 

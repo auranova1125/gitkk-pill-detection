@@ -1,6 +1,6 @@
 # 경구약제 118종 분류기 결과 보고서
 
-> 기준 모델 `resnet50_baseline_v1`의 holdout validation 결과다. 탐지 bbox 연결(6절)은 탐지기 결과가 나온 뒤 갱신한다.
+> 기준 모델 `resnet50_baseline_v1`의 holdout validation 결과다. 이후 정제 데이터와 탐지기 연결 결과는 모델별 실험 보고서에서 관리한다.
 
 ## 1. 실험 개요
 
@@ -85,23 +85,15 @@
 
 상세 결과는 실행 디렉터리의 `val_predictions.json`과 `error_samples.json`을 사용한다.
 
-## 6. 탐지 bbox 연결 결과
+## 6. 탐지기 연결 결과
 
-```text
-final_score = detector_score × classifier_score
-```
-
-| 항목 | 결과 |
-| --- | --- |
-| GT bbox 분류 성능 | TBD |
-| 예측 bbox end-to-end mAP@[0.75:0.95] | TBD |
-| 연결한 detector | TBD |
+분류기는 SSDLite320, Faster R-CNN, YOLO11s, YOLO26s의 예측 bbox와 연결해 검증하였다. 탐지 위치와 품목 분류를 함께 반영한 결과는 [탐지기 모델 비교 요약](detector_report.md)과 각 모델의 상세 보고서에서 확인한다. 이 문서의 수치는 정제 전 분류기 v1 기준선을 보존한다.
 
 ## 7. 한계와 후속 작업
 
 - Validation 오분류 5건이 모두 라벨·bbox 오류여서, 현재 validation으로는 모델 간 차이를 구분하기 어렵다. 같은 종류의 오류가 train에도 있을 수 있으므로, 교차 검증 예측으로 전체 데이터의 라벨 오류를 찾아 데이터 다음 버전에서 제외한다.
 - Kaggle 사례는 탐지기 데이터에도 같은 이미지가 있으므로 탐지기 담당과 공유한다.
-- GT bbox와 예측 bbox 사이의 crop domain gap을 end-to-end 평가해야 한다.
+- 정답 bbox와 예측 bbox의 crop 차이는 탐지기별 통합 평가에서 계속 확인한다.
 - 클래스별 표본 수가 적어 macro F1과 소수 클래스 recall의 변동성을 함께 확인해야 한다.
 - 전체 허용 데이터 재학습과 `final.pt` 생성 여부는 detector 연결 결과와 제출 일정에 따라 결정한다.
 

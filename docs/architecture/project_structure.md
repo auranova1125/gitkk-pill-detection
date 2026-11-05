@@ -18,6 +18,7 @@ gitkk-pill-detection/
 ├── configs/
 │   ├── classifier.py / classifier.yaml
 │   ├── detector.py / detector.yaml
+│   ├── yolo_detector.py / yolo_detector.yaml
 │   └── pill_recognition.py / pill_recognition.yaml
 ├── classifier/
 │   ├── model.py
@@ -28,11 +29,13 @@ gitkk-pill-detection/
 │   ├── input_validation.py
 │   └── checkpoint.py
 ├── detector/
-│   └── classifier와 같은 역할별 파일
+│   ├── classifier와 같은 역할별 파일
+│   └── yolo_training.py / yolo_inference.py
 ├── data_loading/
 │   ├── classifier.py / classifier_package.py
 │   ├── detector.py / detector_package.py
 │   ├── detector_transforms.py
+│   ├── yolo.py
 │   ├── recognition.py
 │   ├── image_transforms.py / validation.py / factory.py
 │   └── synthetic.py
@@ -46,9 +49,8 @@ gitkk-pill-detection/
 │   └── build_classifier_dataset.py
 ├── etl/detector/
 │   ├── codeit_source.py
-│   ├── select_source.py
+│   ├── apply_image_exclusions.py
 │   ├── training_package.py
-│   └── build_detector_dataset.py
 ├── pipeline/pill_recognition.py
 ├── utils/runtime.py / io.py
 ├── notebooks/
@@ -56,8 +58,10 @@ gitkk-pill-detection/
 │   ├── experiments/
 │   └── eda/
 ├── reports/
+│   ├── index.md
 │   ├── baseline/
 │   ├── experiments/
+│   ├── figures/
 │   └── data/
 │       ├── classifier/
 │       └── detector/
@@ -70,11 +74,11 @@ gitkk-pill-detection/
 ## 3. 설정과 데이터의 단일 기준
 
 - 학습 입력 위치는 작업별 `config.data_dir` 하나로 정한다.
-- 탐지 분할은 `data/detector/split_manifest.csv`, annotation은 `annotations.json` 하나가 기준이다.
+- 탐지 분할은 `data/detector/split_manifest.csv`, annotation은 `annotations/train.json`과 `annotations/validation.json`이 기준이다.
 - 분류 품목 매핑과 클래스 수는 `class_map.json`이 기준이다. `samples.csv`의 품목 열은 샘플 추적용 복사본이며 로딩할 때 class map과 전 행을 비교한다.
 - 증강은 데이터 metadata가 아니라 실행 설정(`configs/*.yaml` 또는 Notebook override)에만 둔다.
 - 통합 추론은 detector와 classifier의 실행 폴더만 받고 checkpoint와 map 파일 경로를 정해진 artifact 이름으로 계산한다.
-- 실행 폴더의 `resolved_config.yaml`, label/class map과 data summary는 재현성을 위한 snapshot이며 원본 입력을 대신하지 않는다.
+- 실행 폴더의 `resolved_config.json`, label/class map과 data summary는 재현성을 위한 snapshot이며 원본 입력을 대신하지 않는다.
 
 ## 4. 데이터 경계
 
@@ -95,7 +99,10 @@ gitkk-pill-detection/
 `submission.csv`를 실행 폴더에 저장한다. `score`는 탐지 점수와 분류 확률을 곱한 결합
 점수다.
 
-탐지 ETL은 확정된 Codeit 원천 adapter와 최종 패키지 검증만 구현한다. 형식이 확정되지 않은 SELECT adapter와 전체 조립 함수는 조용히 임의 처리하지 않고 `NotImplementedError`를 발생시키는 플레이스홀더다.
+탐지 ETL은 확정된 Codeit 원천 adapter, 확정 제외 목록 적용과 최종 패키지 검증을
+담당한다. 최초 SELECT 원천 변환과 그룹 분할은 저장소 범위가 아니며, 전달된 완성
+패키지를 임의로 재분할하지 않는다. YOLO label view는 원천 ETL 산출물이 아니라 검증된
+패키지에서 재생성할 수 있는 학습용 view이므로 `data_loading/yolo.py`가 준비한다.
 
 ## 5. 분류기·탐지기 대칭성
 
@@ -133,27 +140,31 @@ Baseline Notebook은 `실행 설정 → 입력 준비·검증 → 실행 → 결
 
 탐지기의 bbox 사전 확인, 분류기의 유사 사진 제외 점수처럼 작업에만 필요한 셀은 공통
 흐름 뒤나 해당 단계 가까이에 별도로 둔다.
+
+## 7. 보고서와 실행 산출물
+
 - `reports/baseline/`: 고정된 기준 모델의 결과
 - `reports/experiments/`: 같은 조건에서 변경점과 결과를 누적하는 비교 기록
 - `reports/data/`: ETL 산출물과 데이터 검증 기록
+- `reports/figures/`: Git에 남길 핵심 비교 그림
+- `outputs/`: checkpoint, 전체 예측과 실행별 상세 산출물. Git 추적 제외
 
-## 7. 안전 규칙
+보고서 탐색 시작점은 [`reports/index.md`](../../reports/index.md)다.
+
+## 8. 안전 규칙
 
 - 신규 학습은 기존 `best.pt`, `last.pt`, `metrics.csv`를 묵시적으로 덮어쓰지 않는다.
 - ETL은 기존 crop·export 폴더를 `--overwrite` 없이 삭제하지 않는다.
 - DataLoader, checkpoint, 모델 출력과 pipeline 경계에서 입력 검증을 유지한다.
 - 분류 클래스 수 118은 기본값이며 설정으로 변경 가능하다.
 
-## 8. 후속 브랜치 범위
+## 9. 확장 원칙
 
-다음 항목은 이 구조 리팩터링에 포함하지 않았다.
+- 새 torchvision 탐지기는 기존 registry와 공통 학습·평가 경계를 우선 사용한다.
+- 호출 규격이 다른 backend는 기존 loop에 조건문을 누적하지 않고 별도 adapter로 격리한다.
+- 선택 실험 도구는 `experiment` 의존성 그룹에 추가하고 기본 실행 경로와 분리한다.
 
-- 분류기·탐지기 모델 registry 확장
-- 필수·실험 의존성 계층 분리
-- W&B 실험 추적
-- 실제 탐지 결과를 사용한 end-to-end 평가
-
-## 9. 관련 문서
+## 10. 관련 문서
 
 - [기준 모델과 교체 기준](baseline_models.md)
 - [실행 이름·태그·결과 저장 규칙](../experiments/run_conventions.md)

@@ -1,4 +1,4 @@
-"""검증된 탐지 학습 패키지를 Ultralytics YOLO 형식으로 내보낸다."""
+"""검증된 탐지 패키지에서 Ultralytics YOLO 학습 view를 준비한다."""
 
 import argparse
 import shutil
@@ -244,7 +244,7 @@ def _validate_exported_yolo_dataset(
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="검증된 detector package를 Ultralytics YOLO 형식으로 내보냅니다."
+        description="검증된 detector package의 Ultralytics YOLO view를 준비합니다."
     )
     parser.add_argument(
         "--data-dir",

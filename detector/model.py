@@ -63,9 +63,7 @@ def build_fasterrcnn_resnet50_fpn_v2(
     resolved_min_size = 800 if image_min_size is None else image_min_size
     resolved_max_size = 1333 if image_max_size is None else image_max_size
 
-    backbone_weights = (
-        ResNet50_Weights.IMAGENET1K_V2 if pretrained_backbone else None
-    )
+    backbone_weights = ResNet50_Weights.IMAGENET1K_V2 if pretrained_backbone else None
     return fasterrcnn_resnet50_fpn_v2(
         weights=None,
         weights_backbone=backbone_weights,
@@ -153,6 +151,4 @@ def _validate_image_size_pair(
         if value <= 0:
             raise ValueError(f"{name} must be greater than zero")
     if image_min_size > image_max_size:
-        raise ValueError(
-            "image_min_size must be less than or equal to image_max_size"
-        )
+        raise ValueError("image_min_size must be less than or equal to image_max_size")

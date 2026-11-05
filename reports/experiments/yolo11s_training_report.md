@@ -23,7 +23,7 @@
 Train과 val은 고정 분할을 유지했다. 학습·검증 손실은 처음보다 감소했으며
 후반 val 개선이 작아졌다. 20 epoch 이후 선택 기준이 7 epoch 동안 개선되지 않아 종료했다.
 
-![학습·검증 손실](assets/yolo11s_v2_losses.png)
+![학습·검증 손실](../figures/yolo11s/training_losses.png)
 
 | val loss | 1 epoch | 27 epoch |
 | --- | ---: | ---: |
@@ -44,7 +44,7 @@ Train과 val은 고정 분할을 유지했다. 학습·검증 손실은 처음�
 | score 0.25 후 recall (matching IoU 0.5) | 1.000000 |
 | score 0.25 후 이미지당 개수 절대 오차 | 0.000000 |
 
-![탐지 threshold 효과](assets/yolo11s_v2_threshold.png)
+![탐지 threshold 효과](../figures/yolo11s/threshold_analysis.png)
 
 NMS 후 conf >= 0.001 예측은 8,322개였다. Score >= 0.25로 7,771개를 남겨
 recall을 유지했다. 현재 val·IoU 0.5에서 미탐/추가 탐지가 없는 결과로 해석하지만

@@ -10,7 +10,7 @@ from data_loading.detector_package import (
     DETECTOR_DATA_SUMMARY_FILE,
     DETECTOR_LABEL_MAP_FILE,
 )
-from etl.detector.export_yolo_dataset import (
+from data_loading.yolo import (
     YOLO_EXPORT_SUMMARY_FILE,
     export_yolo_detector_dataset,
 )
