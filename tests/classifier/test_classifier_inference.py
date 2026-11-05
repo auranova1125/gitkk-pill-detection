@@ -196,7 +196,6 @@ def test_load_inference_model_restores_checkpoint_without_pretrained_download(
     restored_model, device = load_classifier_inference_model(
         checkpoint_path,
         class_map,
-        expected_num_classes=NUM_CLASSES,
         device=torch.device("cpu"),
     )
 

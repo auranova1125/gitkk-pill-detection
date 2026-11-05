@@ -6,12 +6,10 @@
 탐지기 목록에 없는 그룹은 train에 넣는다 (분류기 val ⊂ 탐지기 validation 그룹).
 
 사용:
-    python -m etl.classifier.assign_data_splits [--package data/detector/training_package_detector.zip]
+    python -m etl.classifier.assign_data_splits [--detector-data-dir data/detector]
 """
 
 import argparse
-import io
-import zipfile
 from datetime import date
 from pathlib import Path
 
@@ -20,20 +18,16 @@ import pandas as pd
 from etl.classifier.paths import (
     CLASSES,
     CROPS,
-    DETECTOR_PACKAGE,
+    DETECTOR_DATA,
     META,
     REPORTS,
     save_table,
 )
 
 
-def assign_data_splits(package: Path = DETECTOR_PACKAGE) -> None:
-    z = zipfile.ZipFile(package)
-    # 패키지 버전에 따라 맨 위에 있거나 training_package/ 아래에 있다
-    manifest = [n for n in z.namelist() if n.split("/")[-1] == "split_manifest.csv"]
-    if len(manifest) != 1:
-        raise ValueError(f"split_manifest.csv를 하나만 찾아야 합니다: {manifest}")
-    man = pd.read_csv(io.BytesIO(z.read(manifest[0])))
+def assign_data_splits(detector_data_dir: Path = DETECTOR_DATA) -> None:
+    manifest_path = Path(detector_data_dir) / "split_manifest.csv"
+    man = pd.read_csv(manifest_path)
     if man.groupby("group_id").split.nunique().max() != 1:
         raise ValueError("탐지기 분할에 train/validation에 걸친 그룹이 있습니다")
     group_split = (
@@ -117,7 +111,7 @@ def assign_data_splits(package: Path = DETECTOR_PACKAGE) -> None:
         "",
         "## 분할 기준",
         "",
-        f"- 탐지기 학습 패키지 `{package.name}`의 `split_manifest.csv`를 그대로 따른다.",
+        f"- 탐지기 데이터 `{detector_data_dir}`의 `split_manifest.csv`를 그대로 따른다.",
         "- 그룹 = 파일명의 알약 코드 조합 (예: `K-001900-016548-019607-029451`). 같은 그룹은 탐지기와 같은 쪽(train 또는 val)에 넣는다.",
         "- 탐지기 목록에 없는 그룹은 train에 넣는다. 그래서 분류기 val은 모두 탐지기 validation 그룹 안에 있다.",
         "",
@@ -179,13 +173,13 @@ def assign_data_splits(package: Path = DETECTOR_PACKAGE) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--package",
+        "--detector-data-dir",
         type=Path,
-        default=DETECTOR_PACKAGE,
-        help="탐지기 학습 패키지 (split_manifest.csv가 들어 있음)",
+        default=DETECTOR_DATA,
+        help="split_manifest.csv가 있는 탐지기 데이터 폴더",
     )
     args = parser.parse_args(argv)
-    assign_data_splits(args.package)
+    assign_data_splits(args.detector_data_dir)
 
 
 if __name__ == "__main__":

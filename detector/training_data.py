@@ -32,15 +32,22 @@ class DetectorTrainingData:
 
 
 def prepare_detector_data(config: DetectorConfig) -> DetectorTrainingData:
-    """탐지기 factory를 한 번 호출하고 반환된 학습 입력을 검증한다."""
+    """검증용 factory 결과를 소비한 뒤 새 학습 입력을 반환한다."""
 
     device = resolve_device(config.device)
+    validation_data = call_training_data_factory(
+        config.data_factory_path,
+        config=config,
+        device=device,
+    )
+    _validate_detector_training_data(validation_data)
     training_data = call_training_data_factory(
         config.data_factory_path,
         config=config,
         device=device,
     )
-    _validate_detector_training_data(training_data)
+    if training_data[2] != validation_data[2] or training_data[3] != validation_data[3]:
+        raise ValueError("detector data factory metadata changed between calls")
     train_loader, val_loader, label_map, data_summary = training_data
     return DetectorTrainingData(
         train_loader=train_loader,

@@ -1,14 +1,12 @@
 """분류 라벨 검수 조치를 탐지 데이터의 이미지 기준 조치로 변환한다."""
 
 import argparse
-import io
-import zipfile
 from pathlib import Path, PurePosixPath
 
 import pandas as pd
 
 from etl.classifier.paths import (
-    DETECTOR_PACKAGE,
+    DETECTOR_DATA,
     LABEL_AUDIT_RECORDS,
     save_table,
 )
@@ -21,14 +19,10 @@ DETECTOR_RECOMMENDATION = {
 }
 
 
-def load_detector_manifest(package_path: Path) -> pd.DataFrame:
-    """압축 또는 디렉터리 형태 탐지 패키지에서 split manifest를 읽는다."""
+def load_detector_manifest(data_dir: Path) -> pd.DataFrame:
+    """탐지 데이터 폴더에서 split manifest를 읽는다."""
 
-    package_path = Path(package_path)
-    if package_path.is_dir():
-        return pd.read_csv(package_path / "split_manifest.csv")
-    with zipfile.ZipFile(package_path) as archive:
-        return pd.read_csv(io.BytesIO(archive.read("split_manifest.csv")))
+    return pd.read_csv(Path(data_dir) / "split_manifest.csv")
 
 
 def build_detector_actions(
@@ -51,7 +45,7 @@ def build_detector_actions(
     missing_actions = required_actions - set(actions.columns)
     if missing_actions:
         raise ValueError(f"actions are missing columns: {sorted(missing_actions)}")
-    required_manifest = {"image_path", "dataset", "split", "group_id"}
+    required_manifest = {"image_path", "split", "group_id"}
     missing_manifest = required_manifest - set(manifest.columns)
     if missing_manifest:
         raise ValueError(
@@ -111,7 +105,6 @@ def build_detector_actions(
                 "source_image_id",
                 "file_name",
                 "image_path",
-                "dataset",
                 "split",
                 "group_id",
             ]
@@ -129,7 +122,6 @@ def build_detector_actions(
     output_columns = [
         "file_name",
         "image_path",
-        "dataset",
         "탐지기_split",
         "group_id",
         "탐지기_권장_조치",
@@ -145,14 +137,14 @@ def build_detector_actions(
 
 def export_detector_actions(
     *,
-    package_path: Path = DETECTOR_PACKAGE,
+    detector_data_dir: Path = DETECTOR_DATA,
     actions_path: Path = LABEL_AUDIT_RECORDS / "label_actions.csv",
     output_path: Path = LABEL_AUDIT_RECORDS / "detector_actions.csv",
 ) -> tuple[pd.DataFrame, tuple[str, ...]]:
     """확정 분류 조치와 탐지 manifest를 읽어 탐지 조치 CSV를 갱신한다."""
 
     actions = pd.read_csv(actions_path, dtype=str, keep_default_na=False)
-    manifest = load_detector_manifest(package_path)
+    manifest = load_detector_manifest(detector_data_dir)
     output, missing_image_ids = build_detector_actions(actions, manifest)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     save_table(output, output_path)
@@ -161,7 +153,7 @@ def export_detector_actions(
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--package", type=Path, default=DETECTOR_PACKAGE)
+    parser.add_argument("--detector-data-dir", type=Path, default=DETECTOR_DATA)
     parser.add_argument(
         "--actions",
         type=Path,
@@ -174,7 +166,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
     output, missing_image_ids = export_detector_actions(
-        package_path=args.package,
+        detector_data_dir=args.detector_data_dir,
         actions_path=args.actions,
         output_path=args.output,
     )

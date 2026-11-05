@@ -293,22 +293,19 @@ def load_classifier_inference_model(
     checkpoint_path: Path,
     class_map: Mapping[str, Any],
     *,
-    expected_num_classes: int = 118,
     device: torch.device | None = None,
 ) -> tuple[nn.Module, torch.device]:
     """checkpoint에서 사전학습 다운로드 없이 추론 모델을 복원한다."""
 
-    validate_classifier_class_map(
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
+    validate_classifier_class_map(class_map)
+    num_classes = class_map["num_classes"]
     selected_device = device if device is not None else select_device()
     checkpoint = load_checkpoint(checkpoint_path, selected_device)
     if checkpoint["class_map_hash"] != hash_class_map(class_map):
         raise ValueError("checkpoint class map hash does not match current class map")
 
     model = build_classifier_model(
-        expected_num_classes,
+        num_classes,
         pretrained=False,
     ).to(selected_device)
     model.load_state_dict(checkpoint["model_state"])

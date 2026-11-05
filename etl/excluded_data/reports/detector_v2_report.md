@@ -62,35 +62,32 @@ Colab의 v2 폴더 위치는 유지했다. 최종 게시 전 최신 main의 계�
 
 이 결과는 자동으로 선별된 후보에 대한 육안 검수다. 6,302장 전체를 육안 전수 검수했다는 의미가 아니며, 자동 후보에 포함되지 않은 오류가 남을 수 있다.
 
-## 파일과 재현 방법
+## 파일과 현재 적용 방법
 
 | 파일 | 역할 |
 |---|---|
-| `etl/detector/build_detector_v2.py` | 기존 48장 제외 생성 및 확정 판정 반영 |
-| `etl/detector/detect_bbox_errors.py` | 미검수 입력표 생성·자동 검사·그림 생성 |
-| `etl/detector/label_audit/detector_actions.csv` | 분류기에서 전달받은 기존 48장 목록 |
-| `etl/detector/label_audit/position_suspects.csv` | 의심 bbox 330건의 사람 판정 |
-| `etl/detector/label_audit/excluded_images.csv` | 최종 제외 이미지 150장과 사유 |
-| `datasets/select/v2/` | 최종 데이터셋; Git 추적 제외 |
-| `datasets/select/position_audit/` | 입력·점수·검수 그림 및 1단계 백업; Git 추적 제외 |
+| `etl/detector/apply_image_exclusions.py` | 확정 제외 목록을 현행 학습 패키지에 적용하고 metadata 재생성 |
+| `etl/classifier/label_audit/detect_bbox_errors.py` | 검수 당시 bbox 위치 후보의 점수와 검수 그림 생성에 사용한 공통 로직 |
+| `etl/classifier/label_audit/records/detector_actions.csv` | 분류기에서 전달받은 기존 48장 목록 |
+| `etl/excluded_data/audit/detector_position_review.csv` | 의심 bbox 330건의 사람 판정 |
+| `etl/excluded_data/final/detector_excluded_images.csv` | 최종 제외 이미지 150장과 사유 |
+| `data/detector/` | 현행 계약으로 정리한 학습 패키지; Git 추적 제외 |
 
-새 작업공간에서 실행한다. 원본·분류기 목록 경로는 실행 환경에 맞게 지정한다. Drive v1의 구형 JSON 경로는 원본을 변경하지 않고 임시 메타데이터로 변환하여 검사한다.
+후보 생성과 사람 검수는 완료됐으므로 학습 패키지를 다시 만들 때 자동 후보를 재판정하지 않는다. 현행 계약으로 정리한 원본 패키지의 복사본에 확정 제외 목록을 적용한 뒤 전체 입력 검증을 수행한다.
 
 ```bash
-# 1. 기존 48장 제외. output/excluded/report는 기존 파일을 덮어쓰지 않는다.
-.venv/bin/python -m etl.detector.build_detector_v2 \
-  --source-dir "/path/to/detector/v1"
+# 복사한 패키지의 annotation·manifest·summary에서 확정 이미지 150장을 제외한다.
+# --archive-images-dir를 지정하면 제외 이미지도 복구 가능한 별도 폴더로 이동한다.
+uv run python -m etl.detector.apply_image_exclusions \
+  /path/to/detector-package-copy \
+  --archive-images-dir /path/to/excluded-images
 
-# 2. 입력표와 후보·그림 생성. 기존 CSV의 사람 판정은 sample_id로 보존한다.
-.venv/bin/python -m etl.detector.detect_bbox_errors \
-  --classifier-samples "/path/to/classifier/v1/samples.csv"
-
-# 3. position_suspects.csv의 사용자 판정을 확인한 뒤 반영한다.
-.venv/bin/python -m etl.detector.build_detector_v2 --apply-reviews
+# 최종 annotation·manifest·이미지 경로와 metadata를 다시 검증한다.
+uv run python main.py check-detector-data \
+  --data-dir /path/to/detector-package-copy
 ```
 
-중단된 1단계 복사는 `--resume`으로 재개할 수 있다. 최종 반영은 검사 입력의 split_hash를 대조하고, 이미 반영한 패키지에 다시 적용하는 것을 거부한다.
-반영 전 메타데이터와 추가 제외 이미지는 `datasets/select/position_audit/stage1_backup/`에 보존했다.
+제외 적용은 annotation과 manifest를 함께 갱신하고 실제 기록에서 metadata를 다시 계산한다. 일부 파일만 갱신되다 실패하면 기존 annotation·manifest·summary를 복원한다. 원본 학습 패키지는 직접 수정하지 않고 복사본에서 실행한다.
 
 ## 검증 결과
 

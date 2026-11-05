@@ -16,7 +16,9 @@ model num_classes = 2
 
 `num_classes=2`는 torchvision detection 모델이 background를 출력 클래스 수에 포함하기 때문이다. 원본 annotation의 약품별 `category_id`는 탐지 target label로 사용하지 않는다.
 
-원본 JSON 탐색, 그룹 분할과 augmentation은 데이터 구성 파트가 담당한다. 탐지기 구현은 구성 완료된 DataLoader부터 시작한다.
+원본 JSON 탐색과 그룹 분할은 오프라인 데이터 구성 파트가 담당한다. augmentation은
+학습 설정에 속하며 DataLoader가 Notebook 또는 CLI의 설정값을 받아 적용한다. 탐지기
+구현은 구성 완료된 학습 패키지부터 시작한다.
 
 ## 2. 데이터 구성 함수
 
@@ -62,8 +64,9 @@ def build_detector_inputs(
 
 같은 데이터 패키지로 다시 호출하면 같은 split과, 패키지에 포함된 label map 및
 summary가 반환되어야 한다. runtime DataLoader는 두 metadata 파일을 자동 생성하지
-않고 실제 annotation·manifest에서 다시 계산한 값과 일치하는지 검증한다. Notebook은
-첫 batch를 검증한 뒤 실제 학습 전에 loader를 다시 생성할 수 있다.
+않고 실제 annotation·manifest에서 다시 계산한 값과 일치하는지 검증한다. 학습 준비
+코드는 검증용 factory 결과의 첫 batch를 확인한 뒤 factory를 다시 호출해 새 loader로
+학습을 시작한다.
 
 ### 2.3 권장 DataLoader 설정
 
@@ -77,27 +80,22 @@ Dataset에서 반환하는 tensor는 CPU에 두고 학습 loop에서 선택된 �
 
 ### 2.4 학습 패키지 이미지 경로
 
-학습 패키지는 이미지 출처와 실제 상대 경로를 별도 필드로 관리한다.
+학습 패키지는 출처와 무관한 이미지 상대 경로만 관리한다.
 
 ```text
 split_manifest.csv
-dataset,image_path
-sprint,K-001900-016548-019607-029451_0_2_0_2_70_000_200.png
+image_id,image_path,annotation_count,group_id,split
+1,images/K-001900-016548-019607-029451_0_2_0_2_70_000_200.png,4,K-001900-016548-019607-029451,train
 ```
 
-`annotations/<split>.json`의 `images.file_name`은 manifest의 `image_path`와 같아야 한다. 경로 문자열에 `dataset/images/` 같은 가상 접두사를 추가하지 않는다.
+`annotations.json`의 `images.file_name`은 manifest의 `image_path`와 같아야 한다.
+출처명, split 이름이나 원본 환경의 가상 접두사를 추가하지 않는다. 전체 image와
+annotation은 한 문서에 두며, DataLoader가 manifest의 `split` 값으로 train과
+validation 레코드를 나눈다.
 
-설정의 `image_roots`는 manifest에 등장하는 dataset 이름을 실제 이미지 root에 연결한다.
-
-```json
-{
-  "image_roots": {
-    "sprint": "data/sprint_ai_project1_data/train_images"
-  }
-}
-```
-
-실제 파일은 `image_roots[dataset] / image_path`에서 읽는다. `image_path`는 root 기준 상대 경로이며 절대 경로와 `..`를 포함할 수 없다. dataset 이름은 특정 원천 이름으로 고정하지 않는다.
+설정의 `data_dir`은 metadata와 모든 상대 이미지 경로의 공통 기준 폴더다.
+실제 파일은 `data_dir / image_path`에서 읽는다. `image_path`는 root 기준 상대
+경로이며 절대 경로와 `..`를 포함할 수 없다.
 
 ## 3. 원본 JSON을 이미지 샘플로 구성하는 규칙
 
@@ -107,7 +105,7 @@ sprint,K-001900-016548-019607-029451_0_2_0_2_70_000_200.png
 | --- | --- |
 | 이미지 파일 | `images.file_name` 또는 `images.imgfile` |
 | 이미지 크기 | `images.width`, `images.height` |
-| source image ID | `images.id` |
+| 학습 패키지 image ID | `images.id` |
 | bbox | `annotations.bbox` |
 | annotation ID | `annotations.id` |
 | source category | `annotations.category_id` |
@@ -139,7 +137,8 @@ y2 = y + height
 
 탐지기 또는 Dataset이 여러 품목별 JSON을 추가로 탐색해 bbox를 병합하지 않는다. 따라서 전달 시점에 이미지 속 일부 알약 bbox가 누락되지 않았는지 데이터 구성 단계에서 확인해야 한다. 빠진 알약은 학습 과정에서 background로 취급될 수 있다.
 
-평가용 `image_id`는 전체 Dataset에서 유일한 정수여야 한다. 원본 값은 `source_image_id`로 보존한다.
+평가용 `image_id`는 전체 Dataset에서 유일한 정수여야 한다. 원천별 ID나 출처
+정보는 runtime 학습 패키지에 보존하지 않는다.
 
 ### 3.2 그룹 분할
 
@@ -191,7 +190,7 @@ images: list[torch.Tensor]
 
 이미지는 서로 다른 높이와 너비를 가질 수 있으므로 `[B, 3, H, W]`로 강제 stack하지 않는다.
 
-DataLoader는 ImageNet mean/std normalization을 적용하지 않는다. SSDLite 내부 transform이 normalization과 고정 입력 크기 변환을 수행한다. 외부에서 미리 `320×320`로 resize할 필요도 없다.
+DataLoader는 ImageNet mean/std normalization을 적용하지 않는다. 등록된 torchvision 탐지 모델의 내부 transform이 모델별 normalization과 resize를 수행한다. SSDLite를 위해 `320×320`으로 만들거나 Faster R-CNN을 위해 특정 크기로 미리 resize하지 않는다. Faster R-CNN의 내부 크기는 `image_min_size`와 `image_max_size` 실행 설정으로 관리하며 checkpoint에도 기록한다.
 
 geometry augmentation을 적용했다면 bbox에도 동일한 변환이 반영되어야 한다.
 
@@ -272,15 +271,14 @@ source annotation의 `iscrowd`가 있다면 의미를 유지하되, 현재 정�
 ```python
 sample_meta = {
     "image_id": 0,
-    "source_image_id": "34",
     "file_name": "K-001900-016548-019607-029451_0_2_0_2_70_000_200.png",
     "image_path": "/data/images/example.png",
     "group_id": "K-001900-016548-019607-029451",
     "original_size": [1280, 976],
-    "source_annotation_count": 1,
+    "annotation_count": 1,
     "annotation_ids": [133],
     "bbox_xywh": [[644.0, 845.0, 189.0, 190.0]],
-    "source_category_ids": [1900],
+    "category_ids": [1900],
     "drug_codes": ["K-001900"],
 }
 ```
@@ -288,23 +286,23 @@ sample_meta = {
 | 필드 | 타입 | 조건과 의미 |
 | --- | --- | --- |
 | `image_id` | `int` | target의 `image_id`와 같음 |
-| `source_image_id` | `str` | 원본 JSON ID를 문자열로 보존 |
 | `file_name` | `str` | 비어 있지 않은 원본 파일명 |
 | `image_path` | `str` | 비어 있지 않은 실제 이미지 경로 |
 | `group_id` | `str` | 비어 있지 않은 촬영 그룹 ID |
 | `original_size` | 정수 2개 | `[height, width]` |
-| `source_annotation_count` | `int` | source JSON의 해당 이미지 annotation 수, 1 이상 |
+| `annotation_count` | `int` | 해당 이미지의 annotation 수, 1 이상 |
 | `annotation_ids` | `list[int]` | 이미지에 포함된 annotation ID 목록, 길이 `K` |
 | `bbox_xywh` | 숫자 4개 list의 list | 원본 추적용 bbox 목록, 길이 `K` |
 
-구현은 추적과 시각화를 위해 `source_category_ids`와 실제 annotation의 `drug_codes`를 추가로 제공한다. 두 필드는 탐지 target label로 사용하지 않는다.
+구현은 추적과 시각화를 위해 `category_ids`와 실제 annotation의 `drug_codes`를
+추가로 제공한다. 두 필드는 탐지 target label로 사용하지 않는다.
 
 augmentation 이후 box 분석이 필요하면 `transformed_boxes_xyxy` 같은 추가 필드를 넣을 수 있다.
 
 입력 검증은 다음 값이 모두 같은지 확인한다.
 
 ```text
-source_annotation_count
+annotation_count
 = len(annotation_ids)
 = len(bbox_xywh)
 = len(target["boxes"])
@@ -385,8 +383,6 @@ Dataset의 `__getitem__()`은 다음 형태를 권장한다.
 {
   "num_train_images": 1000,
   "num_val_images": 200,
-  "num_train_source_annotations": 2500,
-  "num_val_source_annotations": 500,
   "num_train_instances": 2500,
   "num_val_instances": 500,
   "train_group_count": 250,
@@ -408,8 +404,6 @@ Dataset의 `__getitem__()`은 다음 형태를 권장한다.
 
 - 이미지 수와 instance 수는 0 이상의 정수다.
 - 실제 학습 실행 시 train과 validation 이미지가 각각 한 장 이상이다.
-- `num_train_source_annotations == num_train_instances`다.
-- `num_val_source_annotations == num_val_instances`다.
 - `num_train_instances == sum(train_label_counts.values())`다.
 - `num_val_instances == sum(val_label_counts.values())`다.
 - label count key는 pill label `"1"`이다.
@@ -441,7 +435,7 @@ Validation에는 random transform을 적용하지 않는다.
 RGB 변환 → float32 → [0, 1] scaling
 ```
 
-SSDLite가 내부에서 resize와 normalization을 수행하므로 DataLoader에서 중복 적용하지 않는다.
+탐지 모델이 내부에서 resize와 normalization을 수행하므로 DataLoader에서 중복 적용하지 않는다.
 
 ## 12. 추론 DataLoader
 
@@ -555,7 +549,7 @@ validate_detector_training_batch(next(iter(val_loader)), label_map)
 print("탐지기 입력 검증 완료")
 ```
 
-첫 batch 확인으로 sampler 또는 augmentation 난수 상태가 바뀔 수 있으므로 실제 학습 전 loader를 다시 생성하는 것을 권장한다.
+첫 batch 확인은 검증용 loader의 sampler 또는 augmentation 상태만 진행시킨다. 실제 학습에는 factory가 두 번째로 만든 새 loader를 사용한다.
 
 ## 16. 데이터 구성 완료 체크리스트
 
@@ -563,7 +557,7 @@ print("탐지기 입력 검증 완료")
 - [ ] 반환 순서가 loader 두 개, label map, data summary 순서다.
 - [ ] 각 이미지 annotation에 보이는 모든 pill bbox가 포함되어 있다.
 - [ ] JSON의 전체 annotation 목록이 한 이미지 target으로 변환된다.
-- [ ] `source_annotation_count`가 target bbox 수와 같다.
+- [ ] `annotation_count`가 target bbox 수와 같다.
 - [ ] annotation ID가 이미지 안에서 중복되지 않는다.
 - [ ] boxes, labels, area와 iscrowd의 첫 번째 차원 길이가 모두 같다.
 - [ ] 평가용 `image_id`가 Dataset 전체에서 유일하다.
@@ -583,7 +577,7 @@ print("탐지기 입력 검증 완료")
 | 증상 | 확인할 내용 |
 | --- | --- |
 | 다른 알약이 background로 학습됨 | 전달 annotation에서 이미지 속 pill bbox가 빠지지 않았는지 확인 |
-| source annotation 수 불일치 | JSON annotation이 Dataset 변환 중 누락되거나 중복되지 않았는지 확인 |
+| annotation 수 불일치 | JSON annotation이 Dataset 변환 중 누락되거나 중복되지 않았는지 확인 |
 | target 필드 길이 불일치 | boxes, labels, area와 iscrowd를 같은 annotation 목록에서 생성했는지 확인 |
 | `labels`에 0 또는 약품 ID가 있음 | 모든 pill label을 정수 1로 변환 |
 | bbox 너비 또는 높이가 음수 | XYWH를 XYXY로 변환한 식과 좌표 순서 확인 |
@@ -597,7 +591,8 @@ print("탐지기 입력 검증 완료")
 
 ## 18. 공식 API 참고
 
-torchvision의 SSDLite builder는 입력 크기 320 기반 모델이며 `num_classes`에 background를 포함한다. torchvision detection tutorial은 image list와 XYXY box, label 0의 background 의미를 설명한다.
+torchvision의 SSDLite와 Faster R-CNN builder는 모두 `num_classes`에 background를 포함한다. torchvision detection tutorial은 image list와 XYXY box, label 0의 background 의미를 설명한다.
 
 - [torchvision SSDLite320 MobileNetV3-Large](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html)
+- [torchvision Faster R-CNN ResNet50-FPN v2](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.fasterrcnn_resnet50_fpn_v2.html)
 - [TorchVision Object Detection Finetuning Tutorial](https://docs.pytorch.org/tutorials/intermediate/torchvision_tutorial.html)

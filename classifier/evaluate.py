@@ -312,7 +312,6 @@ def evaluate_with_predictions(
     criterion: nn.Module,
     device: torch.device,
     *,
-    expected_num_classes: int = 118,
     max_confusion_pairs: int = 10,
     show_progress: bool = False,
     progress_description: str = "Classifier detailed validation",
@@ -327,10 +326,8 @@ def evaluate_with_predictions(
     - 정답 여부
     """
 
-    validate_classifier_class_map(
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
+    validate_classifier_class_map(class_map)
+    num_classes = class_map["num_classes"]
     class_lookup = {entry["class_index"]: entry for entry in class_map["classes"]}
     model.eval()
     use_amp = device.type == "cuda"
@@ -354,17 +351,16 @@ def evaluate_with_predictions(
         validate_classifier_training_batch(
             batch,
             class_map,
-            expected_num_classes=expected_num_classes,
         )
         images = batch["images"].to(device, non_blocking=use_amp)
         targets = batch["targets"].to(device, non_blocking=use_amp)
         with torch.autocast(device_type=device.type, enabled=use_amp):
             logits = model(images)
             loss = criterion(logits, targets)
-        if logits.ndim != 2 or logits.shape[1] != expected_num_classes:
+        if logits.ndim != 2 or logits.shape[1] != num_classes:
             raise ValueError(
                 "model logits must have shape "
-                f"[B, {expected_num_classes}], got {tuple(logits.shape)}"
+                f"[B, {num_classes}], got {tuple(logits.shape)}"
             )
         if not torch.isfinite(logits).all():
             raise ValueError("model logits must not contain NaN or Inf")
@@ -385,7 +381,7 @@ def evaluate_with_predictions(
     metrics = compute_classification_metrics(
         all_logits,
         all_targets,
-        num_classes=expected_num_classes,
+        num_classes=num_classes,
         loss=total_loss / total_samples,
         max_confusion_pairs=max_confusion_pairs,
     )
@@ -462,7 +458,6 @@ def evaluate_classifier_checkpoint(
     model, device = load_classifier_inference_model(
         checkpoint_path,
         data.class_map,
-        expected_num_classes=config.expected_num_classes,
         device=data.device,
     )
     artifacts = evaluate_with_predictions(

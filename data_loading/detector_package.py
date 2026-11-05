@@ -14,10 +14,6 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from data_loading.detector_data_paths import (
-    resolve_detector_data_paths,
-    resolve_detector_image_path,
-)
 from utils.io import read_json
 
 DetectorRecord = dict[str, Any]
@@ -27,15 +23,15 @@ DETECTOR_DATA_SUMMARY_FILE = "detector_data_summary.json"
 
 
 def load_detector_package(
-    settings: Mapping[str, Any],
+    data_dir: str | Path,
 ) -> tuple[DetectorRecordsBySplit, dict[str, Any], dict[str, Any]]:
     """완성된 탐지 패키지를 읽고 전달된 metadata까지 검증한다."""
 
-    package_dir, _ = resolve_detector_data_paths(settings)
+    package_dir = Path(data_dir).expanduser().resolve()
     label_map = read_json(package_dir / DETECTOR_LABEL_MAP_FILE)
     data_summary = read_json(package_dir / DETECTOR_DATA_SUMMARY_FILE)
     records_by_split, expected_label_map, expected_summary = (
-        _inspect_detector_package_sources(settings)
+        _inspect_detector_package_sources(package_dir)
     )
 
     if label_map != expected_label_map:
@@ -51,37 +47,26 @@ def load_detector_package(
 
 
 def calculate_detector_package_metadata(
-    settings: Mapping[str, Any],
+    data_dir: str | Path,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """annotation과 manifest에서 전달용 label map과 summary를 계산한다."""
 
-    _, label_map, data_summary = _inspect_detector_package_sources(settings)
+    _, label_map, data_summary = _inspect_detector_package_sources(data_dir)
     return label_map, data_summary
 
 
 def _inspect_detector_package_sources(
-    settings: Mapping[str, Any],
+    data_dir: str | Path,
 ) -> tuple[DetectorRecordsBySplit, dict[str, Any], dict[str, Any]]:
     """metadata 생성 전 원천 파일과 이미지 연결을 검사한다."""
 
-    package_dir, image_roots = resolve_detector_data_paths(settings)
+    package_dir = Path(data_dir).expanduser().resolve()
     manifest = _read_detector_manifest(package_dir / "split_manifest.csv")
-    all_image_ids: set[int] = set()
-    all_annotation_ids: set[int] = set()
-    records_by_split: DetectorRecordsBySplit = {}
-
-    for split in ("train", "validation"):
-        records_by_split[split] = _build_detector_split_records(
-            split=split,
-            labels=read_json(package_dir / "annotations" / f"{split}.json"),
-            manifest=manifest,
-            image_roots=image_roots,
-            all_image_ids=all_image_ids,
-            all_annotation_ids=all_annotation_ids,
-        )
-
-    if set(manifest) != all_image_ids:
-        raise ValueError("분할 목록과 라벨의 전체 이미지 구성이 다릅니다.")
+    records_by_split = _build_detector_records(
+        labels=read_json(package_dir / "annotations.json"),
+        manifest=manifest,
+        image_root=package_dir,
+    )
     _validate_detector_group_split(records_by_split)
 
     label_map = {
@@ -97,7 +82,20 @@ def _read_detector_manifest(path: Path) -> dict[int, dict[str, str]]:
     """분할 manifest를 이미지 ID로 조회 가능한 mapping으로 읽는다."""
 
     with Path(path).open("r", encoding="utf-8-sig", newline="") as file:
-        rows = list(csv.DictReader(file))
+        reader = csv.DictReader(file)
+        required_fields = {
+            "image_id",
+            "image_path",
+            "annotation_count",
+            "group_id",
+            "split",
+        }
+        if set(reader.fieldnames or ()) != required_fields:
+            raise ValueError(
+                "분할 목록 컬럼은 다음과 정확히 일치해야 합니다: "
+                f"{sorted(required_fields)}"
+            )
+        rows = list(reader)
     manifest: dict[int, dict[str, str]] = {}
     for row in rows:
         image_id = int(row["image_id"])
@@ -105,6 +103,30 @@ def _read_detector_manifest(path: Path) -> dict[int, dict[str, str]]:
             raise ValueError(f"분할 목록의 이미지 ID 중복: {image_id}")
         manifest[image_id] = row
     return manifest
+
+
+def resolve_detector_image_path(
+    relative_name: str | Path,
+    *,
+    root: str | Path,
+) -> Path:
+    """이미지 root와 안전한 상대 경로를 결합한다."""
+
+    relative = PurePosixPath(str(relative_name).replace("\\", "/"))
+    if (
+        relative.is_absolute()
+        or ".." in relative.parts
+        or not relative.parts
+        or str(relative) in {"", "."}
+    ):
+        raise ValueError(
+            f"이미지 경로는 데이터 루트 기준 상대 경로여야 합니다: {relative}"
+        )
+    root = Path(root).expanduser().resolve()
+    result = root.joinpath(*relative.parts).resolve()
+    if not result.is_relative_to(root):
+        raise ValueError(f"이미지 기준 폴더를 벗어난 경로입니다: {relative}")
+    return result
 
 
 def _calculate_detector_split_hash(records_by_split: DetectorRecordsBySplit) -> str:
@@ -125,7 +147,7 @@ def _calculate_detector_split_hash(records_by_split: DetectorRecordsBySplit) -> 
     ]
     return hashlib.sha256(
         json.dumps(
-            {"version": "fixed-pill-data-v1", "records": hash_records},
+            {"version": "fixed-pill-data-v3", "records": hash_records},
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -152,7 +174,6 @@ def _summarize_detector_records(
         summary.update(
             {
                 f"num_{summary_name}_images": len(records),
-                f"num_{summary_name}_source_annotations": instance_count,
                 f"num_{summary_name}_instances": instance_count,
                 f"{summary_name}_group_count": len(
                     {record["group_id"] for record in records}
@@ -165,52 +186,63 @@ def _summarize_detector_records(
     return summary
 
 
-def _build_detector_split_records(
+def _build_detector_records(
     *,
-    split: str,
     labels: Mapping[str, Any],
     manifest: Mapping[int, Mapping[str, str]],
-    image_roots: Mapping[str, Path],
-    all_image_ids: set[int],
-    all_annotation_ids: set[int],
-) -> list[DetectorRecord]:
+    image_root: Path,
+) -> DetectorRecordsBySplit:
+    """단일 annotation 문서를 manifest 기준 train과 validation으로 나눈다."""
+
     images = labels["images"]
     annotations = labels["annotations"]
-    split_image_ids: set[int] = set()
+    image_ids: set[int] = set()
+    annotation_ids: set[int] = set()
     annotations_by_image: defaultdict[int, list[Mapping[str, Any]]] = defaultdict(list)
 
     for image in images:
         image_id = image["id"]
-        if type(image_id) is not int or image_id < 0 or image_id in all_image_ids:
+        if type(image_id) is not int or image_id < 0 or image_id in image_ids:
             raise ValueError(f"이미지 ID 오류 또는 중복: {image_id}")
-        all_image_ids.add(image_id)
-        split_image_ids.add(image_id)
+        image_ids.add(image_id)
+
+    if set(manifest) != image_ids:
+        raise ValueError("분할 목록과 라벨의 전체 이미지 구성이 다릅니다.")
 
     for annotation in annotations:
         annotation_id = annotation["id"]
         if (
             type(annotation_id) is not int
             or annotation_id < 0
-            or annotation_id in all_annotation_ids
+            or annotation_id in annotation_ids
         ):
             raise ValueError(f"annotation ID 오류 또는 중복: {annotation_id}")
         image_id = annotation["image_id"]
-        if type(image_id) is not int or image_id not in split_image_ids:
+        if type(image_id) is not int or image_id not in image_ids:
             raise ValueError(f"이미지에 연결되지 않은 annotation: {annotation_id}")
-        all_annotation_ids.add(annotation_id)
+        annotation_ids.add(annotation_id)
         annotations_by_image[image_id].append(annotation)
 
-    records = [
-        _build_detector_image_record(
-            split=split,
-            image=image,
-            annotations=annotations_by_image[image["id"]],
-            manifest=manifest,
-            image_roots=image_roots,
+    records_by_split: DetectorRecordsBySplit = {"train": [], "validation": []}
+    for image in images:
+        image_id = image["id"]
+        split = manifest[image_id]["split"]
+        if split not in records_by_split:
+            raise ValueError(f"지원하지 않는 분할 값: {split}")
+        records_by_split[split].append(
+            _build_detector_image_record(
+                split=split,
+                image=image,
+                annotations=annotations_by_image[image_id],
+                manifest=manifest,
+                image_root=image_root,
+            )
         )
-        for image in images
-    ]
-    return sorted(records, key=lambda record: record["image_id"])
+
+    return {
+        split: sorted(records, key=lambda record: record["image_id"])
+        for split, records in records_by_split.items()
+    }
 
 
 def _build_detector_image_record(
@@ -219,7 +251,7 @@ def _build_detector_image_record(
     image: Mapping[str, Any],
     annotations: list[Mapping[str, Any]],
     manifest: Mapping[int, Mapping[str, str]],
-    image_roots: Mapping[str, Path],
+    image_root: Path,
 ) -> DetectorRecord:
     image_id = image["id"]
     if image_id not in manifest:
@@ -234,7 +266,6 @@ def _build_detector_image_record(
         raise ValueError(f"이미지 크기 오류: {image_id}")
 
     relative_path = str(image["file_name"]).replace("\\", "/")
-    dataset = manifest_row["dataset"]
     if relative_path != manifest_row["image_path"]:
         raise ValueError(f"이미지 경로 기록 불일치: {image_id}")
     group_id = manifest_row["group_id"]
@@ -243,8 +274,7 @@ def _build_detector_image_record(
 
     image_path = resolve_detector_image_path(
         relative_path,
-        dataset=dataset,
-        roots=image_roots,
+        root=image_root,
     )
     if not image_path.is_file():
         raise FileNotFoundError(image_path)
@@ -270,11 +300,9 @@ def _build_detector_image_record(
 
     return {
         "image_id": image_id,
-        "source_image_id": str(manifest_row["original_image_id"]),
         "original_file_name": PurePosixPath(relative_path).name,
         "relative_path": relative_path,
         "image_path": str(image_path),
-        "dataset": dataset,
         "group_id": group_id,
         "width": width,
         "height": height,
