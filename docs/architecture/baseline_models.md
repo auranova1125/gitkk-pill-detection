@@ -75,7 +75,7 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 | 구분 | 모델 | 상태 | 비교 목적 |
 | --- | --- | --- | --- |
 | 분류기 | ResNet-50 | 기준 구현·학습 완료 | 품목 분류 기준선 |
-| 탐지기 | SSDLite320 MobileNetV3-Large | 이전 기준 구현·학습 완료 | 경량 모델의 속도와 위치 정확도 기준선 |
+| 탐지기 | SSDLite320 MobileNetV3-Large | 이전 기준 구현·학습 완료 | [경량 모델 기준선과 증강 실험](../../reports/experiments/ssdlite320_training_report.md) |
 | 탐지기 | Faster R-CNN ResNet50-FPN v2 | 구현 완료, 전체 학습 결과 대기 | two-stage 모델의 고 IoU 위치 정확도 비교 |
 | 탐지기 | SSD300 VGG16 | 후보 | 같은 SSD 계열에서 고 IoU 위치 정확도 비교 |
 | 탐지기 | YOLO11s | 공통 Ultralytics 학습·추론 경로로 실행 가능 | [v2 학습·공통 분류기 e2e·Kaggle 결과](../../reports/experiments/detector_yolo11s_v2.md) |

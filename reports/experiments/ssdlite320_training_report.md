@@ -382,4 +382,64 @@ outputs/inference/20261105-ssdlite320-resnet50-infer-test-full-01/
 - `validation_details.csv`: 예측·GT 매칭과 status별 상세 행
 - `submission.csv`: Kaggle 제출 형식의 test 예측 3,229행, 842개 이미지
 - 보고서의 정리된 그림: `reports/figures/ssdlite320/`
-- Kaggle leaderboard 점수: 아직 이 보고서에 반영하지 않음
+- 이 실행의 Kaggle leaderboard 점수는 별도로 기록하지 않음
+
+## 10. 별도 증강 A1 실험
+
+기준 실행과 별도로, Colab L4 환경에서 같은 탐지기 v2 패키지를 사용해
+SSDLite320 기준선과 증강 A1을 비교했다. 이 비교에 사용한 두 실행은 서로 같은
+`split_hash`(`ac6618cdf2fd69352b0d3848b69064eadbc6527d6153795c3cc2de1c2dfa7d32`)를
+공유한다. 다만 앞 절의 MPS 기준 실행에 기록된 hash와 다르므로, A1 결과는 두 Colab
+실행 사이의 비교로만 해석하고 앞 절의 절대 지표를 대체하지 않는다.
+
+### 10.1 실험 설정
+
+| 항목 | Colab 기준선 | A1 |
+| --- | --- | --- |
+| 실행 이름 | `20261104-ssdlite320-det-v2-baseline-01` | `20261104-ssdlite320-det-v2-aug-flipcolor-01` |
+| 좌우 / 상하 뒤집기 | 0 / 0 | 0.5 / 0.5 |
+| 밝기 / 대비 | 0 / 0 | 0.15 / 0.20 |
+| Early stopping patience | 7 | 10 |
+| 최대 / 실제 epoch | 50 / 23 | 50 / 50 |
+| Best epoch | 16 | 44 |
+
+두 실행은 SSDLite320, SGD, 초기 learning rate 0.005, momentum 0.9,
+weight decay 0.0005, batch size 8, seed 42를 공통으로 사용했다. A1은 촬영 방향과
+밝기 변화에 대응하도록 뒤집기와 약한 색상 변화를 적용했고, 흐림·회전·크기 변화는
+추가하지 않았다.
+
+Patience와 실제 학습 길이도 함께 달라졌기 때문에 아래 차이를 증강만의 인과 효과로
+분리할 수는 없다. A1은 증강과 더 긴 학습 정책을 함께 적용한 후보로 평가했다.
+
+### 10.2 Validation 결과
+
+| 지표 | Colab 기준선 | A1 | 차이 |
+| --- | ---: | ---: | ---: |
+| Best mAP@[0.75:0.95] | 0.9402 | 0.9498 | +0.0096 |
+| 상위 3 epoch 평균 | 0.9382 | 0.9489 | +0.0107 |
+| COCO mAP@[0.50:0.95] | 0.9691 | 0.9739 | +0.0048 |
+| AP@0.95 | 0.7495 | 0.7844 | +0.0349 |
+| Mean average recall | 0.9837 | 0.9870 | +0.0033 |
+| Score 0.25 적용 후 예측 수 | 7,767 | 7,770 | +3 |
+
+AP@0.75~0.90은 두 실행이 거의 같았고, 개선 폭은 주로 엄격한 AP@0.95에서
+나타났다. 하지만 실험 전에 정한 채택 기준인 best mAP@[0.75:0.95] `+0.01`에는
+0.0004 부족했다. A1은 최대 50 epoch까지 학습해 기준선보다 계산 비용도 컸다.
+
+### 10.3 Kaggle 결과와 판단
+
+두 탐지기에 같은 ResNet-50 분류기와 최종 score threshold 0.05를 연결해 제출했다.
+
+| 실행 | Kaggle Public score |
+| --- | ---: |
+| Colab 기준선 `sub03_det_v2` | 0.58765 |
+| A1 `sub11_det_v2_aug_a1` | 0.58430 |
+
+A1은 validation AP@0.95가 상승했지만 Public score는 0.00335 낮았다. 이 차이만으로
+증강이 test 성능을 저하시켰다고 단정할 수는 없지만, 사전 채택 기준에도 미달했고
+추가 학습 비용도 발생했으므로 최종 설정으로 채택하지 않았다.
+
+재현 시 별도 Colab 전용 노트북을 사용하지 않는다. 공통
+[`train_detector.ipynb`](../../notebooks/baseline/train_detector.ipynb) 또는
+`main.py train-detector`에서 `configs/detector.yaml`의 모델, 증강, patience와
+실행 경로만 명시적으로 바꿔 같은 학습 경로를 사용한다.
