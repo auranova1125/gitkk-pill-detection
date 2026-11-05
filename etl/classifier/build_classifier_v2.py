@@ -205,8 +205,7 @@ def write_classifier_v2_package(
         config = SimpleNamespace(
             batch_size=32,
             seed=42,
-            class_map_path=temporary_package / "class_map.json",
-            data_summary_path=temporary_package / "data_summary.json",
+            data_dir=temporary_package,
         )
         training_data = build_classifier_inputs(
             config=config,
@@ -214,7 +213,6 @@ def write_classifier_v2_package(
         )
         validate_classifier_training_data(
             training_data,
-            expected_num_classes=class_map["num_classes"],
         )
         temporary_zip = Path(
             shutil.make_archive(
@@ -248,8 +246,7 @@ def evaluate_package(
     config = SimpleNamespace(
         batch_size=64,
         seed=42,
-        class_map_path=package_dir / "class_map.json",
-        data_summary_path=package_dir / "data_summary.json",
+        data_dir=package_dir,
     )
     _, validation_loader, _, _ = build_classifier_inputs(
         config=config,
@@ -258,7 +255,6 @@ def evaluate_package(
     model, _ = load_classifier_inference_model(
         checkpoint_path,
         class_map,
-        expected_num_classes=class_map["num_classes"],
         device=device,
     )
     artifacts = evaluate_with_predictions(
@@ -267,7 +263,6 @@ def evaluate_package(
         class_map,
         torch.nn.CrossEntropyLoss(),
         device,
-        expected_num_classes=class_map["num_classes"],
     )
     predictions = pd.DataFrame(
         [prediction.to_dict() for prediction in artifacts.predictions]

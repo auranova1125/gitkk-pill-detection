@@ -61,12 +61,9 @@ def make_config(tmp_path: Path) -> PillRecognitionConfig:
         run_name="inference-test",
         inference_factory_path=None,
         input_dir=tmp_path / "images",
-        detector_checkpoint_path=tmp_path / "detector.pt",
-        classifier_checkpoint_path=tmp_path / "classifier.pt",
-        detector_label_map_path=tmp_path / "label_map.json",
-        classifier_class_map_path=tmp_path / "class_map.json",
+        detector_run_dir=tmp_path / "detector-test",
+        classifier_run_dir=tmp_path / "classifier-test",
         output_dir=tmp_path / "outputs" / "inference",
-        detector_name="detector-test",
         device="cpu",
     )
 
@@ -141,16 +138,20 @@ def test_prepare_pill_recognition_run_records_config_and_rejects_overwrite(
         pill_recognition_module._prepare_pill_recognition_run(config)
 
 
-def test_prepare_pill_recognition_data_reuses_validated_loader(
+def test_prepare_pill_recognition_data_returns_fresh_loader(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = make_config(tmp_path)
-    loader = [make_batch()]
+    loaders = [[make_batch()], [make_batch()]]
+    factory_calls = 0
 
     def factory(*, config: PillRecognitionConfig, batch_size: int):
+        nonlocal factory_calls
         assert config.run_name == "inference-test"
         assert batch_size == 4
+        loader = loaders[factory_calls]
+        factory_calls += 1
         return loader
 
     monkeypatch.setattr(
@@ -161,8 +162,9 @@ def test_prepare_pill_recognition_data_reuses_validated_loader(
 
     prepared_data = prepare_pill_recognition_data(config)
 
-    assert prepared_data.data_loader is loader
-    assert prepared_data.preview_batch is loader[0]
+    assert factory_calls == 2
+    assert prepared_data.data_loader is loaders[1]
+    assert prepared_data.preview_batch is loaders[0][0]
     assert prepared_data.device == torch.device("cpu")
 
 
@@ -173,6 +175,8 @@ def test_recognize_pills_from_config_saves_submission_csv(
     detector_label_map: dict[str, Any],
 ) -> None:
     config = make_config(tmp_path)
+    config.detector_run_dir.mkdir()
+    config.classifier_run_dir.mkdir()
     config.detector_label_map_path.write_text(
         json.dumps(detector_label_map),
         encoding="utf-8",
@@ -207,6 +211,79 @@ def test_recognize_pills_from_config_saves_submission_csv(
     assert len(result.predictions) == 1
     assert rows[0]["image_id"] == "7"
     assert rows[0]["category_id"] == "1901"
+
+
+def test_recognize_pills_from_config_selects_yolo_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    classifier_class_map: dict[str, Any],
+    detector_label_map: dict[str, Any],
+) -> None:
+    config = replace(
+        make_config(tmp_path),
+        detector_backend="ultralytics",
+        detector_image_size=640,
+        detector_nms_threshold=0.45,
+    )
+    (config.detector_run_dir / "weights").mkdir(parents=True)
+    config.classifier_run_dir.mkdir()
+    config.detector_label_map_path.write_text(
+        json.dumps(detector_label_map),
+        encoding="utf-8",
+    )
+    config.classifier_class_map_path.write_text(
+        json.dumps(classifier_class_map),
+        encoding="utf-8",
+    )
+    batch = make_batch()
+    prepared_data = PillRecognitionData(
+        data_loader=[batch],
+        preview_batch=batch,
+        device=torch.device("cpu"),
+    )
+    captured: dict[str, Any] = {}
+
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "load_yolo_detector_inference_model",
+        lambda path, label_map, *, device: (
+            captured.update(checkpoint_path=path) or FixedDetector(),
+            device,
+        ),
+    )
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "load_classifier_inference_model",
+        lambda *args, **kwargs: (FixedClassifier(), torch.device("cpu")),
+    )
+
+    def fake_yolo_predictor(
+        model: Any,
+        data_loader: Any,
+        device: torch.device,
+        **kwargs: Any,
+    ):
+        captured.update(kwargs)
+        return pill_recognition_module.predict_detector(
+            model,
+            data_loader,
+            device,
+            score_threshold=kwargs["score_threshold"],
+            detector_name=kwargs["detector_name"],
+        )
+
+    monkeypatch.setattr(
+        pill_recognition_module,
+        "predict_yolo_detector",
+        fake_yolo_predictor,
+    )
+
+    result = recognize_pills_from_config(config, data=prepared_data)
+
+    assert len(result.predictions) == 1
+    assert captured["checkpoint_path"] == config.detector_checkpoint_path
+    assert captured["image_size"] == 640
+    assert captured["nms_threshold"] == pytest.approx(0.45)
 
 
 def test_save_and_plot_pill_recognition_artifacts(

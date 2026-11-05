@@ -25,7 +25,9 @@ import json
 import os
 import zipfile
 from collections import defaultdict
+from collections.abc import Sequence
 from datetime import date
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -38,13 +40,46 @@ from etl.classifier.paths import (
     KAGGLE,
     META,
     REPORTS,
+    ROOT,
     save_table,
     tl_zip,
     ts_zip,
 )
 
 
-def validate_source_labels(*, skip_png: bool = False) -> None:
+def _display_path(path: Path) -> str:
+    """보고서에 적을 경로. 레포 안이면 레포 기준 상대 경로로 쓴다."""
+    try:
+        return str(Path(path).resolve().relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
+def image_fingerprint(image: Image.Image) -> tuple[str, np.uint64]:
+    """(픽셀 MD5, 64bit pHash). 픽셀이 같으면 MD5가 같고, 비슷한 사진은 pHash 해밍 거리가 작다."""
+    pixel_md5 = hashlib.md5(image.tobytes()).hexdigest()
+    c = dctn(
+        np.asarray(image.convert("L").resize((32, 32), Image.LANCZOS), dtype=float),
+        norm="ortho",
+    )[:8, :8]
+    return pixel_md5, np.packbits(c.flatten() > np.median(c)).view(">u8")[0]
+
+
+def validate_source_labels(
+    *,
+    skip_png: bool = False,
+    label_zips: Sequence[Path] | None = None,
+    image_zips: Sequence[Path] | None = None,
+    include_kaggle: bool = True,
+    meta_dir: Path = META,
+    report_path: Path = REPORTS / "validation_report.md",
+    target_description: str | None = None,
+) -> pd.DataFrame:
+    """라벨을 검사해 label_issues.csv·label_files.csv와 보고서를 쓰고 문제 목록을 반환한다.
+
+    기본값은 학습용 원본(조합 TL_1·3~8 + Kaggle train)이다. 다른 AI Hub 조합 zip(예: AI Hub val의
+    VL·VS)을 같은 기준으로 검사할 때는 label_zips·image_zips를 넘기고 include_kaggle=False로 둔다.
+    """
     RATIO = (18, 33)  # 1mm당 픽셀 정상 범위 (체크리스트 예시값, Train 중앙값 25.3)
     IOU = 0.7
     CONTAIN = 0.9  # 작은 bbox 면적 중 다른 bbox와 겹친 비율. 이 이상이면 한 알약에 라벨 두 개로 본다
@@ -105,8 +140,12 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
                 }
             )
 
-    for n in COMBO_ZIPS:
-        z = tl_zip(n)
+    label_archives = (
+        [zipfile.ZipFile(path) for path in label_zips]
+        if label_zips is not None
+        else [tl_zip(n) for n in COMBO_ZIPS]
+    )
+    for z in label_archives:
         for m in z.namelist():
             if not m.endswith(".json") or "/._" in m:
                 continue
@@ -148,7 +187,10 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
                     f"JSON 읽기 실패: {e}",
                 )
 
-    for f in sorted(KAGGLE.glob("train_annotations/*/*/*.json")):
+    kaggle_jsons = (
+        sorted(KAGGLE.glob("train_annotations/*/*/*.json")) if include_kaggle else []
+    )
+    for f in kaggle_jsons:
         files.append(
             {
                 "source": "kaggle",
@@ -455,8 +497,13 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
     # ── ② Image: PNG를 열어 확인 ─────────────────────────────────────────────
     if not skip_png:
         where = {}
-        for n in COMBO_ZIPS:
-            z = zipfile.ZipFile(ts_zip(n))
+        image_paths = (
+            list(image_zips)
+            if image_zips is not None
+            else [ts_zip(n) for n in COMBO_ZIPS]
+        )
+        for path in image_paths:
+            z = zipfile.ZipFile(path)
             for m in z.namelist():
                 if m.endswith(".png") and "/._" not in m:
                     where[os.path.basename(m)] = (z, m)
@@ -494,14 +541,7 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
                     "이미지 제외",
                     f"PNG {im.size}, JSON {(r.W, r.H)}",
                 )
-            md5[img] = hashlib.md5(im.tobytes()).hexdigest()
-            c = dctn(
-                np.asarray(
-                    im.convert("L").resize((32, 32), Image.LANCZOS), dtype=float
-                ),
-                norm="ortho",
-            )[:8, :8]
-            ph[img] = np.packbits(c.flatten() > np.median(c)).view(">u8")[0]
+            md5[img], ph[img] = image_fingerprint(im)
             if i % 1000 == 0:
                 print(f"  PNG {i}/{len(size)}")
 
@@ -541,12 +581,12 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
         issues,
         columns=["source", "image", "code", "check", "level", "action", "detail"],
     )
-    META.mkdir(parents=True, exist_ok=True)
-    save_table(iss, META / "label_issues.csv")
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    save_table(iss, meta_dir / "label_issues.csv")
     lf = pd.DataFrame(files).merge(
         d.groupby(["source", "image", "code"]).img_id.first().reset_index(), how="left"
     )
-    save_table(lf, META / "label_files.csv")
+    save_table(lf, meta_dir / "label_files.csv")
 
     ex_img = iss[iss.action == "이미지 제외"]
     ex_box = iss[iss.action == "bbox 제외"][["image", "code"]].drop_duplicates()
@@ -561,11 +601,11 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
         f"- 실행일: {date.today()} / 스크립트: `python -m etl.classifier.validate_source_labels`"
         + (" (PNG 검사 생략)" if skip_png else ""),
         "- 기준 문서: Obsidian 「알약 데이터 검증 체크리스트」",
-        f"- 대상: 조합 TL_{'·'.join(map(str, COMBO_ZIPS))} 중 촬영 조건(연회색·주백색·70/75/90°) 이미지 {n_combo}장, Kaggle train {n_kaggle}장, bbox {len(d)}개",
+        f"- 대상: {target_description or '조합 TL_' + '·'.join(map(str, COMBO_ZIPS))} 중 촬영 조건(연회색·주백색·70/75/90°) 이미지 {n_combo}장, Kaggle train {n_kaggle}장, bbox {len(d)}개",
         f"- 기준값: 1mm당 픽셀 긴 변 {RATIO[0]}~{RATIO[1]}·짧은 변 {RATIO[0]} 이상, IoU > {IOU} 또는 작은 bbox의 {CONTAIN:.0%} 이상 겹침, pHash 거리 ≤ {PHASH}",
         f"- 실제 알약 크기 값(leng_long)이 0인 약: 같은 클래스 bbox 중앙값 대비 긴 변 {REL[0]}배·짧은 변 {REL[1]}배 이상이어야 정상",
         "- 처리: 조합은 라벨 오류가 하나라도 있으면 **이미지 제외**(대체 가능), Kaggle은 **bbox 제외**(대체 불가), crop 라벨에 영향 없는 항목은 **기록만**",
-        "- 상세 목록: `data/classifier/meta/label_issues.csv` (문제 하나당 한 줄)",
+        f"- 상세 목록: `{_display_path(meta_dir / 'label_issues.csv')}` (문제 하나당 한 줄)",
         "",
         "## 항목별 결과",
         "",
@@ -691,16 +731,15 @@ def validate_source_labels(*, skip_png: bool = False) -> None:
             "|---|---|---|",
         ]
         lines += [f"| {r.check} | {r.code} | {r.detail} |" for r in cls.itertuples()]
-    REPORTS.mkdir(exist_ok=True)
-    (REPORTS / "validation_report.md").write_text(
-        "\n".join(lines) + "\n", encoding="utf-8"
-    )
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     print("\n".join(lines[9 : 9 + len(CHECKS) + 2]))
     print(
         f"\n이미지 제외: 조합 {ex_img[ex_img.source == 'combo'].image.nunique()}장, Kaggle {ex_img[ex_img.source == 'kaggle'].image.nunique()}장 / bbox 제외 {len(ex_box)}개"
     )
-    print("저장:", META / "label_issues.csv", REPORTS / "validation_report.md")
+    print("저장:", meta_dir / "label_issues.csv", report_path)
+    return iss
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -64,8 +64,7 @@ def train_config(tmp_path: Path) -> ClassifierConfig:
     return ClassifierConfig(
         run_name="training-test",
         output_dir=tmp_path / "outputs",
-        class_map_path=tmp_path / "class_map.json",
-        data_summary_path=tmp_path / "data_summary.json",
+        data_dir=tmp_path,
     )
 
 

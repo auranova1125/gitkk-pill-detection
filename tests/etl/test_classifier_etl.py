@@ -11,7 +11,7 @@ def test_classifier_etl_runs_explicit_stages_in_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[str, object]] = []
-    detector_package = Path("detector-package.zip")
+    detector_data_dir = Path("data/detector")
 
     monkeypatch.setattr(
         etl_module,
@@ -45,7 +45,7 @@ def test_classifier_etl_runs_explicit_stages_in_order(
     )
 
     etl_module.build_classifier_dataset(
-        detector_package=detector_package,
+        detector_data_dir=detector_data_dir,
         target_samples_per_class=120,
         skip_png_validation=True,
         overwrite=True,
@@ -55,7 +55,7 @@ def test_classifier_etl_runs_explicit_stages_in_order(
         ("validate", True),
         ("select", 120),
         ("crop", True),
-        ("split", detector_package),
+        ("split", detector_data_dir),
         ("summarize", 120),
         ("export", True),
     ]

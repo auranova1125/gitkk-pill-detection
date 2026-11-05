@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -23,6 +24,10 @@ from detector.inference import (
     predict_detector,
     save_inference_artifacts,
     validate_inference_batch,
+)
+from detector.yolo_inference import (
+    load_yolo_detector_inference_model,
+    predict_yolo_detector,
 )
 from pipeline.pill_recognition import build_classifier_batch
 
@@ -73,6 +78,25 @@ class TinyInferenceModel(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.weight = nn.Parameter(torch.tensor(1.0))
+
+
+class FakeYoloModel:
+    def __init__(self) -> None:
+        self.names = {0: "pill"}
+        self.arguments: dict[str, Any] | None = None
+
+    def predict(self, **arguments: Any) -> list[SimpleNamespace]:
+        self.arguments = arguments
+        return [
+            SimpleNamespace(
+                boxes=SimpleNamespace(
+                    xyxy=torch.tensor([[2.0, 3.0, 12.0, 13.0]]),
+                    conf=torch.tensor([0.9]),
+                    cls=torch.tensor([0.0]),
+                )
+            )
+            for _ in arguments["source"]
+        ]
 
 
 def make_inference_batch(image_id: int = 7) -> dict[str, Any]:
@@ -157,6 +181,59 @@ def test_predict_detector_accepts_empty_predictions() -> None:
 
     assert result.predictions == ()
     assert result.errors == ()
+
+
+def test_predict_yolo_detector_converts_ultralytics_results() -> None:
+    model = FakeYoloModel()
+
+    result = predict_yolo_detector(
+        model,
+        [make_inference_batch()],
+        torch.device("cpu"),
+        score_threshold=0.25,
+        detector_name="yolo26s",
+        image_size=640,
+        nms_threshold=0.45,
+    )
+
+    assert len(result.predictions) == 1
+    assert not result.errors
+    prediction = result.predictions[0]
+    assert prediction.bbox_xyxy == pytest.approx((2.0, 3.0, 12.0, 13.0))
+    assert prediction.bbox_xywh == pytest.approx((2.0, 3.0, 10.0, 10.0))
+    assert prediction.label == 1
+    assert prediction.detector_score == pytest.approx(0.9)
+    assert model.arguments is not None
+    assert model.arguments["conf"] == pytest.approx(0.25)
+    assert model.arguments["iou"] == pytest.approx(0.45)
+    assert model.arguments["imgsz"] == 640
+    assert model.arguments["source"][0].mode == "RGB"
+
+
+def test_load_yolo_detector_inference_model_validates_checkpoint(
+    tmp_path: Path,
+    detector_label_map: dict[str, Any],
+) -> None:
+    checkpoint_path = tmp_path / "best.pt"
+    checkpoint_path.touch()
+    model = FakeYoloModel()
+    captured_path: str | None = None
+
+    def model_factory(path: str) -> FakeYoloModel:
+        nonlocal captured_path
+        captured_path = path
+        return model
+
+    loaded_model, device = load_yolo_detector_inference_model(
+        checkpoint_path,
+        detector_label_map,
+        device=torch.device("cpu"),
+        model_factory=model_factory,
+    )
+
+    assert loaded_model is model
+    assert device == torch.device("cpu")
+    assert captured_path == str(checkpoint_path.resolve())
 
 
 def test_predict_detector_rejects_duplicate_image_ids() -> None:
@@ -259,6 +336,8 @@ def test_load_inference_model_restores_matching_backbone_structure(
         "num_classes": 2,
         "pretrained_backbone": True,
         "nms_threshold": 0.45,
+        "image_min_size": None,
+        "image_max_size": None,
     }
 
 

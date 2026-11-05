@@ -32,7 +32,7 @@ gitkk-pill-detection/
 ├── data_loading/
 │   ├── classifier.py / classifier_package.py
 │   ├── detector.py / detector_package.py
-│   ├── detector_data_paths.py / detector_transforms.py
+│   ├── detector_transforms.py
 │   ├── recognition.py
 │   ├── image_transforms.py / validation.py / factory.py
 │   └── synthetic.py
@@ -67,7 +67,16 @@ gitkk-pill-detection/
     └── smoke/
 ```
 
-## 3. 데이터 경계
+## 3. 설정과 데이터의 단일 기준
+
+- 학습 입력 위치는 작업별 `config.data_dir` 하나로 정한다.
+- 탐지 분할은 `data/detector/split_manifest.csv`, annotation은 `annotations.json` 하나가 기준이다.
+- 분류 품목 매핑과 클래스 수는 `class_map.json`이 기준이다. `samples.csv`의 품목 열은 샘플 추적용 복사본이며 로딩할 때 class map과 전 행을 비교한다.
+- 증강은 데이터 metadata가 아니라 실행 설정(`configs/*.yaml` 또는 Notebook override)에만 둔다.
+- 통합 추론은 detector와 classifier의 실행 폴더만 받고 checkpoint와 map 파일 경로를 정해진 artifact 이름으로 계산한다.
+- 실행 폴더의 `resolved_config.yaml`, label/class map과 data summary는 재현성을 위한 snapshot이며 원본 입력을 대신하지 않는다.
+
+## 4. 데이터 경계
 
 ```text
 원천 데이터
@@ -88,7 +97,7 @@ gitkk-pill-detection/
 
 탐지 ETL은 확정된 Codeit 원천 adapter와 최종 패키지 검증만 구현한다. 형식이 확정되지 않은 SELECT adapter와 전체 조립 함수는 조용히 임의 처리하지 않고 `NotImplementedError`를 발생시키는 플레이스홀더다.
 
-## 4. 분류기·탐지기 대칭성
+## 5. 분류기·탐지기 대칭성
 
 | 역할 | 분류기 | 탐지기 |
 | --- | --- | --- |
@@ -106,7 +115,7 @@ gitkk-pill-detection/
 
 분류기의 단계별 fine-tuning과 탐지기의 bbox metric처럼 도메인이 다른 기능은 각 패키지에 남긴다.
 
-## 5. 실행 진입점
+## 6. 실행 진입점
 
 - Notebook: 실험 설정, 샘플 확인, 시각화
 - `main.py`: 자동화, 재현, CLI smoke
@@ -128,14 +137,14 @@ Baseline Notebook은 `실행 설정 → 입력 준비·검증 → 실행 → 결
 - `reports/experiments/`: 같은 조건에서 변경점과 결과를 누적하는 비교 기록
 - `reports/data/`: ETL 산출물과 데이터 검증 기록
 
-## 6. 안전 규칙
+## 7. 안전 규칙
 
 - 신규 학습은 기존 `best.pt`, `last.pt`, `metrics.csv`를 묵시적으로 덮어쓰지 않는다.
 - ETL은 기존 crop·export 폴더를 `--overwrite` 없이 삭제하지 않는다.
 - DataLoader, checkpoint, 모델 출력과 pipeline 경계에서 입력 검증을 유지한다.
 - 분류 클래스 수 118은 기본값이며 설정으로 변경 가능하다.
 
-## 7. 후속 브랜치 범위
+## 8. 후속 브랜치 범위
 
 다음 항목은 이 구조 리팩터링에 포함하지 않았다.
 
@@ -144,7 +153,7 @@ Baseline Notebook은 `실행 설정 → 입력 준비·검증 → 실행 → 결
 - W&B 실험 추적
 - 실제 탐지 결과를 사용한 end-to-end 평가
 
-## 8. 관련 문서
+## 9. 관련 문서
 
 - [기준 모델과 교체 기준](baseline_models.md)
 - [실행 이름·태그·결과 저장 규칙](../experiments/run_conventions.md)

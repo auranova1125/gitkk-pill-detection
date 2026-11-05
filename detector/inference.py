@@ -299,6 +299,8 @@ def load_detector_inference_model(
     num_classes = model_config.get("num_classes")
     nms_threshold = model_config.get("nms_threshold")
     pretrained_backbone = model_config.get("pretrained_backbone")
+    image_min_size = model_config.get("image_min_size")
+    image_max_size = model_config.get("image_max_size")
 
     if num_classes != label_map["num_model_classes"]:
         raise ValueError("checkpoint class count does not match current label map")
@@ -313,6 +315,8 @@ def load_detector_inference_model(
         num_classes=num_classes,
         pretrained_backbone=pretrained_backbone,
         nms_threshold=float(nms_threshold),
+        image_min_size=image_min_size,
+        image_max_size=image_max_size,
     ).to(selected_device)
 
     model.load_state_dict(checkpoint["model_state"])

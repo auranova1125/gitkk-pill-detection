@@ -269,12 +269,16 @@ def run_training(
         "num_classes": label_map["num_model_classes"],
         "pretrained_backbone": pretrained_backbone,
         "nms_threshold": config.nms_threshold,
+        "image_min_size": config.image_min_size,
+        "image_max_size": config.image_max_size,
     }
     model = build_detector_model(
         config.model_name,
         num_classes=model_config["num_classes"],
         pretrained_backbone=pretrained_backbone,
         nms_threshold=config.nms_threshold,
+        image_min_size=config.image_min_size,
+        image_max_size=config.image_max_size,
     ).to(selected_device)
     optimizer = build_optimizer(model, config)
     scheduler = build_scheduler(optimizer, config)
