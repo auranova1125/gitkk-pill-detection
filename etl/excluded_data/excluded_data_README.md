@@ -57,3 +57,18 @@ excluded_data/
 3. classifier는 `samples.csv`와 `data_summary.json`을 같은 기준으로 갱신한다.
 4. 제외 전 train/validation 배정과 기존 ID는 유지한다.
 5. 중간 검수 후보를 자동으로 제외하지 않고 `final/`에 확정된 조치만 적용한다.
+
+## Detector 제외 적용
+
+원본 학습 패키지를 보존하고 현행 계약으로 정리한 복사본에 확정 목록을 적용한다.
+
+```bash
+uv run python -m etl.detector.apply_image_exclusions \
+  /path/to/detector-package-copy \
+  --archive-images-dir /path/to/excluded-images
+
+uv run python main.py check-detector-data \
+  --data-dir /path/to/detector-package-copy
+```
+
+첫 명령은 annotation·split manifest·summary를 함께 갱신하며, 두 번째 명령은 최종 학습 입력의 라벨·분할·경로를 다시 검증한다.
