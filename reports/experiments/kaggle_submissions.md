@@ -32,7 +32,7 @@
 | sub02_full_v1 | 11-02 | SSDLite320, 전체 데이터(v1) | 0.58186 | 탐지기 학습 데이터를 늘린 효과 +0.20 |
 | sub03_det_v2 | 11-04 | SSDLite320, 탐지기 데이터 v2 | 0.58765 | [SSDLite320 보고서](ssdlite320_training_report.md) |
 | sub11_det_v2_aug_a1 | 11-05 | SSDLite320 v2 + 증강 A1 | 0.58430 | val AP@0.95 +0.035였지만 Public −0.0034, 채택하지 않음 |
-| 팀원 제출 | 11-04 | YOLO11s | 0.60831 | [YOLO11s v2 보고서](detector_yolo11s_v2.md) |
+| 팀원 제출 | 11-04 | YOLO11s | 0.60831 | [YOLO11s v2 보고서](yolo11s_training_report.md) |
 | 팀원 제출 | 11-04 | Faster R-CNN | 0.59375 | [Faster R-CNN 보고서](faster_rcnn_training_report.md) |
 | 팀원 제출 | 11-05 | SSDLite320 v2 | 0.58964 | |
 | 팀원 제출 | 11-05 | YOLO26s | **0.61804** | [YOLO26s 보고서](yolo26s_training_report.md), 현재 최고점 |

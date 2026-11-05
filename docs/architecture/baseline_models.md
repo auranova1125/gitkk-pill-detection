@@ -64,7 +64,7 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 - optimizer와 scheduler: `detector/train.py`
 - 지표와 threshold 평가: `detector/evaluate.py`
 - 기본 실행값: `configs/detector.yaml`
-- 결과 기록 양식: `reports/baseline/detector_report.md`
+- 결과 비교 요약: `reports/baseline/detector_report.md`
 
 현재 registry에는 `fasterrcnn_resnet50_fpn_v2`와 `ssdlite320_mobilenet_v3_large`가 등록돼 있다. `configs/detector.yaml`의 `model_name` 또는 노트북 설정 셀만 바꿔 선택하며, checkpoint에는 실제 모델 이름이 함께 저장된다.
 
@@ -76,9 +76,10 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 | --- | --- | --- | --- |
 | 분류기 | ResNet-50 | 기준 구현·학습 완료 | 품목 분류 기준선 |
 | 탐지기 | SSDLite320 MobileNetV3-Large | 이전 기준 구현·학습 완료 | [경량 모델 기준선과 증강 실험](../../reports/experiments/ssdlite320_training_report.md) |
-| 탐지기 | Faster R-CNN ResNet50-FPN v2 | 구현 완료, 전체 학습 결과 대기 | two-stage 모델의 고 IoU 위치 정확도 비교 |
+| 탐지기 | Faster R-CNN ResNet50-FPN v2 | 학습·통합 평가 완료 | [two-stage 모델의 위치 정확도와 오류 분석](../../reports/experiments/faster_rcnn_training_report.md) |
 | 탐지기 | SSD300 VGG16 | 후보 | 같은 SSD 계열에서 고 IoU 위치 정확도 비교 |
-| 탐지기 | YOLO11s | 공통 Ultralytics 학습·추론 경로로 실행 가능 | [v2 학습·공통 분류기 e2e·Kaggle 결과](../../reports/experiments/detector_yolo11s_v2.md) |
+| 탐지기 | YOLO11s | 학습·통합 평가 완료 | [v2 학습·공통 분류기 e2e·Kaggle 결과](../../reports/experiments/yolo11s_training_report.md) |
+| 탐지기 | YOLO26s | 학습·통합 평가 완료 | [학습·공통 분류기 e2e 결과](../../reports/experiments/yolo26s_training_report.md) |
 
 후보는 결과 없이 registry에 미리 추가하지 않는다. 기준 모델의 한계가 실제 validation에서 확인되고 비교 실험이 정해졌을 때 구현한다.
 

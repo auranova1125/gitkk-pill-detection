@@ -29,13 +29,11 @@ Detector는 이미지 단위로 제외하지만 classifier는 crop 단위 조치
 
 ```text
 excluded_data/
-├── README.md
+├── excluded_data_guide.md
 ├── final/
 │   └── detector_excluded_images.csv
 ├── audit/
 │   └── detector_position_review.csv
-├── reports/
-│   └── detector_v2_report.md
 └── archive/
     ├── legacy_exclusion_guide.md
     ├── legacy_excluded_image_details.csv
@@ -45,8 +43,9 @@ excluded_data/
 
 - `final/`: detector ETL과 현재 학습 패키지가 직접 사용하는 확정 입력
 - `audit/`: 확정 판정의 근거가 된 세부 검수 기록
-- `reports/`: detector v2 구성 결과와 한계
 - `archive/`: detector v1 10,319장을 만들기 전에 이미 반영된 153장 제외 기록과 이전 검수 산출물
+
+데이터셋 구성 결과와 한계는 [`reports/data/detector/data_v2_report.md`](../../reports/data/detector/data_v2_report.md)에 기록한다.
 
 `archive/legacy_excluded_image_details.csv`의 153장과 `final/detector_excluded_images.csv`의 150장은 서로 겹치지 않는다. 앞의 153장은 detector v1에 이미 반영되어 있고, 뒤의 150장은 v1에서 v2를 만들 때 추가로 적용한다. 최신 150장 중 분류기 검수에서 전달된 48장의 근거는 `etl/classifier/label_audit/records/detector_actions.csv`에 있다.
 
