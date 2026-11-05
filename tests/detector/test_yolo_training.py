@@ -8,8 +8,8 @@ import pytest
 
 import detector.yolo_training as yolo_training_module
 from configs.yolo_detector import YoloDetectorConfig
+from data_loading.yolo import YoloDetectorDatasetExport
 from detector.yolo_training import train_yolo_detector
-from etl.detector.export_yolo_dataset import YoloDetectorDatasetExport
 from utils.io import write_json
 
 

@@ -33,6 +33,7 @@ gitkk-pill-detection/
 │   ├── classifier.py / classifier_package.py
 │   ├── detector.py / detector_package.py
 │   ├── detector_transforms.py
+│   ├── yolo.py
 │   ├── recognition.py
 │   ├── image_transforms.py / validation.py / factory.py
 │   └── synthetic.py
@@ -46,9 +47,8 @@ gitkk-pill-detection/
 │   └── build_classifier_dataset.py
 ├── etl/detector/
 │   ├── codeit_source.py
-│   ├── select_source.py
+│   ├── apply_image_exclusions.py
 │   ├── training_package.py
-│   └── build_detector_dataset.py
 ├── pipeline/pill_recognition.py
 ├── utils/runtime.py / io.py
 ├── notebooks/
@@ -95,7 +95,10 @@ gitkk-pill-detection/
 `submission.csv`를 실행 폴더에 저장한다. `score`는 탐지 점수와 분류 확률을 곱한 결합
 점수다.
 
-탐지 ETL은 확정된 Codeit 원천 adapter와 최종 패키지 검증만 구현한다. 형식이 확정되지 않은 SELECT adapter와 전체 조립 함수는 조용히 임의 처리하지 않고 `NotImplementedError`를 발생시키는 플레이스홀더다.
+탐지 ETL은 확정된 Codeit 원천 adapter, 확정 제외 목록 적용과 최종 패키지 검증을
+담당한다. 최초 SELECT 원천 변환과 그룹 분할은 저장소 범위가 아니며, 전달된 완성
+패키지를 임의로 재분할하지 않는다. YOLO label view는 원천 ETL 산출물이 아니라 검증된
+패키지에서 재생성할 수 있는 학습용 view이므로 `data_loading/yolo.py`가 준비한다.
 
 ## 5. 분류기·탐지기 대칭성
 

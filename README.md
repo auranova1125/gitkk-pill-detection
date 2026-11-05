@@ -226,7 +226,10 @@ git merge origin/main
 uv run python -m etl.classifier.build_classifier_dataset
 ```
 
-탐지 ETL은 현재 Codeit 원천 adapter와 완성 패키지 검증까지 구현되어 있습니다. SELECT 원천 형식과 최초 분할 규칙이 확정되기 전까지 전체 생성 진입점은 명시적 플레이스홀더로 유지합니다. 현재 범위는 [탐지 ETL](docs/data/detector_etl.md)에서 확인합니다.
+탐지 ETL은 검증된 Codeit 원천 adapter, 기존 패키지의 확정 제외 목록 적용과 완성
+패키지 검증을 제공합니다. 최초 SELECT 원천 변환과 분할은 저장소 범위에 포함하지
+않으며, 학습은 전달받은 완성 패키지를 기준으로 실행합니다. 현재 범위는
+[탐지 ETL](docs/data/detector_etl.md)에서 확인합니다.
 
 탐지 학습 패키지는 다음 명령으로 라벨·분할·경로를 검사합니다.
 
