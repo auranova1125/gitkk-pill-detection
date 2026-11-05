@@ -1,8 +1,8 @@
-# 알약 이미지 Object Detection
+# 경구약제 이미지 탐지·분류
 
 팀명: 깃크크크(4팀)
-화이팅.
-사진 속 최대 4개 알약의 이름(클래스)과 위치(바운딩 박스)를 검출하는 협업 프로젝트입니다.
+
+조합 이미지에서 알약의 위치를 탐지하고, 각 영역을 세부 약품 품목으로 분류하는 프로젝트입니다.
 
 Kaggle: [\[AI15\] 경구약제 이미지 객체 검출(Object Detection) 프로젝트](https://www.kaggle.com/competitions/ai15-level1-project/overview)
 
@@ -38,6 +38,12 @@ uv sync --locked
 ```
 
 `uv sync --locked`는 `uv.lock`을 변경하지 않고 잠긴 의존성으로 `.venv`를 구성합니다. `pyproject.toml`과 `uv.lock`이 일치하지 않으면 실패합니다.
+
+기본 실행에는 필요하지 않은 증강·실험 추적 도구까지 사용할 때만 선택 그룹을 설치합니다.
+
+```bash
+uv sync --locked --group experiment
+```
 
 ### Google Colab
 
@@ -92,6 +98,7 @@ uv run python main.py smoke
 # YAML 설정을 사용한 학습
 uv run python main.py train-classifier --config configs/classifier.yaml
 uv run python main.py train-detector --config configs/detector.yaml
+uv run python main.py train-yolo-detector --config configs/yolo_detector.yaml
 
 # checkpoint 평가와 통합 추론
 uv run python main.py evaluate classifier \
@@ -100,7 +107,7 @@ uv run python main.py evaluate classifier \
 uv run python main.py recognize-pills --config configs/pill_recognition.yaml
 ```
 
-`configs/*.yaml`은 `configs/classifier.py`, `configs/detector.py`, `configs/pill_recognition.py`의 설정 객체로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 YAML을 읽은 설정 객체에서 실험값만 교체합니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
+`configs/*.yaml`은 같은 이름의 Python 설정 객체로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 YAML을 읽은 설정 객체에서 실험값만 교체합니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
 
 기본 YAML은 저장소가 제공하는 `data_loading` factory를 사용합니다. 데이터가 저장소 밖에 있으면 탐지기와 분류기의 `data_dir`, 통합 추론의 `input_dir`과 두 모델의 `*_run_dir`을 실제 경로에 맞게 바꿉니다.
 
@@ -113,6 +120,8 @@ uv run python -m pytest -q
 uv run ruff check main.py classifier configs detector etl data_loading pipeline utils tests
 uv run ruff format --check main.py classifier configs detector etl data_loading pipeline utils tests
 ```
+
+학습 결과와 checkpoint는 `outputs/<task>/<run_name>/`에 저장하며 Git에 포함하지 않습니다.
 
 ## Jupyter Notebook Git 설정
 
@@ -195,7 +204,7 @@ git merge origin/main
 
 충돌을 해결한 뒤 관련 기능을 다시 확인합니다. 의존성 파일이 변경됐다면 `uv sync --locked`도 실행합니다.
 
-모든 변경은 `main` 대상 PR로 제출합니다. 최소 1명의 리뷰와 승인을 받은 뒤 **Squash Merge**하고 작업 브랜치를 삭제합니다. 다음 작업은 다시 최신 `main`에서 시작합니다.
+모든 변경은 `main` 대상 PR로 제출합니다. 최소 1명의 리뷰와 승인을 받은 뒤 논리적으로 나눈 commit 기록을 보존하는 merge commit 방식으로 병합하고 작업 브랜치를 삭제합니다. 다음 작업은 다시 최신 `main`에서 시작합니다.
 
 상세 협업 규칙은 프로젝트 Notion을 참고합니다.
 
@@ -242,7 +251,7 @@ uv run python main.py check-detector-data
 ### Baseline
 
 - [분류기 학습](notebooks/baseline/train_classifier.ipynb)
-- [탐지기 학습](notebooks/baseline/train_detector.ipynb)
+- [torchvision 탐지기 학습](notebooks/baseline/train_detector.ipynb)
 - [탐·분 통합 알약 인식](notebooks/baseline/run_pill_recognition.ipynb)
 
 ### 실험·EDA
@@ -251,25 +260,11 @@ uv run python main.py check-detector-data
 - [분류기 baseline 분석](notebooks/experiments/classifier_baseline_analysis.ipynb)
 - [분류 데이터 품질 확인](notebooks/eda/classifier_data_quality.ipynb)
 
-Notebook은 설정과 시각화를 담당하며, 학습·평가 핵심 로직은 Python 모듈을 호출합니다. 자동화나 재현이 필요한 경우 `main.py`의 `train-classifier`, `train-detector`, `evaluate`, `recognize-pills`, `smoke` 명령을 사용합니다.
+Notebook은 설정과 시각화를 담당하며, 학습·평가 핵심 로직은 Python 모듈을 호출합니다. 자동화나 재현이 필요한 경우 `main.py`의 `train-classifier`, `train-detector`, `train-yolo-detector`, `evaluate`, `recognize-pills`, `smoke` 명령을 사용합니다.
 
 학습·통합 추론의 이름, tag와 `outputs/` 저장 위치는 [실행 이름·태그·결과 저장 규칙](docs/experiments/run_conventions.md)을 따릅니다.
 
-## 검증
-
-```bash
-# 전체 테스트
-uv run pytest -q
-
-# 합성 데이터 소형 smoke
-uv run pytest -q -m smoke
-
-# 코드 스타일
-uv run ruff check classifier detector pipeline data_loading configs utils etl tests main.py
-uv run ruff format --check classifier detector pipeline data_loading configs utils etl tests main.py
-```
-
-학습 결과와 checkpoint는 `outputs/<task>/<run_name>/`에 저장하며 Git에 포함하지 않습니다. 분류 클래스 수는 입력 패키지의 `class_map.json`에서 결정되며, 현재 118종 데이터도 고정 절대값으로 다루지 않습니다.
+분류 클래스 수는 입력 패키지의 `class_map.json`에서 결정되며, 현재 118종 데이터도 고정 절대값으로 다루지 않습니다.
 
 ## 문서
 

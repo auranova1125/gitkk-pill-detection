@@ -24,7 +24,7 @@
 ## 공통 재현 경로
 
 - torchvision 탐지기: `notebooks/baseline/train_detector.ipynb`
-- Ultralytics 탐지기: `notebooks/baseline/train_detector_yolo.ipynb`
+- Ultralytics 탐지기: `notebooks/experiments/train_yolo26s_detector.ipynb`
 - 탐지·분류 통합 평가와 제출: `notebooks/baseline/run_pill_recognition.ipynb`
 - 실행 설정: `configs/detector.yaml`, `configs/yolo_detector.yaml`, `configs/pipeline.yaml`
 

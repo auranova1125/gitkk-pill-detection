@@ -69,10 +69,9 @@ dist/
 *.egg-info/
 
 # ==========================================
-# Detection data: machine-specific settings and backup files
+# Legacy detection data directory
 # ==========================================
-/detector_data/detector_data_settings.json
-/detector_data/**/*.previous
+/detector_data/
 
 # ==========================================
 # Temporary files

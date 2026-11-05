@@ -2,7 +2,7 @@
 
 > **문서 상태:** 현재 코드에 구현된 기준 모델과 후속 모델 비교 원칙을 설명한다. 실행값의 단일 기준은 `configs/*.yaml`, 실제 성능은 `reports/`의 결과 문서다.
 
-## 1. 현재 기준 모델
+## 1. 공통 구현 기준
 
 | 구분 | 분류기 | 탐지기 |
 | --- | --- | --- |
@@ -15,6 +15,8 @@
 | Best 기준 | validation macro F1, 동률이면 Top-1 | 고 IoU mAP@[0.75:0.95], 동률이면 mean average recall |
 
 현재 데이터는 118개 품목을 포함하지만 분류기 구조의 절대값은 아니다. 클래스 수는 전달된 `class_map.json`에서 결정된다. 탐지기는 품목 수와 무관하게 단일 foreground 클래스만 예측한다.
+
+표의 탐지기는 torchvision 공통 학습 경로의 기본 설정이다. 전체 비교 결과와 최종 제출 후보는 [탐지기 모델 비교 요약](../../reports/baseline/detector_report.md)에서 관리한다.
 
 ## 2. 분류기 기준
 
@@ -77,11 +79,10 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 | 분류기 | ResNet-50 | 기준 구현·학습 완료 | 품목 분류 기준선 |
 | 탐지기 | SSDLite320 MobileNetV3-Large | 이전 기준 구현·학습 완료 | [경량 모델 기준선과 증강 실험](../../reports/experiments/ssdlite320_training_report.md) |
 | 탐지기 | Faster R-CNN ResNet50-FPN v2 | 학습·통합 평가 완료 | [two-stage 모델의 위치 정확도와 오류 분석](../../reports/experiments/faster_rcnn_training_report.md) |
-| 탐지기 | SSD300 VGG16 | 후보 | 같은 SSD 계열에서 고 IoU 위치 정확도 비교 |
 | 탐지기 | YOLO11s | 학습·통합 평가 완료 | [v2 학습·공통 분류기 e2e·Kaggle 결과](../../reports/experiments/yolo11s_training_report.md) |
 | 탐지기 | YOLO26s | 학습·통합 평가 완료 | [학습·공통 분류기 e2e 결과](../../reports/experiments/yolo26s_training_report.md) |
 
-후보는 결과 없이 registry에 미리 추가하지 않는다. 기준 모델의 한계가 실제 validation에서 확인되고 비교 실험이 정해졌을 때 구현한다.
+새 모델은 결과 없이 registry에 미리 추가하지 않는다. 기준 모델의 한계가 실제 validation에서 확인되고 비교 실험이 정해졌을 때 구현한다.
 
 ## 5. 교체와 비교 원칙
 
