@@ -1,12 +1,12 @@
 task: detector
-run_name: 20261103-ssdlite320-det-default-baseline-01
+run_name: 20261104-fasterrcnn-r50-fpn-v2-det-default-baseline-02
 output_dir: outputs/detector
 device: auto
 show_progress: true
 # tags:
 #   - task:detector
 #   - stage:baseline
-#   - model:ssdlite320
+#   - model:fasterrcnn-r50-fpn-v2
 #   - data:det-default
 #   - change:baseline
 #   - device:auto
@@ -14,13 +14,16 @@ show_progress: true
 seed: 42
 
 data_factory_path: data_loading.detector:build_detector_inputs
-data_settings_path: null
+data_dir: data/detector
 
-model_name: ssdlite320_mobilenet_v3_large
+model_name: fasterrcnn_resnet50_fpn_v2
 pretrained_backbone: true
+# Faster R-CNN 내부 resize. 원본 bbox 좌표는 DataLoader에서 변경하지 않는다.
+image_min_size: 384
+image_max_size: 640
 
-batch_size: 8
-max_epochs: 50
+batch_size: 1
+max_epochs: 20
 learning_rate: 0.005
 momentum: 0.9
 weight_decay: 0.0005

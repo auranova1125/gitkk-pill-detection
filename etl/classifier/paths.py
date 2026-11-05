@@ -19,14 +19,22 @@ CLASSES = Path(__file__).with_name("classes.csv")
 META = DATA / "classifier" / "meta"  # 선정 목록, bbox
 CROPS = DATA / "classifier" / "crops"  # crops/<약 코드>/*.jpg
 EXPORT = DATA / "classifier" / "export"  # 분류기 팀에 넘기는 입력 패키지
-DETECTOR_PACKAGE = (
-    DATA / "detector" / "training_package_detector.zip"
-)  # 탐지기 학습 패키지 (split_manifest.csv)
+DETECTOR_DATA = DATA / "detector"  # images/, annotations.json, split_manifest.csv
 REPORTS = (
     ROOT / "reports" / "data" / "classifier"
 )  # 실행 결과 문서 (자동 생성, git에 올림)
 LABEL_AUDIT_RECORDS = Path(__file__).with_name("label_audit") / "records"
 LABEL_AUDIT_OUTPUT = META / "label_audit"  # embedding, 점수와 검수용 이미지
+
+# AI Hub val(조합): 학습에 쓰지 않는 외부 평가셋. 학습 원본(AIHUB)과 섞이지 않게 따로 둔다
+AIHUB_VAL = Path(
+    os.environ.get("AIHUB_VAL_DIR", DATA / "aihub_val")
+).expanduser()  # VS_1_조합.zip(이미지), VL_1_조합.zip(라벨)
+AIHUB_VAL_META = DATA / "classifier" / "aihub_val"  # 검수 결과, 점수, 검수용 이미지
+AIHUB_VAL_RECORDS = (
+    Path(__file__).with_name("aihub_val") / "records"
+)  # 사람 판정 CSV (git에 올림)
+AIHUB_VAL_PACKAGE = EXPORT / "eval_package_aihub_val"
 
 COMBO_ZIPS = [
     1,
@@ -53,6 +61,18 @@ def ts_zip(n):
     hits = [p for p in AIHUB.rglob("*.zip") if re.match(rf"TS_{n}_조합", _nfc(p.name))]
     if len(hits) != 1:
         raise FileNotFoundError(f"TS_{n}_조합 zip을 하나만 찾아야 합니다: {hits}")
+    return hits[0]
+
+
+def aihub_val_zip(prefix):
+    """AI Hub val 조합 zip(VS_1_조합: 이미지, VL_1_조합: 라벨) 경로. AIHUB_VAL 아래 어디에 있어도 찾는다."""
+    hits = [
+        p for p in AIHUB_VAL.rglob("*.zip") if re.match(rf"{prefix}_조합", _nfc(p.name))
+    ]
+    if len(hits) != 1:
+        raise FileNotFoundError(
+            f"{AIHUB_VAL} 아래에서 {prefix}_조합 zip을 하나만 찾아야 합니다: {hits}"
+        )
     return hits[0]
 
 

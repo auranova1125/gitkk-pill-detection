@@ -48,7 +48,7 @@ outputs/
 | 항목 | 규칙 | 예시 |
 | --- | --- | --- |
 | `YYYYMMDD` | 실행을 시작한 한국 시간 날짜 | `20261102` |
-| `model` | 문서에서 합의한 짧은 모델 별칭 | `resnet50`, `ssdlite320` |
+| `model` | 문서에서 합의한 짧은 모델 별칭 | `resnet50`, `ssdlite320`, `fasterrcnn-r50-fpn-v2` |
 | `data` | 데이터 패키지 또는 입력 묶음의 짧은 별칭 | `cls-v2`, `det-mini`, `infer-mini` |
 | `purpose` | 실행의 주목적 하나 | `baseline`, `smoke`, `tune`, `ablation` |
 | `NN` | 같은 조건의 당일 순번, 두 자리 숫자 | `01`, `02` |
@@ -93,7 +93,7 @@ key와 value도 영문 소문자, 숫자와 하이픈을 사용한다. 같은 �
 | --- | --- | --- |
 | `task` | `classifier`, `detector` | 작업 종류 |
 | `stage` | `baseline`, `smoke`, `experiment` | 실행 단계 |
-| `model` | `resnet50`, `ssdlite320` | 모델 별칭 |
+| `model` | `resnet50`, `ssdlite320`, `fasterrcnn-r50-fpn-v2` | 모델 별칭 |
 | `data` | `cls-v2`, `det-mini` | 데이터 별칭 |
 | `change` | `baseline`, `horizontal-flip`, `lr` | 기준 대비 핵심 변경 하나 |
 | `device` | `cpu`, `mps`, `cuda` | 실제 실행 장치 |
@@ -104,7 +104,7 @@ key와 value도 영문 소문자, 숫자와 하이픈을 사용한다. 같은 �
 | --- | --- |
 | `task` | `inference` |
 | `stage` | `smoke`, `evaluation` |
-| `detector` | `ssdlite320` |
+| `detector` | `ssdlite320`, `fasterrcnn-r50-fpn-v2` |
 | `classifier` | `resnet50` |
 | `data` | `infer-mini` |
 | `device` | `cpu`, `mps`, `cuda` |

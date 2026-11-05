@@ -7,14 +7,14 @@
 | 구분 | 분류기 | 탐지기 |
 | --- | --- | --- |
 | 목적 | bbox crop의 세부 약품 분류 | 조합 이미지의 모든 알약 위치 탐지 |
-| 모델 | ResNet-50 | SSDLite320 MobileNetV3-Large |
-| 초기 가중치 | ImageNet `IMAGENET1K_V2` | MobileNetV3-Large `IMAGENET1K_V1` backbone |
+| 모델 | ResNet-50 | Faster R-CNN ResNet50-FPN v2 |
+| 초기 가중치 | ImageNet `IMAGENET1K_V2` | ResNet-50 `IMAGENET1K_V2` backbone |
 | 출력 | 설정 가능한 품목 클래스 수 | background `0`, pill `1` |
 | Optimizer | AdamW | SGD with momentum |
 | Scheduler | fine-tuning 단계의 CosineAnnealingLR | 전체 학습의 CosineAnnealingLR |
 | Best 기준 | validation macro F1, 동률이면 Top-1 | 고 IoU mAP@[0.75:0.95], 동률이면 mean average recall |
 
-품목 수의 현재 기본값은 118이지만 분류기 구조의 절대값은 아니다. `ClassifierConfig.expected_num_classes`와 전달된 class map을 함께 변경할 수 있다. 탐지기는 품목 수와 무관하게 단일 foreground 클래스만 예측한다.
+현재 데이터는 118개 품목을 포함하지만 분류기 구조의 절대값은 아니다. 클래스 수는 전달된 `class_map.json`에서 결정된다. 탐지기는 품목 수와 무관하게 단일 foreground 클래스만 예측한다.
 
 ## 2. 분류기 기준
 
@@ -44,7 +44,9 @@ ResNet-50은 torchvision에서 안정적으로 제공되고, ImageNet 사전학�
 
 ### 선택 이유
 
-SSDLite320 MobileNetV3-Large는 single-stage SSD 계열이라 학습·추론 흐름이 단순하고, 비교적 가벼워 MPS와 CUDA에서 반복 실험하기 좋다. torchvision detection의 공통 호출 규격을 사용하므로 동일 계열 모델을 비교하기도 쉽다.
+Faster R-CNN ResNet50-FPN v2는 region proposal과 RoI head를 사용하는 two-stage 탐지기다. SSDLite보다 연산량과 메모리 사용량은 크지만, multi-scale FPN 특징과 proposal 기반 bbox 보정으로 위치 정확도 비교 기준을 제공한다. 기존 SSDLite도 registry에 남아 있어 같은 데이터와 평가 흐름으로 비교할 수 있다.
+
+torchvision 기본 입력 크기 `800/1333`은 MPS에서 epoch당 약 1시간이 소요돼 현재 기준 실행은 내부 resize를 `384/640`으로 조정한다. 원본 데이터의 작은 bbox 5%도 축소 후 약 66px 이상이므로 시간 제약 안에서 위치 정보를 유지하는 타협값이다. 이 값은 checkpoint에 저장되어 추론 시 동일하게 복원된다.
 
 COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 backbone과 단일 `pill` 클래스에 맞춘 새 detection head를 사용한다.
 
@@ -52,7 +54,7 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 
 1. 모든 학습 가능 파라미터를 SGD로 최적화한다.
 2. momentum과 weight decay를 설정으로 전달한다.
-3. 전체 epoch를 주기로 CosineAnnealingLR을 적용한다.
+3. 최대 20 epoch를 주기로 CosineAnnealingLR을 적용한다.
 4. validation에서는 COCO mAP와 고 IoU mAP, threshold 전후 recall, 객체 수 오차를 기록한다.
 5. 이미지당 알약 수를 고정하거나 예측을 임의로 최대 네 개로 자르지 않는다.
 
@@ -64,7 +66,7 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 - 기본 실행값: `configs/detector.yaml`
 - 결과 기록 양식: `reports/baseline/detector_report.md`
 
-현재 registry에는 SSDLite 하나만 등록돼 있다. registry가 존재한다는 사실과 여러 모델의 호환이 검증됐다는 사실을 혼동하지 않는다.
+현재 registry에는 `fasterrcnn_resnet50_fpn_v2`와 `ssdlite320_mobilenet_v3_large`가 등록돼 있다. `configs/detector.yaml`의 `model_name` 또는 노트북 설정 셀만 바꿔 선택하며, checkpoint에는 실제 모델 이름이 함께 저장된다.
 
 ## 4. 모델 비교 기록
 
@@ -73,8 +75,10 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 | 구분 | 모델 | 상태 | 비교 목적 |
 | --- | --- | --- | --- |
 | 분류기 | ResNet-50 | 기준 구현·학습 완료 | 품목 분류 기준선 |
-| 탐지기 | SSDLite320 MobileNetV3-Large | 기준 구현, 실제 전체 학습 결과 대기 | 속도와 위치 정확도 기준선 |
+| 탐지기 | SSDLite320 MobileNetV3-Large | 이전 기준 구현·학습 완료 | [경량 모델 기준선과 증강 실험](../../reports/experiments/ssdlite320_training_report.md) |
+| 탐지기 | Faster R-CNN ResNet50-FPN v2 | 구현 완료, 전체 학습 결과 대기 | two-stage 모델의 고 IoU 위치 정확도 비교 |
 | 탐지기 | SSD300 VGG16 | 후보 | 같은 SSD 계열에서 고 IoU 위치 정확도 비교 |
+| 탐지기 | YOLO11s | 공통 Ultralytics 학습·추론 경로로 실행 가능 | [v2 학습·공통 분류기 e2e·Kaggle 결과](../../reports/experiments/detector_yolo11s_v2.md) |
 
 후보는 결과 없이 registry에 미리 추가하지 않는다. 기준 모델의 한계가 실제 validation에서 확인되고 비교 실험이 정해졌을 때 구현한다.
 

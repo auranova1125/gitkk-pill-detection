@@ -20,10 +20,8 @@ class ClassifierConfig:
 
     run_name: str
     output_dir: Path
-    class_map_path: Path
-    data_summary_path: Path
+    data_dir: Path = Path("data/classifier")
     data_factory_path: str | None = None
-    expected_num_classes: int = 118
     pretrained: bool = True
     device: str = "auto"
     seed: int = 42
@@ -40,19 +38,12 @@ class ClassifierConfig:
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
-        self.class_map_path = Path(self.class_map_path)
-        self.data_summary_path = Path(self.data_summary_path)
+        self.data_dir = Path(self.data_dir)
         if self.resume_from is not None:
             self.resume_from = Path(self.resume_from)
 
         validate_run_name(self.run_name)
         validate_factory_path(self.data_factory_path, name="data_factory_path")
-        if not isinstance(self.expected_num_classes, int) or isinstance(
-            self.expected_num_classes, bool
-        ):
-            raise TypeError("expected_num_classes must be an integer")
-        if self.expected_num_classes <= 0:
-            raise ValueError("expected_num_classes must be greater than zero")
         validate_boolean(self.pretrained, name="pretrained")
         validate_device_name(self.device)
         if self.seed < 0:
@@ -77,8 +68,7 @@ class ClassifierConfig:
         values = asdict(self)
         for field_name in (
             "output_dir",
-            "class_map_path",
-            "data_summary_path",
+            "data_dir",
             "resume_from",
         ):
             value = values[field_name]

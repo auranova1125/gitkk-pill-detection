@@ -141,7 +141,12 @@ def validate_checkpoint_compatibility(
 
     if checkpoint["model_name"] != expected_model_name:
         raise ValueError("checkpoint model name does not match current model")
-    if dict(checkpoint["model_config"]) != dict(expected_model_config):
+    checkpoint_model_config = dict(checkpoint["model_config"])
+    expected_config = dict(expected_model_config)
+    for field_name in ("image_min_size", "image_max_size"):
+        checkpoint_model_config.setdefault(field_name, None)
+        expected_config.setdefault(field_name, None)
+    if checkpoint_model_config != expected_config:
         raise ValueError("checkpoint model config does not match current model config")
     if checkpoint["label_map_hash"] != expected_label_map_hash:
         raise ValueError("checkpoint label map hash does not match current label map")

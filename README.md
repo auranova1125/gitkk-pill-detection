@@ -100,9 +100,9 @@ uv run python main.py evaluate classifier \
 uv run python main.py recognize-pills --config configs/pill_recognition.yaml
 ```
 
-`configs/*.yaml`은 `configs/classifier.py`, `configs/detector.py`, `configs/pill_recognition.py`의 설정 객체로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 같은 설정 객체를 직접 생성해 셀에서 실험값을 바꿀 수 있습니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
+`configs/*.yaml`은 `configs/classifier.py`, `configs/detector.py`, `configs/pill_recognition.py`의 설정 객체로 변환되므로 Notebook과 CLI의 값 검증 기준이 같습니다. CLI는 YAML 값을 사용하고, Notebook에서는 YAML을 읽은 설정 객체에서 실험값만 교체합니다. 상대 경로는 프로젝트 루트에서 명령을 실행하는 것을 기준으로 합니다.
 
-기본 YAML은 저장소가 제공하는 `data_loading` factory를 사용합니다. 데이터가 저장소 밖에 있으면 탐지기는 `data_settings_path`, 분류기는 `class_map_path`와 `data_summary_path`, 통합 추론은 `input_dir`을 실제 경로에 맞게 바꿉니다.
+기본 YAML은 저장소가 제공하는 `data_loading` factory를 사용합니다. 데이터가 저장소 밖에 있으면 탐지기와 분류기의 `data_dir`, 통합 추론의 `input_dir`과 두 모델의 `*_run_dir`을 실제 경로에 맞게 바꿉니다.
 
 ## 전체 품질 검사
 
@@ -244,6 +244,7 @@ uv run python main.py check-detector-data
 
 ### 실험·EDA
 
+- [YOLO26s 탐지기 학습](notebooks/experiments/train_yolo26s_detector.ipynb)
 - [분류기 baseline 분석](notebooks/experiments/classifier_baseline_analysis.ipynb)
 - [분류 데이터 품질 확인](notebooks/eda/classifier_data_quality.ipynb)
 
@@ -265,7 +266,7 @@ uv run ruff check classifier detector pipeline data_loading configs utils etl te
 uv run ruff format --check classifier detector pipeline data_loading configs utils etl tests main.py
 ```
 
-학습 결과와 checkpoint는 `outputs/<task>/<run_name>/`에 저장하며 Git에 포함하지 않습니다. 분류 클래스 수의 기본값은 118이지만 `expected_num_classes`로 변경할 수 있으며, 검증 로직이 118을 절대값으로 강제하지 않습니다.
+학습 결과와 checkpoint는 `outputs/<task>/<run_name>/`에 저장하며 Git에 포함하지 않습니다. 분류 클래스 수는 입력 패키지의 `class_map.json`에서 결정되며, 현재 118종 데이터도 고정 절대값으로 다루지 않습니다.
 
 ## 문서
 
@@ -277,4 +278,6 @@ uv run ruff format --check classifier detector pipeline data_loading configs uti
 - 입력 명세: [분류기](docs/specs/classifier_input_spec.md), [탐지기](docs/specs/detector_input_spec.md)
 - 기준 결과: [분류기](reports/baseline/classifier_report.md), [탐지기](reports/baseline/detector_report.md)
 - 실험 기록: [분류기](reports/experiments/classifier_experiments.md)
+- YOLO11s: [v2 학습·통합 추론·Kaggle 실험 결과](reports/experiments/detector_yolo11s_v2.md)
+- 대회 제출: [Kaggle 제출 기록과 진단 결과](reports/experiments/kaggle_submissions.md)
 - 데이터 보고서: [분류 데이터](reports/data/classifier/validation_report.md), [탐지 데이터](reports/data/detector/validation_report.md)

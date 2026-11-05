@@ -12,6 +12,11 @@ from detector.inference import (
 from detector.model import build_detector_model
 from detector.train import train_detector
 from detector.training_data import DetectorTrainingData, prepare_detector_data
+from detector.yolo_inference import (
+    load_yolo_detector_inference_model,
+    predict_yolo_detector,
+)
+from detector.yolo_training import YoloTrainingResult, train_yolo_detector
 
 __all__ = [
     "DetectorConfig",
@@ -19,10 +24,14 @@ __all__ = [
     "DetectorInferenceResult",
     "DetectorPrediction",
     "DetectorTrainingData",
+    "YoloTrainingResult",
     "build_detector_model",
     "evaluate_detector_checkpoint",
     "load_detector_inference_model",
+    "load_yolo_detector_inference_model",
     "predict_detector",
+    "predict_yolo_detector",
     "prepare_detector_data",
     "train_detector",
+    "train_yolo_detector",
 ]

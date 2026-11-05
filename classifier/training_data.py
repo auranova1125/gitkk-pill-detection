@@ -32,18 +32,22 @@ class ClassifierTrainingData:
 
 
 def prepare_classifier_data(config: ClassifierConfig) -> ClassifierTrainingData:
-    """분류기 factory를 한 번 호출하고 반환된 학습 입력을 검증한다."""
+    """검증용 factory 결과를 소비한 뒤 새 학습 입력을 반환한다."""
 
     device = resolve_device(config.device)
+    validation_data = call_training_data_factory(
+        config.data_factory_path,
+        config=config,
+        device=device,
+    )
+    validate_classifier_training_data(validation_data)
     training_data = call_training_data_factory(
         config.data_factory_path,
         config=config,
         device=device,
     )
-    validate_classifier_training_data(
-        training_data,
-        expected_num_classes=config.expected_num_classes,
-    )
+    if training_data[2] != validation_data[2] or training_data[3] != validation_data[3]:
+        raise ValueError("classifier data factory metadata changed between calls")
     train_loader, val_loader, class_map, data_summary = training_data
     return ClassifierTrainingData(
         train_loader=train_loader,
@@ -56,28 +60,15 @@ def prepare_classifier_data(config: ClassifierConfig) -> ClassifierTrainingData:
 
 def validate_classifier_training_data(
     data: TrainingFactoryResult,
-    *,
-    expected_num_classes: int,
 ) -> None:
     """factory 반환값의 클래스 정보와 첫 학습·검증 batch를 검증한다."""
 
     train_loader, val_loader, class_map, data_summary = data
-    validate_classifier_class_map(
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
-    validate_classifier_data_summary(
-        data_summary,
-        class_map,
-        expected_num_classes=expected_num_classes,
+    validate_classifier_class_map(class_map)
+    validate_classifier_data_summary(data_summary, class_map)
+    validate_classifier_training_batch(
+        first_batch(train_loader, name="train_loader"), class_map
     )
     validate_classifier_training_batch(
-        first_batch(train_loader, name="train_loader"),
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
-    validate_classifier_training_batch(
-        first_batch(val_loader, name="val_loader"),
-        class_map,
-        expected_num_classes=expected_num_classes,
+        first_batch(val_loader, name="val_loader"), class_map
     )
