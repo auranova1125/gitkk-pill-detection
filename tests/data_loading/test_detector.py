@@ -15,14 +15,10 @@ from types import SimpleNamespace
 import torch
 
 from data_loading.detector import PillDetectionDataset, build_detector_inputs
-from data_loading.detector_data_paths import (
-    DEFAULT_DETECTOR_DATA_PATHS,
-    REPOSITORY_ROOT,
-    resolve_detector_image_path,
-)
 from data_loading.detector_package import (
     calculate_detector_package_metadata,
     load_detector_package,
+    resolve_detector_image_path,
 )
 from data_loading.detector_transforms import DEFAULT_DETECTOR_AUGMENTATION
 from detector.input_validation import (
@@ -31,6 +27,8 @@ from detector.input_validation import (
     validate_detector_training_batch,
 )
 from utils.io import write_json
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 def write_png(path):
@@ -59,33 +57,27 @@ class DataTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
         self.package = self.root / "dataset"
-        (self.package / "annotations").mkdir(parents=True)
-        self.settings = copy.deepcopy(DEFAULT_DETECTOR_DATA_PATHS)
+        self.package.mkdir(parents=True)
         self.augmentation = copy.deepcopy(DEFAULT_DETECTOR_AUGMENTATION)
-        self.settings.update(
-            package_dir=str(self.package),
-            image_roots={
-                "sprint": str(self.package / "images/sprint"),
-                "archive": str(self.package / "images/archive"),
-            },
-        )
-        self.rows, self.labels = [], {}
+        self.rows = []
+        self.labels = {"images": [], "annotations": [], "categories": []}
         for split, offset in (("train", 0), ("validation", 2)):
-            images, annotations = [], []
-            for j, dataset in enumerate(("sprint", "archive"), 1):
+            for j in range(1, 3):
                 iid = offset + j
                 group = f"K-{iid * 2 - 1:06d}-{iid * 2:06d}"
-                name = f"sample-{iid}.png"
-                images.append({"id": iid, "file_name": name, "width": 32, "height": 32})
+                file_name = f"sample-{iid}.png"
+                name = f"images/{file_name}"
+                self.labels["images"].append(
+                    {"id": iid, "file_name": name, "width": 32, "height": 32}
+                )
                 write_png(
                     resolve_detector_image_path(
                         name,
-                        dataset=dataset,
-                        roots=self.settings["image_roots"],
+                        root=self.package,
                     )
                 )
                 for k in range(2):
-                    annotations.append(
+                    self.labels["annotations"].append(
                         {
                             "id": iid * 10 + k,
                             "image_id": iid,
@@ -99,21 +91,14 @@ class DataTests(unittest.TestCase):
                 self.rows.append(
                     {
                         "image_id": iid,
-                        "dataset": dataset,
                         "image_path": name,
-                        "original_image_id": iid,
                         "annotation_count": 2,
                         "group_id": group,
                         "split": split,
                     }
                 )
-            self.labels[split] = {
-                "images": images,
-                "annotations": annotations,
-                "categories": [],
-            }
         self.save()
-        label_map, data_summary = calculate_detector_package_metadata(self.settings)
+        label_map, data_summary = calculate_detector_package_metadata(self.package)
         write_json(self.package / "detector_label_map.json", label_map, sort_keys=True)
         write_json(
             self.package / "detector_data_summary.json",
@@ -122,30 +107,25 @@ class DataTests(unittest.TestCase):
         )
 
     def save(self):
-        for split, payload in self.labels.items():
-            (self.package / "annotations" / f"{split}.json").write_text(
-                json.dumps(payload)
-            )
+        (self.package / "annotations.json").write_text(json.dumps(self.labels))
         with (self.package / "split_manifest.csv").open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=list(self.rows[0]))
             writer.writeheader()
             writer.writerows(self.rows)
 
     def ann(self):
-        return self.labels["train"]["annotations"][0]
+        return self.labels["annotations"][0]
 
     def build_inputs(self):
-        settings_path = self.root / "factory_settings.json"
-        settings_path.write_text(json.dumps(self.settings), encoding="utf-8")
         config = SimpleNamespace(seed=42, batch_size=2, **self.augmentation)
-        config.data_settings_path = settings_path
+        config.data_dir = self.package
         return build_detector_inputs(
             config=config,
             device=torch.device("cpu"),
         )
 
     def test_valid_records_keep_all_boxes(self):
-        records, label_map, summary = load_detector_package(self.settings)
+        records, label_map, summary = load_detector_package(self.package)
         self.assertEqual(summary["num_train_instances"], 4)
         self.assertEqual(summary["num_val_images"], 2)
         self.assertEqual(label_map["num_model_classes"], 2)
@@ -153,7 +133,10 @@ class DataTests(unittest.TestCase):
             records["train"][0]["boxes"],
             [[0.0, 2.0, 10.0, 22.0], [12.0, 2.0, 22.0, 22.0]],
         )
-        self.assertEqual(records["train"][0]["relative_path"], "sample-1.png")
+        self.assertEqual(
+            records["train"][0]["relative_path"],
+            "images/sample-1.png",
+        )
 
     def test_missing_metadata_rejected(self):
         for file_name in (
@@ -165,7 +148,7 @@ class DataTests(unittest.TestCase):
                 original = path.read_bytes()
                 path.unlink()
                 with self.assertRaises(FileNotFoundError):
-                    load_detector_package(self.settings)
+                    load_detector_package(self.package)
                 path.write_bytes(original)
 
     def test_label_map_mismatch_rejected(self):
@@ -175,7 +158,7 @@ class DataTests(unittest.TestCase):
         path.write_text(json.dumps(value), encoding="utf-8")
 
         with self.assertRaisesRegex(ValueError, "클래스 구성"):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
     def test_data_summary_mismatch_rejected(self):
         path = self.package / "detector_data_summary.json"
@@ -184,13 +167,7 @@ class DataTests(unittest.TestCase):
         path.write_text(json.dumps(value), encoding="utf-8")
 
         with self.assertRaisesRegex(ValueError, "실제 집계"):
-            load_detector_package(self.settings)
-
-    def test_data_paths_reject_experiment_settings(self):
-        self.settings["augmentation"] = copy.deepcopy(DEFAULT_DETECTOR_AUGMENTATION)
-
-        with self.assertRaisesRegex(ValueError, "알 수 없는 데이터 경로"):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
     def test_public_factory_returns_valid_detector_batches(self):
         train_loader, val_loader, label_map, summary = self.build_inputs()
@@ -204,16 +181,14 @@ class DataTests(unittest.TestCase):
 
         self.assertEqual(len(train_loader.dataset), 2)
         self.assertEqual(len(val_loader.dataset), 2)
-        self.assertEqual(summary["train_augmentation"], self.augmentation)
-        self.assertEqual(summary["validation_augmentation"], "none")
         self.assertTrue(torch.all(train_batch["targets"][0]["labels"] == 1))
         self.assertEqual(
-            train_batch["meta"][0]["source_annotation_count"],
+            train_batch["meta"][0]["annotation_count"],
             len(train_batch["targets"][0]["boxes"]),
         )
 
     def test_dataset_flips_image_boxes_together(self):
-        records, _, _ = load_detector_package(self.settings)
+        records, _, _ = load_detector_package(self.package)
         dataset = PillDetectionDataset(
             records["train"][:1],
             {
@@ -257,9 +232,9 @@ class DataTests(unittest.TestCase):
         self.assertEqual(snapshot(first_train), snapshot(second_train))
 
     def test_dataset_rejects_actual_image_size_mismatch(self):
-        self.labels["train"]["images"][0]["width"] = 31
+        self.labels["images"][0]["width"] = 31
         self.save()
-        records, _, _ = load_detector_package(self.settings)
+        records, _, _ = load_detector_package(self.package)
         dataset = PillDetectionDataset(
             records["train"][:1],
             DEFAULT_DETECTOR_AUGMENTATION,
@@ -270,50 +245,56 @@ class DataTests(unittest.TestCase):
             dataset[0]
 
     def test_excluded_unreferenced_image_is_not_loaded(self):
-        write_png(Path(self.settings["image_roots"]["sprint"]) / "excluded.png")
-        records, _, _ = load_detector_package(self.settings)
+        write_png(self.package / "excluded.png")
+        records, _, _ = load_detector_package(self.package)
         self.assertEqual(sum(map(len, records.values())), 4)
 
     def test_duplicate_annotation_rejected(self):
-        self.labels["train"]["annotations"].append(copy.deepcopy(self.ann()))
+        self.labels["annotations"].append(copy.deepcopy(self.ann()))
         self.save()
         with self.assertRaisesRegex(ValueError, "ID"):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
     def test_duplicate_image_rejected(self):
-        self.labels["train"]["images"].append(
-            copy.deepcopy(self.labels["train"]["images"][0])
-        )
+        self.labels["images"].append(copy.deepcopy(self.labels["images"][0]))
         self.save()
         with self.assertRaisesRegex(ValueError, "ID"):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
     def test_orphan_annotation_rejected(self):
         self.ann()["image_id"] = 999
         self.save()
         with self.assertRaises(ValueError):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
-    def test_wrong_split_rejected(self):
+    def test_unknown_split_rejected(self):
+        self.rows[0]["split"] = "test"
+        self.save()
+        with self.assertRaisesRegex(ValueError, "지원하지 않는 분할"):
+            load_detector_package(self.package)
+
+    def test_manifest_is_the_only_split_source(self):
         self.rows[0]["split"] = "validation"
         self.save()
-        with self.assertRaisesRegex(ValueError, "분할"):
-            load_detector_package(self.settings)
+
+        _, summary = calculate_detector_package_metadata(self.package)
+
+        self.assertEqual(summary["num_train_images"], 1)
+        self.assertEqual(summary["num_val_images"], 3)
 
     def test_manifest_count_rejected(self):
         self.rows[0]["annotation_count"] = 1
         self.save()
         with self.assertRaisesRegex(ValueError, "개수"):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
     def test_missing_image_rejected(self):
         resolve_detector_image_path(
             self.rows[0]["image_path"],
-            dataset=self.rows[0]["dataset"],
-            roots=self.settings["image_roots"],
+            root=self.package,
         ).unlink()
         with self.assertRaises(FileNotFoundError):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
     def test_bad_boxes_rejected(self):
         for box in (
@@ -327,13 +308,13 @@ class DataTests(unittest.TestCase):
                 self.ann()["bbox"] = box
                 self.save()
                 with self.assertRaises(ValueError):
-                    load_detector_package(self.settings)
+                    load_detector_package(self.package)
 
     def test_area_mismatch_rejected(self):
         self.ann()["area"] = 199
         self.save()
         with self.assertRaisesRegex(ValueError, "면적"):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
     def test_missing_or_invalid_drug_code_rejected(self):
         for value in (None, "", "000001", "K-1", "K-00000A"):
@@ -341,7 +322,7 @@ class DataTests(unittest.TestCase):
                 self.ann()["drug_code"] = value
                 self.save()
                 with self.assertRaisesRegex(ValueError, "drug_code"):
-                    load_detector_package(self.settings)
+                    load_detector_package(self.package)
 
     def test_invalid_category_id_rejected(self):
         for value in (True, -1, "1"):
@@ -349,7 +330,7 @@ class DataTests(unittest.TestCase):
                 self.ann()["category_id"] = value
                 self.save()
                 with self.assertRaisesRegex(ValueError, "category_id"):
-                    load_detector_package(self.settings)
+                    load_detector_package(self.package)
 
     def test_ignore_and_crowd_rejected(self):
         for field in ("ignore", "iscrowd"):
@@ -357,58 +338,46 @@ class DataTests(unittest.TestCase):
                 self.ann()[field] = 1
                 self.save()
                 with self.assertRaises(ValueError):
-                    load_detector_package(self.settings)
+                    load_detector_package(self.package)
                 self.ann()[field] = 0
 
     def test_group_overlap_rejected(self):
         old = self.rows[0]["group_id"]
-        name = "validation-overlap.png"
+        name = "images/validation-overlap.png"
         self.rows[2].update(group_id=old, image_path=name)
-        self.labels["validation"]["images"][0]["file_name"] = name
+        self.labels["images"][2]["file_name"] = name
         write_png(
             resolve_detector_image_path(
                 name,
-                dataset=self.rows[2]["dataset"],
-                roots=self.settings["image_roots"],
+                root=self.package,
             )
         )
         self.save()
         with self.assertRaisesRegex(ValueError, "그룹 중복"):
-            load_detector_package(self.settings)
+            load_detector_package(self.package)
 
     def test_path_escape_rejected(self):
         with self.assertRaises(ValueError):
             resolve_detector_image_path(
                 "../../private.png",
-                dataset="sprint",
-                roots=self.settings["image_roots"],
-            )
-
-    def test_unknown_dataset_rejected(self):
-        with self.assertRaisesRegex(ValueError, "출처 설정"):
-            resolve_detector_image_path(
-                "image.png",
-                dataset="unknown",
-                roots=self.settings["image_roots"],
+                root=self.package,
             )
 
     def test_read_does_not_modify_sources(self):
         before = {p: p.read_bytes() for p in self.package.rglob("*") if p.is_file()}
-        first = load_detector_package(self.settings)
-        self.assertEqual(first, load_detector_package(self.settings))
+        first = load_detector_package(self.package)
+        self.assertEqual(first, load_detector_package(self.package))
         self.assertTrue(all(p.read_bytes() == data for p, data in before.items()))
 
     def run_cli(self, *arguments):
-        custom = self.root / "settings.json"
-        custom.write_text(json.dumps(self.settings))
         report = self.root / "result.json"
         process = subprocess.run(
             [
                 sys.executable,
                 "main.py",
                 "check-detector-data",
-                "--settings",
-                str(custom),
+                "--data-dir",
+                str(self.package),
                 "--report",
                 str(report),
                 *arguments,

@@ -14,9 +14,7 @@ show_progress: true
 seed: 42
 
 data_factory_path: data_loading.classifier:build_classifier_inputs
-class_map_path: data/training_package_classifier/class_map.json
-data_summary_path: data/training_package_classifier/data_summary.json
-expected_num_classes: 118
+data_dir: data/classifier
 
 pretrained: true
 

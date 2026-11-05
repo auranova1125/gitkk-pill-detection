@@ -182,8 +182,7 @@ def test_converts_label_swap_to_detector_metadata_action() -> None:
     manifest = pd.DataFrame(
         [
             {
-                "image_path": "codeit/images/codeit_a.png",
-                "dataset": "codeit",
+                "image_path": "images/a.png",
                 "split": "validation",
                 "group_id": "K-000001-000002",
             }

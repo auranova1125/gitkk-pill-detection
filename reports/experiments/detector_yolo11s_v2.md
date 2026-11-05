@@ -98,8 +98,12 @@ E2e/제출 결과는 `gitkk_archive/outputs/inference/<해당 run>/`에 보존�
 분류기와 class map은 `gitkk_archive/models/classifier/resnet50_baseline_v2/`에 있다.
 
 이 저장소에는 가중치·데이터·cache·전체 예측 CSV·소스 ZIP을 올리지 않는다.
-공유한 두 그래프는 원래 결과 파일에서 생성한 요약이다. 재현 방법은
-[실행 안내](../../docs/experiments/yolo_workflow.md)에 있다.
+공유한 두 그래프는 원래 결과 파일에서 생성한 요약이다. 새 YOLO11s 실행은
+공통 [`YoloDetectorConfig`](../../configs/yolo_detector.py)의 `model_name`을
+`yolo11s.pt`로 지정하고 [`train_yolo_detector()`](../../detector/yolo_training.py)를
+호출한다. 통합 검증과 제출 파일 생성은
+[`run_pill_recognition.ipynb`](../../notebooks/baseline/run_pill_recognition.ipynb)의
+`detector_backend`를 `ultralytics`로 설정해 같은 공통 경로에서 수행한다.
 
 - 동일 공통 분류기·평가 조건으로 SSDLite/Faster R-CNN 비교
 - 팀 공통 scorer 및 threshold 위치 확인

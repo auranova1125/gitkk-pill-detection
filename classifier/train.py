@@ -306,7 +306,6 @@ def train_classifier(
         training_data.val_loader,
         training_data.class_map,
         training_data.data_summary,
-        expected_num_classes=config.expected_num_classes,
         pretrained=config.pretrained,
         device=training_data.device,
     )
@@ -319,22 +318,15 @@ def run_training(
     class_map: Mapping[str, Any],
     data_summary: Mapping[str, Any],
     *,
-    expected_num_classes: int = 118,
     pretrained: bool = True,
     device: torch.device | None = None,
 ) -> TrainingResult:
     """새 학습 또는 checkpoint 재개를 실행하고 best/last artifact를 저장한다."""
 
     # 입력 검증
-    validate_classifier_class_map(
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
-    validate_classifier_data_summary(
-        data_summary,
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
+    validate_classifier_class_map(class_map)
+    validate_classifier_data_summary(data_summary, class_map)
+    num_classes = class_map["num_classes"]
 
     # 장치 선택
     selected_device = device if device is not None else select_device()
@@ -361,7 +353,7 @@ def run_training(
 
     # 모델 생성
     model = build_classifier_model(
-        expected_num_classes,
+        num_classes,
         pretrained=pretrained,
     ).to(selected_device)
     criterion = nn.CrossEntropyLoss()
@@ -438,7 +430,7 @@ def run_training(
             val_loader,
             criterion,
             selected_device,
-            num_classes=expected_num_classes,
+            num_classes=num_classes,
             show_progress=config.show_progress,
             progress_description=(
                 f"Classifier validation {epoch + 1}/{config.max_epochs}"

@@ -107,8 +107,7 @@ def make_config(
     return ClassifierConfig(
         run_name=run_name,
         output_dir=tmp_path / "outputs",
-        class_map_path=tmp_path / "class_map.json",
-        data_summary_path=tmp_path / "data_summary.json",
+        data_dir=tmp_path,
         max_epochs=max_epochs,
         head_only_epochs=head_only_epochs,
         early_stopping_patience=patience,
@@ -249,7 +248,6 @@ def test_run_training_saves_artifacts(
         data_loader,
         make_class_map(),
         make_data_summary(),
-        expected_num_classes=NUM_CLASSES,
         pretrained=False,
         device=torch.device("cpu"),
     )
@@ -341,7 +339,6 @@ def test_run_training_resumes_in_each_stage_and_across_boundary(
         data_loader,
         make_class_map(),
         make_data_summary(),
-        expected_num_classes=NUM_CLASSES,
         pretrained=False,
         device=torch.device("cpu"),
     )
@@ -386,7 +383,6 @@ def test_run_training_stops_after_fine_tuning_patience(
         [],
         make_class_map(),
         make_data_summary(),
-        expected_num_classes=NUM_CLASSES,
         pretrained=False,
         device=torch.device("cpu"),
     )
@@ -439,7 +435,6 @@ def test_run_training_rejects_checkpoint_stage_mismatch(
             [],
             make_class_map(),
             make_data_summary(),
-            expected_num_classes=NUM_CLASSES,
             pretrained=False,
             device=torch.device("cpu"),
         )

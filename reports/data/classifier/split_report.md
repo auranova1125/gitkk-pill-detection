@@ -4,7 +4,7 @@
 
 ## 분할 기준
 
-- 탐지기 학습 패키지 `training_package_detector.zip`의 `split_manifest.csv`를 그대로 따른다.
+- 탐지기 데이터 폴더의 `split_manifest.csv`를 그대로 따른다.
 - 그룹 = 파일명의 알약 코드 조합 (예: `K-001900-016548-019607-029451`). 같은 그룹은 탐지기와 같은 쪽(train 또는 val)에 넣는다.
 - 탐지기 목록에 없는 그룹은 train에 넣는다. 그래서 분류기 val은 모두 탐지기 validation 그룹 안에 있다.
 
