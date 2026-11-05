@@ -10,6 +10,7 @@ import pandas as pd
 from utils.io import read_json
 
 CLASSIFIER_SPLIT_VERSION = "detector-split-manifest-v1"
+CLASSIFIER_MAPPING_COLUMNS = ("category_id", "item_seq", "name")
 
 
 def read_classifier_samples(package_dir: str | Path) -> pd.DataFrame:
@@ -82,19 +83,50 @@ def summarize_classifier_samples(
     }
 
 
+def validate_classifier_sample_mappings(
+    samples: pd.DataFrame,
+    class_map: dict[str, Any],
+) -> None:
+    """``samples.csv``의 중복 품목 정보가 class map과 같은지 확인한다."""
+
+    required_columns = {"class_index", "code", *CLASSIFIER_MAPPING_COLUMNS}
+    missing_columns = required_columns - set(samples.columns)
+    if missing_columns:
+        raise ValueError(f"samples.csv에 필수 열이 없습니다: {sorted(missing_columns)}")
+
+    class_lookup = {
+        entry["class_index"]: entry for entry in class_map.get("classes", [])
+    }
+    for row_index, row in samples.iterrows():
+        class_index = row["class_index"]
+        class_entry = class_lookup.get(class_index)
+        if class_entry is None:
+            raise ValueError(
+                f"samples.csv {row_index}행의 class_index가 class_map에 없습니다: "
+                f"{class_index}"
+            )
+        for column in CLASSIFIER_MAPPING_COLUMNS:
+            if row[column] != class_entry[column]:
+                raise ValueError(
+                    f"samples.csv {row_index}행의 {column}이 class_map과 다릅니다."
+                )
+        expected_code = f"K-{class_entry['category_id']:06d}"
+        if row["code"] != expected_code:
+            raise ValueError(
+                f"samples.csv {row_index}행의 code가 class_map과 다릅니다."
+            )
+
+
 def load_classifier_package(
-    *,
-    class_map_path: str | Path,
-    data_summary_path: str | Path,
+    data_dir: str | Path,
 ) -> tuple[pd.DataFrame, dict[str, Any], dict[str, Any]]:
     """분류 패키지를 읽고 저장된 요약과 실제 샘플 구성이 같은지 확인한다."""
 
-    class_map_path = Path(class_map_path)
-    data_summary_path = Path(data_summary_path)
-    package_dir = class_map_path.parent
-    class_map = read_json(class_map_path)
-    data_summary = read_json(data_summary_path)
+    package_dir = Path(data_dir).expanduser().resolve()
+    class_map = read_json(package_dir / "class_map.json")
+    data_summary = read_json(package_dir / "data_summary.json")
     samples = read_classifier_samples(package_dir)
+    validate_classifier_sample_mappings(samples, class_map)
     actual_summary = summarize_classifier_samples(
         samples,
         class_map["num_classes"],

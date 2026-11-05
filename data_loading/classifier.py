@@ -2,8 +2,7 @@
 
 학습 노트북:
     data_factory_path = "data_loading.classifier:build_classifier_inputs"
-    config.class_map_path    = "<training_package_classifier.zip을 푼 폴더>/class_map.json"
-    config.data_summary_path = "<training_package_classifier.zip을 푼 폴더>/data_summary.json"
+    config.data_dir = "<training_package_classifier.zip을 푼 폴더>"
 
 class_map.json과 같은 폴더에 samples.csv와 crops/가 있어야 한다.
 crops/의 PNG는 원본 사진에서 bbox 사방 5% 여백을 더해 이미지 경계로 clip해 자른 직사각형이다 (명세서 6.1의 1~3).
@@ -17,7 +16,7 @@ crops/의 PNG는 원본 사진에서 bbox 사방 5% 여백을 더해 이미지 �
     transform = build_classifier_inference_transform()
     image = transform(crop_pill(original_image, bbox_xywh))
 
-입력 검증:  python -m data_loading.classifier <class_map.json 경로>
+입력 검증:  python -m data_loading.classifier <분류 데이터 폴더>
 """
 
 import random
@@ -47,8 +46,7 @@ class ClassifierDataConfig(Protocol):
 
     batch_size: int
     seed: int
-    class_map_path: Path
-    data_summary_path: Path
+    data_dir: Path
 
 
 # ── 샘플 ─────────────────────────────────────────────────────────────────
@@ -116,11 +114,8 @@ def build_classifier_inputs(
     dict[str, Any],
     dict[str, Any],
 ]:
-    samples, class_map, data_summary = load_classifier_package(
-        class_map_path=config.class_map_path,
-        data_summary_path=config.data_summary_path,
-    )
-    root = Path(config.class_map_path).parent
+    samples, class_map, data_summary = load_classifier_package(config.data_dir)
+    root = Path(config.data_dir).expanduser().resolve()
 
     train_samples = samples[samples.split == "train"]
     val_samples = samples[samples.split == "val"]
@@ -173,13 +168,12 @@ if __name__ == "__main__":
     from classifier.training_data import validate_classifier_training_data
 
     if len(sys.argv) != 2:
-        sys.exit("사용: python -m data_loading.classifier <class_map.json 경로>")
-    path = Path(sys.argv[1])
+        sys.exit("사용: python -m data_loading.classifier <분류 데이터 폴더>")
+    data_dir = Path(sys.argv[1])
     cfg = SimpleNamespace(
         batch_size=32,
         seed=42,
-        class_map_path=path,
-        data_summary_path=path.with_name("data_summary.json"),
+        data_dir=data_dir,
     )
     train_loader, validation_loader, class_map, data_summary = build_classifier_inputs(
         config=cfg,
@@ -191,10 +185,7 @@ if __name__ == "__main__":
         class_map,
         data_summary,
     )
-    validate_classifier_training_data(
-        training_data,
-        expected_num_classes=class_map["num_classes"],
-    )
+    validate_classifier_training_data(training_data)
     print(
         "입력 검증 완료",
         data_summary["num_train_samples"],

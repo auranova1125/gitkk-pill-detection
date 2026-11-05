@@ -11,6 +11,7 @@ from configs.yaml_loading import (
     validate_boolean,
     validate_device_name,
     validate_factory_path,
+    validate_positive_integer,
     validate_run_name,
 )
 
@@ -26,13 +27,15 @@ class DetectorConfig:
     score_threshold: float
     nms_threshold: float
     early_stopping_patience: int
+    data_dir: Path = Path("data/detector")
     data_factory_path: str | None = None
-    data_settings_path: Path | None = None
     pretrained_backbone: bool = True
     device: str = "auto"
-    model_name: str = "ssdlite320_mobilenet_v3_large"
+    model_name: str = "fasterrcnn_resnet50_fpn_v2"
+    image_min_size: int | None = None
+    image_max_size: int | None = None
     seed: int = 42
-    batch_size: int = 8
+    batch_size: int = 1
     max_epochs: int = 50
     momentum: float = 0.9
     horizontal_flip: float = 0.0
@@ -44,14 +47,24 @@ class DetectorConfig:
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
+        self.data_dir = Path(self.data_dir)
         if self.resume_from is not None:
             self.resume_from = Path(self.resume_from)
-        if self.data_settings_path is not None:
-            self.data_settings_path = Path(self.data_settings_path)
 
         validate_run_name(self.run_name)
         if not self.model_name.strip():
             raise ValueError("model_name must not be empty")
+        if (self.image_min_size is None) != (self.image_max_size is None):
+            raise ValueError(
+                "image_min_size and image_max_size must be configured together"
+            )
+        if self.image_min_size is not None and self.image_max_size is not None:
+            validate_positive_integer(self.image_min_size, name="image_min_size")
+            validate_positive_integer(self.image_max_size, name="image_max_size")
+            if self.image_min_size > self.image_max_size:
+                raise ValueError(
+                    "image_min_size must be less than or equal to image_max_size"
+                )
         validate_factory_path(self.data_factory_path, name="data_factory_path")
         validate_boolean(self.pretrained_backbone, name="pretrained_backbone")
         validate_device_name(self.device)
@@ -142,7 +155,7 @@ class DetectorConfig:
         values = asdict(self)
         for field_name in (
             "output_dir",
-            "data_settings_path",
+            "data_dir",
             "resume_from",
         ):
             value = values[field_name]

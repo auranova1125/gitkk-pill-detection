@@ -55,11 +55,6 @@ def _is_integer(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def _validate_num_classes(expected_num_classes: int) -> None:
-    if not _is_integer(expected_num_classes) or expected_num_classes <= 0:
-        raise ValueError("expected_num_classes must be a positive integer")
-
-
 def _require_mapping(value: Any, name: str) -> Mapping[str, Any]:
     return require_mapping(value, name, error_type=InputValidationError)
 
@@ -79,41 +74,27 @@ def _require_fields(
 
 def _class_entries_by_index(
     class_map: Mapping[str, Any],
-    *,
-    expected_num_classes: int,
 ) -> dict[int, Mapping[str, Any]]:
-    validate_classifier_class_map(
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
+    validate_classifier_class_map(class_map)
     return {entry["class_index"]: entry for entry in class_map["classes"]}
 
 
 def validate_classifier_class_map(
     class_map: Mapping[str, Any],
-    *,
-    expected_num_classes: int = 118,
 ) -> None:
     """클래스 index와 실제 품목 매핑을 검증한다."""
 
-    _validate_num_classes(expected_num_classes)
     class_map = _require_mapping(class_map, "class_map")
     _require_fields(class_map, {"num_classes", "classes"}, "class_map")
-
-    if class_map["num_classes"] != expected_num_classes:
-        _fail(
-            "class_map.num_classes must equal "
-            f"{expected_num_classes}, got {class_map['num_classes']!r}"
-        )
+    num_classes = class_map["num_classes"]
+    if not _is_integer(num_classes) or num_classes <= 0:
+        _fail("class_map.num_classes must be a positive integer")
 
     classes = class_map["classes"]
     if not isinstance(classes, list):
         _fail("class_map.classes must be a list")
-    if len(classes) != expected_num_classes:
-        _fail(
-            "class_map.classes length must equal "
-            f"{expected_num_classes}, got {len(classes)}"
-        )
+    if len(classes) != num_classes:
+        _fail(f"class_map.classes length must equal {num_classes}, got {len(classes)}")
 
     class_indices: list[int] = []
     category_ids: list[int] = []
@@ -144,13 +125,13 @@ def validate_classifier_class_map(
         category_ids.append(category_id)
         item_sequences.append(item_seq)
 
-    expected_indices = set(range(expected_num_classes))
+    expected_indices = set(range(num_classes))
     if set(class_indices) != expected_indices or len(set(class_indices)) != len(
         class_indices
     ):
         _fail(
             "class_map class_index values must contain each integer from "
-            f"0 to {expected_num_classes - 1} exactly once"
+            f"0 to {num_classes - 1} exactly once"
         )
     if len(set(category_ids)) != len(category_ids):
         _fail("class_map category_id values must be unique")
@@ -162,7 +143,7 @@ def _validate_count_mapping(
     counts: Any,
     *,
     name: str,
-    expected_num_classes: int,
+    num_classes: int,
     require_positive: bool,
 ) -> dict[int, int]:
     counts = _require_mapping(counts, name)
@@ -183,35 +164,27 @@ def _validate_count_mapping(
             _fail(f"{name}[{raw_index!r}] must be greater than zero")
         parsed_counts[class_index] = count
 
-    expected_indices = set(range(expected_num_classes))
+    expected_indices = set(range(num_classes))
     if set(parsed_counts) != expected_indices:
-        _fail(
-            f"{name} must contain exactly the class indices "
-            f"0 to {expected_num_classes - 1}"
-        )
+        _fail(f"{name} must contain exactly the class indices 0 to {num_classes - 1}")
     return parsed_counts
 
 
 def validate_classifier_data_summary(
     data_summary: Mapping[str, Any],
     class_map: Mapping[str, Any],
-    *,
-    expected_num_classes: int = 118,
 ) -> None:
     """분할 요약과 클래스 coverage 정보를 검증한다."""
 
-    _validate_num_classes(expected_num_classes)
-    validate_classifier_class_map(
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
+    validate_classifier_class_map(class_map)
+    num_classes = class_map["num_classes"]
     data_summary = _require_mapping(data_summary, "data_summary")
     _require_fields(data_summary, _REQUIRED_SUMMARY_FIELDS, "data_summary")
 
-    if data_summary["num_classes"] != expected_num_classes:
+    if data_summary["num_classes"] != num_classes:
         _fail(
             "data_summary.num_classes must equal "
-            f"{expected_num_classes}, got {data_summary['num_classes']!r}"
+            f"{num_classes}, got {data_summary['num_classes']!r}"
         )
 
     integer_fields = (
@@ -232,13 +205,13 @@ def validate_classifier_data_summary(
     train_counts = _validate_count_mapping(
         data_summary["train_class_counts"],
         name="data_summary.train_class_counts",
-        expected_num_classes=expected_num_classes,
+        num_classes=num_classes,
         require_positive=True,
     )
     val_counts = _validate_count_mapping(
         data_summary["val_class_counts"],
         name="data_summary.val_class_counts",
-        expected_num_classes=expected_num_classes,
+        num_classes=num_classes,
         require_positive=False,
     )
 
@@ -293,15 +266,11 @@ def _validate_bbox(value: Any, index: int) -> None:
 def validate_classifier_training_batch(
     batch: Mapping[str, Any],
     class_map: Mapping[str, Any],
-    *,
-    expected_num_classes: int = 118,
 ) -> None:
     """DataLoader가 반환한 하나의 batch와 품목 매핑을 검증한다."""
 
-    class_entries = _class_entries_by_index(
-        class_map,
-        expected_num_classes=expected_num_classes,
-    )
+    class_entries = _class_entries_by_index(class_map)
+    num_classes = class_map["num_classes"]
     batch = _require_mapping(batch, "batch")
     _require_fields(batch, {"images", "targets", "meta"}, "batch")
 
@@ -331,8 +300,8 @@ def validate_classifier_training_batch(
         _fail(
             f"batch.targets must have shape [{batch_size}], got {tuple(targets.shape)}"
         )
-    if torch.any((targets < 0) | (targets >= expected_num_classes)):
-        _fail(f"batch.targets values must be between 0 and {expected_num_classes - 1}")
+    if torch.any((targets < 0) | (targets >= num_classes)):
+        _fail(f"batch.targets values must be between 0 and {num_classes - 1}")
 
     if not isinstance(meta, list):
         _fail("batch.meta must be a list")

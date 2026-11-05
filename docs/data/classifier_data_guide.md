@@ -15,7 +15,7 @@
 데이터를 만든 방법·기준, 검수 결과, 확인 Notebook은 [분류 데이터 ETL](classifier_etl.md)에 있다.
 
 ## 데이터 v1
-구글 드라이브 `gitkk_archive/training_package_classifier.zip` (탐지기 `training_package_detector.zip`과 같은 폴더)
+구글 드라이브 `gitkk_archive/training_package_classifier.zip`
 
 zip을 풀면 맨 위에 바로 다음이 있다.
 ```
@@ -48,19 +48,15 @@ crops/<약 코드>/<sample_id>.png   원본에서 bbox 사방 5% 여백 + 경계
 새 학습의 기본 후보는 v2다. 기존 기준 모델 재현이나 변경 전후 비교에는 v1을 사용하고, 실행 기록에는 사용한 패키지와 `split_hash`를 함께 남긴다. 상세 변경은 [분류 데이터 v2 보고서](../../reports/data/classifier/data_v2_report.md)에서 확인한다.
 
 ## 사용법
-`notebooks/baseline/train_classifier.ipynb` 설정 셀에서 다음을 바꾼다. 로더는 `class_map_path`와 같은 폴더에서 `samples.csv`와 `crops/`를 읽는다.
+`notebooks/baseline/train_classifier.ipynb` 설정 셀에서 다음을 바꾼다. 로더는 `data_dir`에서 `class_map.json`, `data_summary.json`, `samples.csv`와 `crops/`를 함께 읽는다.
 ```python
 # 드라이브에서 바로 읽으면 느리므로 Colab 로컬에 푼다
 !unzip -q "/content/drive/MyDrive/gitkk_archive/training_package_classifier_v2.zip" -d /content/training_package_classifier_v2
 
-data_factory_path = "data_loading.classifier:build_classifier_inputs"
-config = ClassifierConfig(
-    ...,
-    class_map_path="/content/training_package_classifier_v2/class_map.json",
-    data_summary_path="/content/training_package_classifier_v2/data_summary.json",
-)
+data_dir = Path("/content/training_package_classifier_v2")
+config = replace(base_config, data_dir=data_dir)
 ```
-- 입력 검증만 따로: 레포 루트에서 `uv run python -m data_loading.classifier /content/training_package_classifier_v2/class_map.json`
+- 입력 검증만 따로: 레포 루트에서 `uv run python -m data_loading.classifier /content/training_package_classifier_v2`
 - `data_summary.json`이 `samples.csv`와 맞지 않으면(다른 패키지의 파일을 섞은 경우) 학습 전에 멈춘다
 
 ## 로더 구성
