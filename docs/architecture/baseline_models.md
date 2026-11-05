@@ -75,6 +75,7 @@ COCO detector 전체 가중치는 사용하지 않는다. ImageNet 사전학습 
 | 분류기 | ResNet-50 | 기준 구현·학습 완료 | 품목 분류 기준선 |
 | 탐지기 | SSDLite320 MobileNetV3-Large | 기준 구현, 실제 전체 학습 결과 대기 | 속도와 위치 정확도 기준선 |
 | 탐지기 | SSD300 VGG16 | 후보 | 같은 SSD 계열에서 고 IoU 위치 정확도 비교 |
+| 탐지기 | YOLO11s | 별도 Ultralytics backend·학습 및 e2e 실행 지원 | [v2 학습·공통 분류기 e2e·Kaggle 결과](../../reports/experiments/detector_yolo11s_v2.md) |
 
 후보는 결과 없이 registry에 미리 추가하지 않는다. 기준 모델의 한계가 실제 validation에서 확인되고 비교 실험이 정해졌을 때 구현한다.
 

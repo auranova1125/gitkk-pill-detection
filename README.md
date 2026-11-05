@@ -277,4 +277,5 @@ uv run ruff format --check classifier detector pipeline data_loading configs uti
 - 입력 명세: [분류기](docs/specs/classifier_input_spec.md), [탐지기](docs/specs/detector_input_spec.md)
 - 기준 결과: [분류기](reports/baseline/classifier_report.md), [탐지기](reports/baseline/detector_report.md)
 - 실험 기록: [분류기](reports/experiments/classifier_experiments.md)
+- YOLO11s: [학습·e2e·Kaggle 실행 안내](docs/experiments/yolo_workflow.md), [v2 실험 결과](reports/experiments/detector_yolo11s_v2.md)
 - 데이터 보고서: [분류 데이터](reports/data/classifier/validation_report.md), [탐지 데이터](reports/data/detector/validation_report.md)
