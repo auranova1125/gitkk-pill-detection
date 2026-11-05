@@ -11,7 +11,8 @@ from configs.yaml_loading import (
     validate_boolean,
     validate_device_name,
     validate_factory_path,
-    validate_keys,
+    validate_positive_integer,
+    validate_run_name,
 )
 
 
@@ -26,31 +27,44 @@ class DetectorConfig:
     score_threshold: float
     nms_threshold: float
     early_stopping_patience: int
+    data_dir: Path = Path("data/detector")
     data_factory_path: str | None = None
-    data_settings_path: Path | None = None
     pretrained_backbone: bool = True
     device: str = "auto"
-    model_name: str = "ssdlite320_mobilenet_v3_large"
+    model_name: str = "fasterrcnn_resnet50_fpn_v2"
+    image_min_size: int | None = None
+    image_max_size: int | None = None
     seed: int = 42
-    batch_size: int = 8
+    batch_size: int = 1
     max_epochs: int = 50
     momentum: float = 0.9
+    horizontal_flip: float = 0.0
+    vertical_flip: float = 0.0
+    brightness: float = 0.0
+    contrast: float = 0.0
     resume_from: Path | None = None
     show_progress: bool = True
 
     def __post_init__(self) -> None:
         self.output_dir = Path(self.output_dir)
+        self.data_dir = Path(self.data_dir)
         if self.resume_from is not None:
             self.resume_from = Path(self.resume_from)
-        if self.data_settings_path is not None:
-            self.data_settings_path = Path(self.data_settings_path)
 
-        if not self.run_name.strip():
-            raise ValueError("run_name must not be empty")
-        if Path(self.run_name).name != self.run_name:
-            raise ValueError("run_name must not contain path separators")
+        validate_run_name(self.run_name)
         if not self.model_name.strip():
             raise ValueError("model_name must not be empty")
+        if (self.image_min_size is None) != (self.image_max_size is None):
+            raise ValueError(
+                "image_min_size and image_max_size must be configured together"
+            )
+        if self.image_min_size is not None and self.image_max_size is not None:
+            validate_positive_integer(self.image_min_size, name="image_min_size")
+            validate_positive_integer(self.image_max_size, name="image_max_size")
+            if self.image_min_size > self.image_max_size:
+                raise ValueError(
+                    "image_min_size must be less than or equal to image_max_size"
+                )
         validate_factory_path(self.data_factory_path, name="data_factory_path")
         validate_boolean(self.pretrained_backbone, name="pretrained_backbone")
         validate_device_name(self.device)
@@ -78,6 +92,20 @@ class DetectorConfig:
             name="weight_decay",
             minimum=0.0,
         )
+        for name in ("horizontal_flip", "vertical_flip"):
+            self._validate_finite_number(
+                getattr(self, name),
+                name=name,
+                minimum=0.0,
+                maximum=1.0,
+            )
+        for name in ("brightness", "contrast"):
+            self._validate_finite_number(
+                getattr(self, name),
+                name=name,
+                minimum=0.0,
+                maximum=0.3,
+            )
         self._validate_finite_number(
             self.score_threshold,
             name="score_threshold",
@@ -127,40 +155,27 @@ class DetectorConfig:
         values = asdict(self)
         for field_name in (
             "output_dir",
-            "data_settings_path",
+            "data_dir",
             "resume_from",
         ):
             value = values[field_name]
             values[field_name] = str(value) if value is not None else None
         return values
 
+    @property
+    def run_dir(self) -> Path:
+        """탐지기 결과 루트 아래의 현재 학습 실행 폴더를 반환한다."""
+
+        return self.output_dir / self.run_name
+
 
 def load_detector_config(path: Path) -> DetectorConfig:
     """탐지기 YAML을 읽어 하나의 실행 설정으로 변환한다."""
 
     raw = load_task_yaml(path, expected_task="detector")
-    validate_keys(
-        raw,
-        allowed={
-            "task",
-            "training",
-            "data_factory_path",
-            "data_settings_path",
-            "pretrained_backbone",
-            "device",
-        },
-        required={"task", "training", "data_factory_path"},
-        context="detector config",
-    )
-    runtime_values = {
-        "data_factory_path": raw["data_factory_path"],
-        "data_settings_path": raw.get("data_settings_path"),
-        "pretrained_backbone": raw.get("pretrained_backbone", True),
-        "device": raw.get("device", "auto"),
-    }
+    values = {key: value for key, value in raw.items() if key != "task"}
     return build_dataclass(
         DetectorConfig,
-        raw["training"],
-        context="detector config.training",
-        extra_values=runtime_values,
+        values,
+        context="detector config",
     )

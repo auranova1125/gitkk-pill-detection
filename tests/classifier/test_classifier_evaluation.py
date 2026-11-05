@@ -60,7 +60,6 @@ def test_evaluate_with_predictions_maps_and_records_errors(
         classifier_class_map,
         nn.CrossEntropyLoss(),
         torch.device("cpu"),
-        expected_num_classes=NUM_CLASSES,
     )
 
     assert artifacts.metrics.top1_accuracy == pytest.approx(0.5)
@@ -85,7 +84,6 @@ def test_save_validation_artifacts_writes_json(
         classifier_class_map,
         nn.CrossEntropyLoss(),
         torch.device("cpu"),
-        expected_num_classes=NUM_CLASSES,
     )
 
     predictions_path, errors_path = save_validation_artifacts(artifacts, tmp_path)

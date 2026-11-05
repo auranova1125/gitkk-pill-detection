@@ -27,12 +27,11 @@ from classifier.model import (
     set_model_train_mode,
 )
 from configs.classifier import ClassifierConfig
-from data_loading.classifier import (
-    build_classifier_inputs,
-    read_samples,
-)
-from data_loading.classifier import (
-    make_data_summary as make_runtime_data_summary,
+from data_loading.classifier import build_classifier_inputs
+from data_loading.classifier_package import (
+    read_classifier_samples,
+    summarize_classifier_samples,
+    validate_classifier_sample_mappings,
 )
 
 NUM_CLASSES = 8
@@ -127,8 +126,7 @@ def test_train_config_defaults_and_serialization(tmp_path: Path) -> None:
     config = ClassifierConfig(
         run_name="baseline",
         output_dir=tmp_path / "outputs",
-        class_map_path=tmp_path / "class_map.json",
-        data_summary_path=tmp_path / "data_summary.json",
+        data_dir=tmp_path,
     )
 
     assert config.seed == 42
@@ -159,8 +157,7 @@ def test_train_config_rejects_invalid_values(
     values = {
         "run_name": "baseline",
         "output_dir": tmp_path / "outputs",
-        "class_map_path": tmp_path / "class_map.json",
-        "data_summary_path": tmp_path / "data_summary.json",
+        "data_dir": tmp_path,
         field_name: field_value,
     }
 
@@ -171,18 +168,29 @@ def test_train_config_rejects_invalid_values(
 def test_validate_class_map_accepts_synthetic_mapping(
     class_map: dict[str, Any],
 ) -> None:
-    validate_classifier_class_map(class_map, expected_num_classes=NUM_CLASSES)
+    validate_classifier_class_map(class_map)
 
 
-def test_validate_class_map_uses_118_classes_by_default() -> None:
-    validate_classifier_class_map(make_class_map(num_classes=118))
+def test_validate_class_map_derives_class_count_from_mapping() -> None:
+    validate_classifier_class_map(make_class_map(num_classes=7))
 
 
-def test_validate_class_map_rejects_synthetic_mapping_without_override(
-    class_map: dict[str, Any],
-) -> None:
-    with pytest.raises(InputValidationError, match="118"):
-        validate_classifier_class_map(class_map)
+def test_classifier_samples_must_match_class_map() -> None:
+    class_map = make_class_map(num_classes=2)
+    samples = pd.DataFrame(
+        [
+            {
+                "class_index": 0,
+                "code": "K-001900",
+                "category_id": 1900,
+                "item_seq": "item-000",
+                "name": "잘못된 이름",
+            }
+        ]
+    )
+
+    with pytest.raises(ValueError, match=r"name.*class_map"):
+        validate_classifier_sample_mappings(samples, class_map)
 
 
 @pytest.mark.parametrize("duplicate_field", ["class_index", "category_id", "item_seq"])
@@ -195,7 +203,6 @@ def test_validate_class_map_rejects_duplicates(
     with pytest.raises(InputValidationError):
         validate_classifier_class_map(
             class_map,
-            expected_num_classes=NUM_CLASSES,
         )
 
 
@@ -205,7 +212,6 @@ def test_validate_data_summary_accepts_missing_validation_class(
     validate_classifier_data_summary(
         make_data_summary(),
         class_map,
-        expected_num_classes=NUM_CLASSES,
     )
 
 
@@ -219,7 +225,6 @@ def test_validate_data_summary_rejects_group_overlap(
         validate_classifier_data_summary(
             data_summary,
             class_map,
-            expected_num_classes=NUM_CLASSES,
         )
 
 
@@ -234,7 +239,6 @@ def test_validate_data_summary_requires_every_training_class(
         validate_classifier_data_summary(
             data_summary,
             class_map,
-            expected_num_classes=NUM_CLASSES,
         )
 
 
@@ -248,7 +252,6 @@ def test_validate_data_summary_rejects_validation_index_mismatch(
         validate_classifier_data_summary(
             data_summary,
             class_map,
-            expected_num_classes=NUM_CLASSES,
         )
 
 
@@ -259,7 +262,6 @@ def test_validate_batch_accepts_synthetic_loader_batch(
     validate_classifier_training_batch(
         valid_batch,
         class_map,
-        expected_num_classes=NUM_CLASSES,
     )
 
 
@@ -290,17 +292,22 @@ def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> No
                     "image_path": f"/synthetic/{sample_id}.png",
                     "category_id": 1900 + class_index,
                     "item_seq": f"item-{class_index:03d}",
+                    "name": f"합성 품목 {class_index}",
                     "bbox_xywh": json.dumps([1.0, 2.0, 8.0, 6.0]),
                     "group_id": f"group-{sample_id}",
                     "drug_dir": "",
                     "class_index": class_index,
+                    "code": f"K-{1900 + class_index:06d}",
                     "crop_path": str(crop_path),
                     "split": split,
                 }
             )
 
     pd.DataFrame(rows).to_csv(tmp_path / "samples.csv", index=False)
-    data_summary = make_runtime_data_summary(read_samples(tmp_path), num_classes)
+    data_summary = summarize_classifier_samples(
+        read_classifier_samples(tmp_path),
+        num_classes,
+    )
     (tmp_path / "data_summary.json").write_text(
         json.dumps(data_summary, ensure_ascii=False),
         encoding="utf-8",
@@ -308,8 +315,7 @@ def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> No
     config = ClassifierConfig(
         run_name="runtime-loader",
         output_dir=tmp_path / "outputs",
-        class_map_path=tmp_path / "class_map.json",
-        data_summary_path=tmp_path / "data_summary.json",
+        data_dir=tmp_path,
         batch_size=2,
     )
 
@@ -323,12 +329,10 @@ def test_runtime_classifier_factory_reads_training_package(tmp_path: Path) -> No
     validate_classifier_training_batch(
         next(iter(train_loader)),
         loaded_class_map,
-        expected_num_classes=num_classes,
     )
     validate_classifier_training_batch(
         next(iter(val_loader)),
         loaded_class_map,
-        expected_num_classes=num_classes,
     )
     first_val_images = next(iter(val_loader))["images"]
     second_val_images = next(iter(val_loader))["images"]
@@ -357,7 +361,6 @@ def test_validate_batch_rejects_invalid_tensors(
         validate_classifier_training_batch(
             invalid_batch,
             class_map,
-            expected_num_classes=NUM_CLASSES,
         )
 
 
@@ -372,7 +375,6 @@ def test_validate_batch_rejects_non_finite_image(
         validate_classifier_training_batch(
             invalid_batch,
             class_map,
-            expected_num_classes=NUM_CLASSES,
         )
 
 
@@ -387,7 +389,6 @@ def test_validate_batch_rejects_meta_target_mismatch(
         validate_classifier_training_batch(
             invalid_batch,
             class_map,
-            expected_num_classes=NUM_CLASSES,
         )
 
 
@@ -401,7 +402,6 @@ def test_validate_batch_requires_meta_list(
         validate_classifier_training_batch(
             invalid_batch,
             class_map,
-            expected_num_classes=NUM_CLASSES,
         )
 
 

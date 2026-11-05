@@ -26,22 +26,41 @@ class PillRecognitionImageDataset(Dataset[dict[str, Any]]):
             raise FileNotFoundError(
                 f"pill recognition input directory does not exist: {self.input_dir}"
             )
-        self.image_paths = sorted(
+        image_paths = sorted(
             path
             for path in self.input_dir.rglob("*")
             if path.is_file() and path.suffix.lower() in SUPPORTED_IMAGE_SUFFIXES
         )
-        if not self.image_paths:
+        if not image_paths:
             raise ValueError(
                 f"pill recognition input directory contains no supported images: "
                 f"{self.input_dir}"
             )
 
+        samples: list[tuple[int, Path]] = []
+        seen_image_ids: set[int] = set()
+        for image_path in image_paths:
+            if not image_path.stem.isascii() or not image_path.stem.isdigit():
+                relative_path = image_path.relative_to(self.input_dir).as_posix()
+                raise ValueError(
+                    "pill recognition image filename stem must be an ASCII integer: "
+                    f"{relative_path}"
+                )
+            image_id = int(image_path.stem)
+            if image_id in seen_image_ids:
+                raise ValueError(
+                    f"duplicate pill recognition image_id from filename: {image_id}"
+                )
+            seen_image_ids.add(image_id)
+            samples.append((image_id, image_path))
+
+        self.samples = sorted(samples, key=lambda sample: sample[0])
+
     def __len__(self) -> int:
-        return len(self.image_paths)
+        return len(self.samples)
 
     def __getitem__(self, index: int) -> dict[str, Any]:
-        image_path = self.image_paths[index]
+        image_id, image_path = self.samples[index]
         with Image.open(image_path) as source_image:
             image = source_image.convert("RGB")
             width, height = image.size
@@ -55,7 +74,7 @@ class PillRecognitionImageDataset(Dataset[dict[str, Any]]):
         return {
             "image": image_tensor,
             "meta": {
-                "image_id": index,
+                "image_id": image_id,
                 "file_name": image_path.relative_to(self.input_dir).as_posix(),
                 "image_path": str(image_path),
                 "original_size": [height, width],

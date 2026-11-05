@@ -20,6 +20,7 @@ Codeit 원천 ─┘
 | `etl/detector/select_source.py` | 플레이스홀더 | SELECT 원천 형식 확정 후 adapter 구현 |
 | `etl/detector/training_package.py` | 구현 | 완성 패키지를 runtime parser로 검증하고 label map·summary 기록 |
 | `etl/detector/build_detector_dataset.py` | 플레이스홀더 | 두 출처 병합, 최초 그룹 분할과 최종 export 조립 |
+| `etl/detector/export_yolo_dataset.py` | 구현 | 검증된 학습 패키지를 Ultralytics YOLO label view로 변환 |
 
 플레이스홀더는 빈 결과를 반환하지 않고 `NotImplementedError`를 발생시킨다. 따라서 미완성 경로가 정상 처리된 것처럼 학습으로 넘어가지 않는다.
 
@@ -46,7 +47,7 @@ codeit_train_validated/
 
 ## 최종 학습 패키지
 
-완성 출력은 [탐지 데이터 사용 안내](detector_data_guide.md)의 구조와 [탐지기 입력 명세](../specs/detector_input_spec.md)를 따라야 한다. `validate_training_package`는 별도 규칙을 다시 구현하지 않고 runtime의 `data_loading.detector_package.read_records`를 호출한다. 이로써 ETL 완료 판정과 실제 학습 입력의 검증 기준을 하나로 유지한다.
+완성 출력은 [탐지 데이터 사용 안내](detector_data_guide.md)의 구조와 [탐지기 입력 명세](../specs/detector_input_spec.md)를 따라야 한다. `validate_training_package`는 runtime parser와 같은 내부 검사 경로로 annotation·manifest·이미지 연결을 검증하고 metadata를 계산한다. 완성된 패키지를 읽는 runtime DataLoader는 전달된 metadata와 같은 계산 결과를 비교한다. 이로써 ETL 생성과 실제 학습 입력의 검증 기준을 하나로 유지한다.
 
 ## 구현 보류 조건
 
@@ -57,3 +58,26 @@ codeit_train_validated/
 3. 두 출처에서 ID가 겹칠 때 사용할 재번호 부여 규칙
 
 기존 split manifest가 있다면 임의로 다시 나누지 않고 그대로 보존하는 것을 우선한다.
+
+## Ultralytics YOLO용 파생 데이터
+
+YOLO 학습은 기존 `annotations.json`과 다른 label text 형식을 요구한다. 이를 원천 데이터나 별도 split으로 관리하지 않고, 검증된 detector 학습 패키지에서 다시 만들 수 있는 파생 view로 취급한다.
+
+```bash
+uv run python -m etl.detector.export_yolo_dataset \
+  --data-dir data/detector
+```
+
+이미지는 복사하거나 이동하지 않는다. `split_manifest.csv`의 기존 train/validation 배정을 그대로 사용하면서 다음 파일만 학습 패키지 안에 생성한다.
+
+```text
+data/detector/
+├── images/                    # 기존 이미지, 변경 없음
+├── labels/                    # class 0(pill)의 정규화 YOLO bbox
+├── yolo_train.txt             # 기존 train 이미지 절대 경로 목록
+├── yolo_validation.txt        # 기존 validation 이미지 절대 경로 목록
+├── yolo_dataset.yaml          # Ultralytics data 설정
+└── yolo_export_summary.json   # source split hash와 변환 개수
+```
+
+다시 생성하려면 `--overwrite`를 명시한다. 이 옵션은 `yolo_export_summary.json`으로 exporter 소유권이 확인된 label과 목록만 교체하며, 원본 이미지·annotation·split manifest는 수정하지 않는다.

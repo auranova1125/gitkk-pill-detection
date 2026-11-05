@@ -44,11 +44,11 @@ import pandas as pd
 import torch
 from PIL import Image
 
-from data_loading.classifier import (
-    EVAL_SPLIT,
-    build_classifier_eval_loader,
-    make_eval_summary,
-    read_samples,
+from data_loading.classifier import build_classifier_eval_loader
+from data_loading.classifier_package import (
+    CLASSIFIER_EVAL_SPLIT,
+    read_classifier_samples,
+    summarize_classifier_eval_samples,
 )
 from data_loading.image_transforms import CROP_MARGIN, cut_pill
 from etl.classifier.build_classifier_v2 import apply_label_actions
@@ -362,7 +362,7 @@ def build_samples(
     samples = pd.DataFrame(
         {
             "sample_id": labels.sample_id,
-            "split": EVAL_SPLIT,
+            "split": CLASSIFIER_EVAL_SPLIT,
             "class_index": [classes[c]["class_index"] for c in labels.code],
             "code": labels.code,
             "category_id": labels.code.str[2:].astype(int),
@@ -411,7 +411,10 @@ def write_package(
         json.dumps(class_map, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     save_table(excluded, package_dir / "excluded.csv")
-    summary = make_eval_summary(read_samples(package_dir), class_map["num_classes"])
+    summary = summarize_classifier_eval_samples(
+        read_classifier_samples(package_dir),
+        class_map["num_classes"],
+    )
     (package_dir / "eval_summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
@@ -658,7 +661,7 @@ def build_aihub_val_eval_package(
     write_report(
         path=report_dir / "aihub_val_eval_package_report.md",
         labels=labels,
-        samples=read_samples(package_dir),
+        samples=read_classifier_samples(package_dir),
         excluded=excluded,
         duplicates=duplicates,
         summary=summary,

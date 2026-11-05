@@ -30,10 +30,18 @@ import pandas as pd
 import torch
 from PIL import Image
 
-import data_loading.classifier as ci
 from classifier.training_data import validate_classifier_training_data
+from data_loading.classifier import build_classifier_inputs
+from data_loading.classifier_package import (
+    read_classifier_samples,
+    summarize_classifier_samples,
+)
 from data_loading.image_transforms import CROP_MARGIN as MARGIN
 from data_loading.image_transforms import cut_pill
+from etl.classifier.legacy_image_exclusions import (
+    exclude_classifier_samples,
+    load_excluded_image_ids,
+)
 from etl.classifier.paths import (
     CLASSES,
     COMBO_ZIPS,
@@ -53,6 +61,17 @@ def export_training_package(*, overwrite: bool = False) -> None:
     crops = pd.read_csv(CROPS / "crops.csv")
     if "split" not in crops:
         raise ValueError("assign_data_splits.py를 먼저 실행하세요")
+    crops, excluded_crops = exclude_classifier_samples(
+        crops,
+        load_excluded_image_ids(),
+        image_id_column="image",
+    )
+    if not excluded_crops.empty:
+        print(
+            f"확정 제외 이미지 반영: "
+            f"{excluded_crops.image.map(str).nunique()}장, "
+            f"crop {len(excluded_crops)}개"
+        )
     files = pd.read_csv(META / "label_files.csv")
     files["code"] = files.code.str.replace("-오류", "", regex=False)
     classes = pd.read_csv(CLASSES)
@@ -165,7 +184,10 @@ def export_training_package(*, overwrite: bool = False) -> None:
     (PKG / "class_map.json").write_text(
         json.dumps(class_map, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    summary = ci.make_data_summary(ci.read_samples(PKG), len(classes))
+    summary = summarize_classifier_samples(
+        read_classifier_samples(PKG),
+        len(classes),
+    )
     (PKG / "data_summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
@@ -174,13 +196,11 @@ def export_training_package(*, overwrite: bool = False) -> None:
     cfg = SimpleNamespace(
         batch_size=32,
         seed=42,
-        class_map_path=PKG / "class_map.json",
-        data_summary_path=PKG / "data_summary.json",
+        data_dir=PKG,
     )
-    loaders = ci.build_classifier_inputs(config=cfg, device=torch.device("cpu"))
+    training_data = build_classifier_inputs(config=cfg, device=torch.device("cpu"))
     validate_classifier_training_data(
-        loaders,
-        expected_num_classes=len(classes),
+        training_data,
     )
     print(
         f"입력 검증 완료: train {summary['num_train_samples']}, val {summary['num_val_samples']}"

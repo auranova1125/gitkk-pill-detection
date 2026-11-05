@@ -14,6 +14,7 @@ from detector.checkpoint import hash_label_map, load_checkpoint
 from detector.input_validation import validate_detector_label_map
 from detector.model import build_detector_model
 from utils.io import write_json
+from utils.plotting import resolve_korean_font
 from utils.runtime import select_device
 
 
@@ -224,8 +225,9 @@ def plot_detection_comparison(
 
     figure, axis = plt.subplots(figsize=(8, 6))
     axis.imshow(image.permute(1, 2, 0).numpy())
+    font_properties = resolve_korean_font()
     if title:
-        axis.set_title(title)
+        axis.set_title(title, fontproperties=font_properties)
 
     if target is not None:
         boxes = target.get("boxes") if isinstance(target, Mapping) else None
@@ -271,6 +273,7 @@ def plot_detection_comparison(
             f"{prediction.detector_score:.3f}",
             color="white",
             fontsize=9,
+            fontproperties=font_properties,
             bbox={"facecolor": "red", "alpha": 0.7, "pad": 2},
         )
     axis.set_axis_off()
@@ -296,6 +299,8 @@ def load_detector_inference_model(
     num_classes = model_config.get("num_classes")
     nms_threshold = model_config.get("nms_threshold")
     pretrained_backbone = model_config.get("pretrained_backbone")
+    image_min_size = model_config.get("image_min_size")
+    image_max_size = model_config.get("image_max_size")
 
     if num_classes != label_map["num_model_classes"]:
         raise ValueError("checkpoint class count does not match current label map")
@@ -310,6 +315,8 @@ def load_detector_inference_model(
         num_classes=num_classes,
         pretrained_backbone=pretrained_backbone,
         nms_threshold=float(nms_threshold),
+        image_min_size=image_min_size,
+        image_max_size=image_max_size,
     ).to(selected_device)
 
     model.load_state_dict(checkpoint["model_state"])

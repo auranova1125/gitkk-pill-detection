@@ -73,7 +73,11 @@ def build_parser() -> argparse.ArgumentParser:
         "check-detector-data",
         help="탐지 학습 패키지의 라벨·분할·경로를 검사한다.",
     )
-    detector_data_parser.add_argument("--settings", type=Path)
+    detector_data_parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=PROJECT_ROOT / "data/detector",
+    )
     detector_data_parser.add_argument(
         "--report",
         type=Path,
@@ -151,7 +155,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = recognize_pills_from_config(config)
         _print_json(
             {
-                "output_dir": str(config.output_dir),
+                "run_name": config.run_name,
+                "run_dir": str(config.run_dir),
                 "num_predictions": len(result.predictions),
                 "num_detector_errors": len(result.detector_errors),
                 "num_classifier_errors": len(result.classifier_errors),
@@ -166,7 +171,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "check-detector-data":
-        return _check_detector_data(args.settings, args.report)
+        return _check_detector_data(args.data_dir, args.report)
 
     raise AssertionError(f"unsupported command: {args.command}")
 
@@ -175,9 +180,9 @@ def _print_json(value: Any) -> None:
     print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True))
 
 
-def _check_detector_data(settings_path: Path | None, report_path: Path) -> int:
+def _check_detector_data(data_dir: Path, report_path: Path) -> int:
     """탐지 학습 패키지를 읽고 검사 결과를 JSON으로 저장한다."""
-    from data_loading.detector_package import load_detector_settings, read_records
+    from data_loading.detector_package import load_detector_package
     from utils.io import write_json
 
     result: dict[str, Any] = {
@@ -186,7 +191,7 @@ def _check_detector_data(settings_path: Path | None, report_path: Path) -> int:
         "executed_at_utc": datetime.now(UTC).isoformat(),
     }
     try:
-        _, _, summary = read_records(load_detector_settings(settings_path))
+        _, _, summary = load_detector_package(data_dir)
         result.update(
             status="passed",
             scope="full_labels_and_paths",
