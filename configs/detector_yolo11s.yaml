@@ -1,0 +1,55 @@
+# 날짜/순번과 device tag는 실제 Colab 실행 시 결정한다.
+run_name: 20261103-yolo11s-det-v2-baseline-01
+output_dir: outputs/detector
+model: yolo11s.pt
+data_yaml: datasets/yolo11s-v2/data.yaml
+expected_split_hash: ac6618cdf2fd69352b0d3848b69064eadbc6527d6153795c3cc2de1c2dfa7d32
+tags:
+  - task:detector
+  - stage:baseline
+  - model:yolo11s
+  - data:det-v2
+  - change:baseline
+  - device:cuda
+train:
+  device: '0'
+  epochs: 50
+  imgsz: 640
+  batch: 0.7  # GPU 메모리 70% 목표 AutoBatch; 실제 batch는 actual_train_args.json 확인
+  seed: 42
+  deterministic: true
+  patience: 7
+  workers: 2
+  optimizer: SGD
+  lr0: 0.005
+  lrf: 0.0
+  momentum: 0.9
+  weight_decay: 0.0005
+  cos_lr: true
+  warmup_epochs: 0.0
+  amp: true
+  val: true
+  fraction: 1.0
+  save: true
+  save_period: -1
+  plots: true
+  conf: 0.001
+  iou: 0.45
+  max_det: 300
+  cache: false
+  hsv_h: 0.0
+  hsv_s: 0.0
+  hsv_v: 0.0
+  degrees: 0.0
+  translate: 0.0
+  scale: 0.0
+  shear: 0.0
+  perspective: 0.0
+  flipud: 0.0
+  fliplr: 0.0
+  mosaic: 0.0
+  close_mosaic: 0
+  mixup: 0.0
+  cutmix: 0.0
+  copy_paste: 0.0
+  augmentations: []
