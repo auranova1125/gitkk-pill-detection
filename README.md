@@ -7,6 +7,7 @@
 Kaggle: [\[AI15\] 경구약제 이미지 객체 검출(Object Detection) 프로젝트](https://www.kaggle.com/competitions/ai15-level1-project/overview)
 
 결과 보고서: [4팀 GitKK 경구약제 이미지 객체 검출 프로젝트](reports/final_project_report.pdf)
+
 개인협업일지:
 - [김대현](https://app.notion.com/p/auranova25/Project-1-400d31206d348040bd8ed0384589e4ac?source=copy_link)
 - [김의연](https://app.notion.com/p/400daa60be8e806f9f51e894918d70d1)
